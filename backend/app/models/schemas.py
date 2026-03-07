@@ -1,0 +1,87 @@
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field
+
+
+class PredictOptions(BaseModel):
+    confidence: float = Field(default=0.25, ge=0, le=1)
+    iou: float = Field(default=0.45, ge=0, le=1)
+    inference_mode: Literal["direct", "sliced"] = "direct"
+    model_version: str = Field(default="mock-v1", min_length=1, max_length=64)
+    return_overlay: bool = False
+
+
+class BoundingBox(BaseModel):
+    x: float = Field(ge=0)
+    y: float = Field(ge=0)
+    width: float = Field(ge=0)
+    height: float = Field(ge=0)
+
+
+class MaskPayload(BaseModel):
+    format: Literal["polygon"] = "polygon"
+    points: list[list[int]] = Field(default_factory=list)
+
+
+class DetectionMetrics(BaseModel):
+    length_mm: float | None = None
+    width_mm: float | None = None
+    area_mm2: float | None = None
+
+
+class Detection(BaseModel):
+    id: str
+    category: str
+    confidence: float = Field(ge=0, le=1)
+    bbox: BoundingBox
+    mask: MaskPayload | None = None
+    metrics: DetectionMetrics = Field(default_factory=DetectionMetrics)
+
+
+class ArtifactLinks(BaseModel):
+    upload_path: str
+    json_path: str
+    overlay_path: str | None = None
+
+
+class PredictResponse(BaseModel):
+    schema_version: str = "1.0.0"
+    image_id: str
+    inference_ms: int = Field(ge=0)
+    model_name: str
+    model_version: str
+    backend: str
+    inference_mode: str
+    detections: list[Detection]
+    artifacts: ArtifactLinks
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class HealthResponse(BaseModel):
+    status: Literal["ok"] = "ok"
+    service: str
+    version: str
+    ready: bool
+    active_runner: str
+    storage_root: str
+
+
+class RawDetection(BaseModel):
+    category: str
+    confidence: float
+    bbox: BoundingBox
+    mask: MaskPayload | None = None
+    metrics: DetectionMetrics = Field(default_factory=DetectionMetrics)
+
+
+class RawPrediction(BaseModel):
+    model_name: str
+    model_version: str
+    backend: str
+    inference_mode: str
+    inference_ms: int
+    detections: list[RawDetection]
+    metadata: dict[str, Any] = Field(default_factory=dict)
