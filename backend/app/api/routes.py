@@ -1,0 +1,34 @@
+from __future__ import annotations
+
+from typing import Annotated
+
+from fastapi import APIRouter, File, Form, Request, UploadFile
+
+from app.models.schemas import HealthResponse, PredictOptions, PredictResponse
+
+router = APIRouter()
+
+
+@router.get("/health", response_model=HealthResponse)
+async def health(request: Request) -> HealthResponse:
+    return request.app.state.health_payload
+
+
+@router.post("/predict", response_model=PredictResponse)
+async def predict(
+    request: Request,
+    file: Annotated[UploadFile, File(...)],
+    confidence: Annotated[float, Form()] = 0.25,
+    iou: Annotated[float, Form()] = 0.45,
+    inference_mode: Annotated[str, Form()] = "direct",
+    model_version: Annotated[str, Form()] = "mock-v1",
+    return_overlay: Annotated[bool, Form()] = False,
+) -> PredictResponse:
+    options = PredictOptions(
+        confidence=confidence,
+        iou=iou,
+        inference_mode=inference_mode,
+        model_version=model_version,
+        return_overlay=return_overlay,
+    )
+    return await request.app.state.predict_service.predict(file=file, options=options)
