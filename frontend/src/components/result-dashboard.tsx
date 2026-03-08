@@ -5,6 +5,7 @@ interface ResultDashboardProps {
   result: PredictionResult;
   categoryFilter: string;
   minConfidence: number;
+  previewUrl?: string | null;
 }
 
 function getCategoryColor(category: string) {
@@ -18,7 +19,8 @@ function getCategoryColor(category: string) {
 export function ResultDashboard({
   result,
   categoryFilter,
-  minConfidence
+  minConfidence,
+  previewUrl
 }: ResultDashboardProps) {
   const filteredDetections = filterDetections(
     result.detections,
@@ -48,8 +50,12 @@ export function ResultDashboard({
         <div className="flex-1 bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.03),transparent_70%),linear-gradient(180deg,#0B1120,#0F172A)] relative p-6 flex items-center justify-center overflow-auto">
           {/* 画布主内容 - 带框图展示 */}
           <div className="relative max-h-full max-w-full rounded-lg ring-1 ring-white/10 shadow-2xl inline-block bg-[#0B1120] pb-[56.25%] w-full">
-            {/* 模拟的实际图传底图 - 用占位 SVG 替换纯色块增加质感 */}
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] bg-repeat" />
+            {/* 实际图传底图或占位 SVG */}
+            {previewUrl ? (
+              <img src={previewUrl} alt="Inspection" className="absolute inset-0 w-full h-full object-fill opacity-90 rounded-lg" />
+            ) : (
+              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] bg-repeat" />
+            )}
             <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
 
             <div className="absolute inset-0 z-10">

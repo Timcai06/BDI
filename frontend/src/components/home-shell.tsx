@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useDeferredValue, useState } from "react";
+import { startTransition, useDeferredValue, useState, useEffect } from "react";
 
 import { ResultDashboard } from "@/components/result-dashboard";
 import { StatusCard } from "@/components/status-card";
@@ -16,7 +16,19 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function HomeShell() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [confidence, setConfidence] = useState(0.45);
+
+  useEffect(() => {
+    if (!selectedFile) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(selectedFile);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [selectedFile]);
+
   const [exportOverlay, setExportOverlay] = useState(true);
   const [result, setResult] = useState<PredictionResult | null>(null);
   const [status, setStatus] = useState<PredictState>(initialState);
@@ -92,16 +104,15 @@ export function HomeShell() {
             <span className="hidden lg:block font-semibold tracking-wide text-white">INFRA-SCAN</span>
           </div>
         </div>
-        
+
         <nav className="flex-1 py-6 px-3 flex flex-col gap-2">
           {["Dashboard", "Projects", "Scans", "Settings"].map((item, idx) => (
-            <button 
-              key={item} 
-              className={`flex items-center gap-4 px-3 py-2.5 rounded-lg transition-colors ${
-                idx === 0 
-                  ? "bg-white/10 text-sky-400 font-medium" 
+            <button
+              key={item}
+              className={`flex items-center gap-4 px-3 py-2.5 rounded-lg transition-colors ${idx === 0
+                  ? "bg-white/10 text-sky-400 font-medium"
                   : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
-              }`}
+                }`}
             >
               <div className="shrink-0 h-5 w-5 bg-current opacity-70 mask-icon" />
               <span className="hidden lg:block text-sm">{item}</span>
@@ -152,7 +163,15 @@ export function HomeShell() {
                         setStatus(initialState);
                       }}
                     />
-                    
+
+                    {/* 本地图片预览图层 */}
+                    {previewUrl && (
+                      <div
+                        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40 transition-opacity group-hover:opacity-20"
+                        style={{ backgroundImage: `url(${previewUrl})` }}
+                      />
+                    )}
+
                     {/* 扫描线动画 (上传后/推理中显示) */}
                     {(status.phase === "uploading" || status.phase === "running") && (
                       <div className="absolute inset-0 pointer-events-none">
@@ -223,6 +242,7 @@ export function HomeShell() {
                 result={result}
                 categoryFilter={deferredCategoryFilter}
                 minConfidence={deferredMinConfidence}
+                previewUrl={previewUrl}
               />
             </div>
           )}
@@ -235,73 +255,74 @@ export function HomeShell() {
           <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500 mb-2">System Status</p>
           <StatusCard phase={status.phase} message={status.message} />
         </div>
-        
+
         <div className="flex-1 overflow-y-auto p-6">
           {result && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
               <div>
-                 <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500 mb-3">Display Filters</p>
-                 <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
-                   <div className="flex items-center justify-between">
-                     <span className="text-xs text-slate-400">Class</span>
-                     <select
-                        className="bg-[#0F172A] border border-white/10 rounded-md text-xs text-slate-200 px-2 py-1 outline-none focus:border-sky-500"
-                        value={categoryFilter}
-                        onChange={(event) => setCategoryFilter(event.target.value)}
-                      >
-                        {categories.map((category) => (
-                          <option key={category} value={category}>
-                            {category}
-                          </option>
-                        ))}
-                      </select>
-                   </div>
-                   
-                   <div>
-                     <div className="flex items-center justify-between mb-2">
-                       <span className="text-xs text-slate-400">Min Conf.</span>
-                       <span className="text-xs font-mono text-sky-400">{(minConfidence * 100).toFixed(0)}%</span>
-                     </div>
-                     <input
-                        className="w-full accent-sky-500 h-1 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-sky-400 [&::-webkit-slider-thumb]:rounded-full"
-                        max="0.95"
-                        min="0"
-                        step="0.05"
-                        type="range"
-                        value={minConfidence}
-                        onChange={(event) => setMinConfidence(Number(event.target.value))}
-                      />
-                   </div>
-                 </div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500 mb-3">Display Filters</p>
+                <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-400">Class</span>
+                    <select
+                      className="bg-[#0F172A] border border-white/10 rounded-md text-xs text-slate-200 px-2 py-1 outline-none focus:border-sky-500"
+                      value={categoryFilter}
+                      onChange={(event) => setCategoryFilter(event.target.value)}
+                    >
+                      {categories.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-slate-400">Min Conf.</span>
+                      <span className="text-xs font-mono text-sky-400">{(minConfidence * 100).toFixed(0)}%</span>
+                    </div>
+                    <input
+                      className="w-full accent-sky-500 h-1 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-sky-400 [&::-webkit-slider-thumb]:rounded-full"
+                      max="0.95"
+                      min="0"
+                      step="0.05"
+                      type="range"
+                      value={minConfidence}
+                      onChange={(event) => setMinConfidence(Number(event.target.value))}
+                    />
+                  </div>
+                </div>
               </div>
-              
+
               <div className="rounded-xl border border-white/5 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNSkiLz48L3N2Zz4=')] p-4">
-                 <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500 mb-2">Backend Diagnostics</p>
-                 <div className="space-y-2 text-xs font-mono">
-                   <div className="flex justify-between border-b border-white/5 pb-2">
-                     <span className="text-slate-500">Latency</span>
-                     <span className="text-sky-400">{result.inference_ms}ms</span>
-                   </div>
-                   <div className="flex justify-between border-b border-white/5 pb-2">
-                     <span className="text-slate-500">Model</span>
-                     <span className="text-slate-300">{result.model_version}</span>
-                   </div>
-                   <div className="flex justify-between">
-                     <span className="text-slate-500">Params</span>
-                     <span className="text-slate-300 flex gap-2">
-                       <span className="px-1 bg-white/5 rounded">conf:{confidence}</span>
-                       <span className="px-1 bg-white/5 rounded">iou:0.45</span>
-                     </span>
-                   </div>
-                 </div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500 mb-2">Backend Diagnostics</p>
+                <div className="space-y-2 text-xs font-mono">
+                  <div className="flex justify-between border-b border-white/5 pb-2">
+                    <span className="text-slate-500">Latency</span>
+                    <span className="text-sky-400">{result.inference_ms}ms</span>
+                  </div>
+                  <div className="flex justify-between border-b border-white/5 pb-2">
+                    <span className="text-slate-500">Model</span>
+                    <span className="text-slate-300">{result.model_version}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Params</span>
+                    <span className="text-slate-300 flex gap-2">
+                      <span className="px-1 bg-white/5 rounded">conf:{confidence}</span>
+                      <span className="px-1 bg-white/5 rounded">iou:0.45</span>
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           )}
         </div>
       </aside>
-      
+
       {/* 补充的自定义动画样式 */}
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes scan {
           0% { transform: translateY(-100%); }
           100% { transform: translateY(400%); }
