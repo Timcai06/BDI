@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -8,7 +8,7 @@ from pydantic import BaseModel
 class ErrorPayload(BaseModel):
     code: str
     message: str
-    details: dict[str, Any] | None = None
+    details: Optional[dict[str, Any]] = None
 
 
 class ErrorResponse(BaseModel):
@@ -22,7 +22,7 @@ class AppError(Exception):
         code: str,
         message: str,
         status_code: int,
-        details: dict[str, Any] | None = None,
+        details: Optional[dict[str, Any]] = None,
     ) -> None:
         super().__init__(message)
         self.code = code

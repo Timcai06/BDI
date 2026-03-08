@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -27,9 +27,9 @@ class MaskPayload(BaseModel):
 
 
 class DetectionMetrics(BaseModel):
-    length_mm: float | None = None
-    width_mm: float | None = None
-    area_mm2: float | None = None
+    length_mm: Optional[float] = None
+    width_mm: Optional[float] = None
+    area_mm2: Optional[float] = None
 
 
 class Detection(BaseModel):
@@ -37,14 +37,14 @@ class Detection(BaseModel):
     category: str
     confidence: float = Field(ge=0, le=1)
     bbox: BoundingBox
-    mask: MaskPayload | None = None
+    mask: Optional[MaskPayload] = None
     metrics: DetectionMetrics = Field(default_factory=DetectionMetrics)
 
 
 class ArtifactLinks(BaseModel):
     upload_path: str
     json_path: str
-    overlay_path: str | None = None
+    overlay_path: Optional[str] = None
 
 
 class PredictResponse(BaseModel):
@@ -73,7 +73,7 @@ class RawDetection(BaseModel):
     category: str
     confidence: float
     bbox: BoundingBox
-    mask: MaskPayload | None = None
+    mask: Optional[MaskPayload] = None
     metrics: DetectionMetrics = Field(default_factory=DetectionMetrics)
 
 
@@ -85,3 +85,4 @@ class RawPrediction(BaseModel):
     inference_ms: int
     detections: list[RawDetection]
     metadata: dict[str, Any] = Field(default_factory=dict)
+    overlay_png: Optional[bytes] = None

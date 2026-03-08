@@ -96,6 +96,13 @@ class PredictService:
             artifacts=ArtifactLinks(upload_path=upload_path, json_path="", overlay_path=None),
         )
 
+        if options.return_overlay and raw_prediction.overlay_png:
+            overlay_path = self.store.save_overlay(
+                image_id=image_id,
+                content=raw_prediction.overlay_png,
+            )
+            response.artifacts.overlay_path = overlay_path
+
         json_path = self.store.save_json(
             image_id=image_id,
             payload=response.model_dump(mode="json"),

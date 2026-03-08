@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.adapters.mock_runner import MockRunner
+from app.adapters.factory import load_runner
 from app.api.routes import router
 from app.core.config import get_settings
 from app.core.errors import AppError, ErrorPayload, ErrorResponse, app_error_handler
@@ -16,7 +16,7 @@ from app.storage.local import LocalArtifactStore
 def create_app() -> FastAPI:
     settings = get_settings()
     store = LocalArtifactStore(settings.artifact_root)
-    runner = MockRunner()
+    runner = load_runner(settings)
     predict_service = PredictService(
         store=store,
         runner=runner,

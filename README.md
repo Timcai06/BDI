@@ -40,7 +40,7 @@
 - 已落地的 `backend/` MVP 骨架
 - 已落地的 `frontend/` MVP 骨架
 
-当前处在“Phase 2 已启动，Mock 闭环已落地，真实 YOLOv8 接入待继续推进”的状态。
+当前处在“Phase 2 进行中，mock 闭环与本地基础验证已完成，真实 YOLOv8 runner 代码与依赖环境已就绪，但尚未完成真实权重验证”的状态。
 
 ## Current Status
 
@@ -54,17 +54,29 @@
 - `Next.js` 前端基础骨架
 - `GET /health` 与 `POST /predict` mock 闭环
 - `plan/phase2/` 执行文档与开工清单
+- 可通过环境变量切换的真实 `YOLOv8-seg` runner 接入位
+- overlay 文件保存能力
+- 后端 `pytest` 7/7 通过
+- 后端 `ruff check .` 通过
+- 后端 `GET /health` 启动检查通过，当前活跃 runner 为 `mock-runner`
+- 前端 `test / lint / build` 通过
+- 后端已修正为兼容 `Python 3.9` 的真实模型环境
+- 已确认 `.venv-yolo` 中安装了 `ultralytics`
+- 已确认 `.venv-yolo` 中 `ultralytics + torch` 可正常导入
 
 接下来进入：
 
-- Phase 2: 真模型接入与本地联调验证
+- Phase 2: 真模型接入与浏览器侧联调验证
 
 当前 Phase 2 的重点很明确：
 
 - 安装并验证前后端依赖
 - 跑通本地测试和构建
-- 把真实 `YOLOv8-seg` 接入 adapter 层
-- 生成真实 overlay 图并补齐导出产物
+- 在兼容 Python 环境中安装真实模型依赖
+- 挂载真实 `YOLOv8-seg` 权重并完成单图验证
+- 用真实模型结果完成 overlay 与导出联调
+- 完成浏览器侧上传到结果展示的真实闭环验证
+- 挂载真实权重文件并完成真实 runner 验证
 
 ## Repository Structure
 
@@ -128,7 +140,7 @@
 
 ## Next Step
 
-下一步建议继续推进 Phase 2，把当前 mock 骨架升级成真实可联调版本：
+下一步建议继续推进 Phase 2，把当前已验证的 mock 骨架升级成真实可联调版本：
 
 - 安装前后端依赖并完成测试
 - 接入真实 `YOLOv8-seg`
@@ -144,6 +156,14 @@
 
 ## Notes
 
-当前仓库仍然以文档驱动为主，但已经具备了前后端 MVP 骨架。
+当前仓库仍然以文档驱动为主，但已经具备了前后端 MVP 骨架，并完成了 mock 路径的基础验证。
 
 这意味着接下来的工作不再是“从零开始搭框架”，而是围绕统一协议，把 mock 闭环升级成真实模型闭环。
+
+补充说明：
+
+- 基础开发环境仍可使用当前 `Python 3.14`
+- 真实 `ultralytics` 模型依赖建议在 `Python 3.9` 到 `Python 3.12` 的虚拟环境中安装
+- 当前仓库不包含实际权重文件，未配置时后端会自动回退到 mock runner
+- 当前尚未确认本机已安装 `ultralytics` 并挂载真实权重，因此 Phase 2 还不能按“真实模型闭环完成”计算
+- 当前 `.venv-yolo` 已完成 `numpy<2` 调整，并已验证 `ultralytics + torch` 可导入
