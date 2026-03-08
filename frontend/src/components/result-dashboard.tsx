@@ -7,6 +7,14 @@ interface ResultDashboardProps {
   minConfidence: number;
 }
 
+function getCategoryColor(category: string) {
+  const norm = category.toLowerCase();
+  if (norm.includes("crack") || norm.includes("裂缝")) return "border-[#FF4D4D] bg-[#FF4D4D]/10 text-[#FF4D4D]";
+  if (norm.includes("spalling") || norm.includes("剥落")) return "border-[#FFC107] bg-[#FFC107]/10 text-[#FFC107]";
+  if (norm.includes("efflo") || norm.includes("泛碱")) return "border-[#00D2FF] bg-[#00D2FF]/10 text-[#00D2FF]";
+  return "border-emerald-400 bg-emerald-400/10 text-emerald-400";
+}
+
 export function ResultDashboard({
   result,
   categoryFilter,
@@ -18,145 +26,144 @@ export function ResultDashboard({
     minConfidence
   );
 
-  const categories = ["全部", ...new Set(result.detections.map((item) => item.category))];
-
   return (
-    <section className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
-      <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-              Result View
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold text-slate-950">识别结果主画面</h2>
+    <div className="flex flex-col xl:flex-row gap-6 h-full">
+      {/* 图像监控主界面区 */}
+      <div className="flex-1 rounded-[1.5rem] border border-white/10 bg-[#1E293B]/70 shadow-2xl backdrop-blur-md overflow-hidden flex flex-col xl:col-span-2 min-h-[500px]">
+        <div className="h-14 border-b border-white/5 flex items-center justify-between px-6 bg-[#0B1120]/40 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse" />
+            <span className="text-xs font-mono text-slate-300">LIVE / {result.image_id}</span>
           </div>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600">
-            {result.image_id}
-          </span>
+          <div className="flex gap-2">
+            <button className="h-8 w-8 rounded-md hover:bg-white/10 flex items-center justify-center transition-colors">
+              <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
+            </button>
+            <button className="h-8 w-8 rounded-md hover:bg-white/10 flex items-center justify-center transition-colors">
+              <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+            </button>
+          </div>
         </div>
 
-        <div className="mt-6 rounded-[1.75rem] border border-slate-200 bg-[radial-gradient(circle_at_top,_rgba(172,203,238,0.32),_transparent_45%),linear-gradient(135deg,#f8fafc,#dbeafe)] p-6">
-          <div className="aspect-[16/10] rounded-[1.5rem] border border-white/70 bg-[linear-gradient(160deg,rgba(15,23,42,0.12),rgba(15,23,42,0.02)),url('data:image/svg+xml,%3Csvg width=%27240%27 height=%27140%27 viewBox=%270 0 240 140%27 fill=%27none%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Crect width=%27240%27 height=%27140%27 fill=%27%23dbeafe%27/%3E%3Cpath d=%27M0 96C35 87 65 72 95 72C128 72 152 104 183 104C206 104 220 92 240 79V140H0V96Z%27 fill=%27%23cbd5e1%27/%3E%3Cpath d=%27M0 24C26 33 56 50 95 52C132 54 175 36 240 8V0H0V24Z%27 fill=%27%23e2e8f0%27/%3E%3C/svg%3E')] bg-cover bg-center p-6 shadow-inner">
-            <div className="relative h-full w-full overflow-hidden rounded-[1.1rem] border border-slate-900/10 bg-white/65 backdrop-blur">
-              {result.detections.map((item) => (
-                <div
-                  key={item.id}
-                  className="absolute rounded-2xl border-2 border-teal-500/80 bg-teal-400/15"
-                  style={{
-                    left: `${Math.min(item.bbox.x / 8, 75)}%`,
-                    top: `${Math.min(item.bbox.y / 6, 70)}%`,
-                    width: `${Math.min(item.bbox.width / 8, 35)}%`,
-                    height: `${Math.min(item.bbox.height / 5, 25)}%`
-                  }}
-                >
-                  <span className="absolute -top-8 left-0 rounded-full bg-slate-950 px-3 py-1 text-xs font-medium text-white">
-                    {item.category}
-                  </span>
-                </div>
-              ))}
+        <div className="flex-1 bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.03),transparent_70%),linear-gradient(180deg,#0B1120,#0F172A)] relative p-6 flex items-center justify-center overflow-auto">
+          {/* 画布主内容 - 带框图展示 */}
+          <div className="relative max-h-full max-w-full rounded-lg ring-1 ring-white/10 shadow-2xl inline-block bg-[#0B1120] pb-[56.25%] w-full">
+            {/* 模拟的实际图传底图 - 用占位 SVG 替换纯色块增加质感 */}
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] bg-repeat" />
+            <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
+
+            <div className="absolute inset-0 z-10">
+              {result.detections.map((item) => {
+                const colorCls = getCategoryColor(item.category);
+                // BBox mapping mock scaling
+                return (
+                  <div
+                    key={item.id}
+                    className={`absolute border-[1.5px] rounded-sm group hover:border-[2.5px] transition-all cursor-crosshair box-border hover:shadow-[0_0_15px_currentColor] ${colorCls}`}
+                    style={{
+                      left: `${Math.min(item.bbox.x / 8, 75)}%`,
+                      top: `${Math.min(item.bbox.y / 6, 70)}%`,
+                      width: `${Math.min(item.bbox.width / 8, 35)}%`,
+                      height: `${Math.min(item.bbox.height / 5, 25)}%`,
+                      backgroundColor: 'transparent' // BBox is transparent, hover adds glow
+                    }}
+                  >
+                    <div className="absolute inset-0 bg-current opacity-10 group-hover:opacity-20 transition-opacity" />
+                    <span className="absolute -top-[21px] left-[-1.5px] px-1.5 py-0.5 text-[10px] font-mono font-bold bg-current text-[#0B1120] whitespace-nowrap opacity-80 group-hover:opacity-100 transition-opacity shadow-sm">
+                      {item.category.toUpperCase()} {(item.confidence * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
-          <p className="mt-4 text-sm text-slate-600">
-            当前为 Phase 2 的可视化占位画面，后续接入真实 overlay 图后仍沿用相同布局。
-          </p>
+
+          <div className="absolute bottom-4 left-6 right-6 flex justify-between text-[10px] font-mono text-slate-500 pointer-events-none">
+            <span>YOLOV8-SEG / {filteredDetections.length} DETECTIONS</span>
+            <span>{new Date().toISOString().split('T')[1].slice(0, 8)} UTC</span>
+          </div>
         </div>
       </div>
 
-      <aside className="space-y-6">
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-            Summary
-          </p>
-          <h3 className="mt-2 text-xl font-semibold text-slate-950">
-            {getDetectionSummary(result)}
-          </h3>
-          <dl className="mt-5 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <dt className="text-sm text-slate-500">推理耗时</dt>
-              <dd className="mt-1 text-2xl font-semibold text-slate-950">
-                {result.inference_ms} ms
-              </dd>
-            </div>
-            <div className="rounded-2xl bg-slate-50 p-4">
-              <dt className="text-sm text-slate-500">模型版本</dt>
-              <dd className="mt-1 text-2xl font-semibold text-slate-950">
-                {result.model_version}
-              </dd>
-            </div>
-          </dl>
+      {/* 病害详情列表 - 嵌入主画布右侧作为辅助，或者在窄屏时下放 */}
+      <aside className="w-full xl:w-96 shrink-0 flex flex-col gap-6">
+        <div className="rounded-[1.5rem] border border-white/10 bg-[#1E293B]/60 p-5 shadow-lg backdrop-blur shrink-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500 mb-2">Analysis Summary</p>
+          <h3 className="text-xl text-slate-100 font-light tracking-tight">{getDetectionSummary(result)}</h3>
 
-          <div className="mt-6 flex flex-wrap gap-2">
-            {categories.map((category) => (
-              <span
-                key={category}
-                className={`rounded-full px-3 py-1 text-sm ${
-                  category === categoryFilter
-                    ? "bg-slate-950 text-white"
-                    : "bg-slate-100 text-slate-600"
-                }`}
-              >
-                {category}
-              </span>
-            ))}
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="bg-[#0B1120]/50 rounded-lg p-3 border border-white/5">
+              <div className="text-xs text-slate-400 mb-1">Total Found</div>
+              <div className="text-xl font-mono text-white">{filteredDetections.length}</div>
+            </div>
+            <div className="bg-[#0B1120]/50 rounded-lg p-3 border border-white/5">
+              <div className="text-xs text-slate-400 mb-1">Avg Confidence</div>
+              <div className="text-xl font-mono text-sky-400">
+                {filteredDetections.length
+                  ? (filteredDetections.reduce((a, b) => a + b.confidence, 0) / filteredDetections.length * 100).toFixed(1) + '%'
+                  : '--'}
+              </div>
+            </div>
           </div>
-          <p className="mt-4 text-sm text-slate-500">
-            当前最小置信度筛选值：{formatConfidence(minConfidence)}
-          </p>
         </div>
 
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-                Findings
-              </p>
-              <h3 className="mt-2 text-xl font-semibold text-slate-950">病害列表</h3>
-            </div>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600">
-              {filteredDetections.length} 条
-            </span>
+        <div className="rounded-[1.5rem] border border-white/10 bg-[#1E293B]/60 shadow-lg backdrop-blur flex-1 flex flex-col overflow-hidden">
+          <div className="p-5 border-b border-white/5 flex items-center justify-between shrink-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">Anomaly List</p>
+            <span className="font-mono text-xs text-slate-400">{filteredDetections.length} Items</span>
           </div>
 
-          <div className="mt-5 space-y-4">
-            {filteredDetections.map((item) => (
-              <article
-                key={item.id}
-                className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h4 className="text-lg font-semibold text-slate-950">{item.category}</h4>
-                    <p className="text-sm text-slate-500">{item.id}</p>
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {filteredDetections.map((item, index) => {
+              const colorCls = getCategoryColor(item.category);
+              const colorCode = colorCls.match(/text-\[(.*?)\]/)?.[1] || "#10B981";
+
+              return (
+                <article
+                  key={item.id}
+                  className="rounded-xl border border-white/5 bg-white/[0.02] p-3 hover:bg-white/[0.04] transition-colors group cursor-pointer"
+                >
+                  <div className="flex items-center justify-between gap-4 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono text-slate-500">{String(index + 1).padStart(2, '0')}.</span>
+                      <h4 className="text-sm font-medium text-slate-200 uppercase">{item.category}</h4>
+                    </div>
+                    <span className="text-xs font-mono px-2 py-0.5 rounded border border-white/10" style={{ color: colorCode }}>
+                      {(item.confidence * 100).toFixed(1)}%
+                    </span>
                   </div>
-                  <span className="rounded-full bg-white px-3 py-1 text-sm font-medium text-slate-700">
-                    {formatConfidence(item.confidence)}
-                  </span>
-                </div>
-                <dl className="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
-                  <div>
-                    <dt className="text-slate-500">长度</dt>
-                    <dd className="mt-1 font-medium text-slate-900">
-                      {item.metrics.length_mm ? `${item.metrics.length_mm} mm` : "待计算"}
-                    </dd>
+
+                  <div className="grid grid-cols-2 gap-y-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500 truncate w-10">Id</span>
+                      <span className="font-mono text-slate-300 truncate" title={item.id}>{item.id.split('-')[0]}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500 w-10">Size</span>
+                      <span className="font-mono text-slate-300">
+                        {item.metrics.length_mm ? `${(item.metrics.length_mm / 10).toFixed(1)}cm` : "--"}
+                      </span>
+                    </div>
+                    <div className="flex gap-2 col-span-2">
+                      <span className="text-slate-500 w-10">Area</span>
+                      <span className="font-mono text-slate-300">
+                        {item.metrics.area_mm2 ? `${(item.metrics.area_mm2 / 100).toFixed(1)}cm²` : "--"}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <dt className="text-slate-500">宽度</dt>
-                    <dd className="mt-1 font-medium text-slate-900">
-                      {item.metrics.width_mm ? `${item.metrics.width_mm} mm` : "待计算"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-500">面积</dt>
-                    <dd className="mt-1 font-medium text-slate-900">
-                      {item.metrics.area_mm2 ? `${item.metrics.area_mm2} mm²` : "待计算"}
-                    </dd>
-                  </div>
-                </dl>
-              </article>
-            ))}
+                </article>
+              );
+            })}
+
+            {filteredDetections.length === 0 && (
+              <div className="h-32 flex items-center justify-center text-sm text-slate-500 font-mono">
+                [ NO DATA MATCHES FILTERS ]
+              </div>
+            )}
           </div>
         </div>
       </aside>
-    </section>
+    </div>
   );
 }
+
