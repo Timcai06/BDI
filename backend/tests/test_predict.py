@@ -23,6 +23,20 @@ def test_predict_returns_standardized_response_for_supported_image() -> None:
     assert payload["detections"][0]["category"] == "crack"
 
 
+def test_predict_saves_overlay_when_requested() -> None:
+    client = TestClient(create_app())
+
+    response = client.post(
+        "/predict",
+        files={"file": ("bridge.jpg", b"fake-jpeg-data", "image/jpeg")},
+        data={"return_overlay": "true"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["artifacts"]["overlay_path"].endswith(".png")
+
+
 def test_predict_rejects_unsupported_extension() -> None:
     client = TestClient(create_app())
 

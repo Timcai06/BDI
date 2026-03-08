@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import io
+
+from PIL import Image, ImageDraw
+
 from app.models.schemas import (
     BoundingBox,
     DetectionMetrics,
@@ -40,6 +44,16 @@ class MockRunner:
             ),
         ]
 
+        overlay_png = None
+        if options.return_overlay:
+            overlay = Image.new("RGB", (640, 360), color=(242, 242, 242))
+            draw = ImageDraw.Draw(overlay)
+            draw.rectangle((42, 88, 162, 116), outline=(0, 122, 255), width=4)
+            draw.rectangle((214, 146, 310, 254), outline=(255, 120, 0), width=4)
+            buffer = io.BytesIO()
+            overlay.save(buffer, format="PNG")
+            overlay_png = buffer.getvalue()
+
         return RawPrediction(
             model_name="yolov8-seg",
             model_version=options.model_version,
@@ -48,4 +62,5 @@ class MockRunner:
             inference_ms=118,
             detections=detections,
             metadata={"source_image": image_name},
+            overlay_png=overlay_png,
         )

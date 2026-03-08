@@ -30,3 +30,8 @@ class LocalArtifactStore:
         destination = self.results_dir / f"{image_id}.json"
         destination.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         return str(destination)
+
+    def save_overlay(self, *, image_id: str, content: bytes) -> str:
+        destination = self.overlays_dir / f"{image_id}.png"
+        destination.write_bytes(content)
+        return str(destination)

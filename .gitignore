@@ -39,8 +39,12 @@ __pycache__/
 .coverage
 htmlcov/
 .venv/
+.venv-yolo/
 venv/
 env/
+backend/.venv/
+backend/.venv-yolo/
+frontend/.venv/
 
 # Build artifacts
 build/
@@ -49,9 +53,12 @@ tmp/
 
 # Model / data artifacts
 artifacts/
+backend/artifacts/
+frontend/.next/
 results/
 uploads/
 exports/
 *.pt
+*.pth
 *.onnx
 *.engine
