@@ -54,6 +54,7 @@ tmp/
 # Model / data artifacts
 artifacts/
 backend/artifacts/
+backend/data/models/
 frontend/.next/
 results/
 uploads/
