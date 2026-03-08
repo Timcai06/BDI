@@ -1,18 +1,28 @@
 @import "tailwindcss";
 
+@theme {
+  --color-bdi-bg: #0B1120;
+  --color-bdi-panel: #1E293B;
+  --color-crack: #FF4D4D;
+  --color-spalling: #FFC107;
+  --color-efflo: #00D2FF;
+
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
 :root {
-  --background: #f5f1e8;
-  --foreground: #1f2933;
-  --panel: rgba(255, 255, 255, 0.78);
-  --panel-strong: rgba(255, 255, 255, 0.92);
-  --border: rgba(31, 41, 51, 0.12);
-  --accent: #bf6a02;
-  --accent-deep: #7c3f00;
-  --success: #1f7a4f;
-  --danger: #b3261e;
-  --muted: #5b6670;
-  --font-heading: "Avenir Next", "Segoe UI", "PingFang SC", sans-serif;
-  --font-body: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --background: #0B1120;
+  --foreground: #F1F5F9;
+  --panel: rgba(30, 41, 59, 0.75);
+  --panel-strong: rgba(30, 41, 59, 0.95);
+  --border: rgba(255, 255, 255, 0.1);
+  --accent: #38BDF8;
+  --accent-deep: #0284C7;
+  --success: #10B981;
+  --danger: #EF4444;
+  --muted: #94A3B8;
+  --font-heading: "Inter", "Roboto", "Segoe UI", sans-serif;
+  --font-body: "Inter", "Roboto", "Segoe UI", sans-serif;
 }
 
 * {
@@ -20,9 +30,7 @@
 }
 
 html {
-  background:
-    radial-gradient(circle at top left, rgba(191, 106, 2, 0.18), transparent 30%),
-    linear-gradient(180deg, #fcf8f1 0%, #f4efe4 38%, #ece3d5 100%);
+  background: var(--background);
 }
 
 body {
@@ -30,6 +38,7 @@ body {
   margin: 0;
   color: var(--foreground);
   font-family: var(--font-body), sans-serif;
+  overflow: hidden; /* For full screen dashboard */
 }
 
 a {
@@ -44,12 +53,17 @@ input {
 
 .surface {
   background: var(--panel);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
-  box-shadow: 0 22px 60px rgba(54, 42, 22, 0.08);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
 }
 
 .section-title {
   font-family: var(--font-heading), sans-serif;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
 }
