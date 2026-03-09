@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 
@@ -35,3 +36,26 @@ class LocalArtifactStore:
         destination = self.overlays_dir / f"{image_id}.png"
         destination.write_bytes(content)
         return str(destination)
+
+    def result_path(self, image_id: str) -> Path:
+        return self.results_dir / f"{image_id}.json"
+
+    def overlay_path(self, image_id: str) -> Path:
+        return self.overlays_dir / f"{image_id}.png"
+
+    def load_result(self, *, image_id: str) -> dict[str, Any] | None:
+        destination = self.result_path(image_id)
+        if not destination.exists():
+            return None
+        return json.loads(destination.read_text(encoding="utf-8"))
+
+    def list_results(self, *, limit: int = 20) -> list[dict[str, Any]]:
+        results: list[dict[str, Any]] = []
+        files = sorted(self.results_dir.glob("*.json"), reverse=True)
+        for file_path in files:
+            payload = json.loads(file_path.read_text(encoding="utf-8"))
+            results.append(payload)
+            if len(results) >= limit:
+                break
+        results.sort(key=lambda item: item.get("created_at", ""), reverse=True)
+        return results

@@ -60,6 +60,22 @@ class PredictResponse(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class ResultSummary(BaseModel):
+    image_id: str
+    created_at: datetime
+    model_name: str
+    model_version: str
+    backend: str
+    inference_mode: str
+    inference_ms: int = Field(ge=0)
+    detection_count: int = Field(ge=0)
+    artifacts: ArtifactLinks
+
+
+class ResultListResponse(BaseModel):
+    items: list[ResultSummary]
+
+
 class HealthResponse(BaseModel):
     status: Literal["ok"] = "ok"
     service: str

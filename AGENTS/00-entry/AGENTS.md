@@ -6,6 +6,12 @@
 
 目标是让任何参与开发的人或 AI 在开始工作前，先阅读这些文档，再进行设计、编码、联调或优化，避免项目方向漂移。
 
+当前执行要求：
+
+- 在开始任何开发任务前，先以 `AGENTS/` 文档为第一参考源确认约束与阶段状态
+- 如果实现状态发生变化，应优先回写 `AGENTS/` 与 `plan/`，再继续新增开发
+- 任何阶段切换都必须同步更新入口、计划与记忆文档，避免文档漂移
+
 补充说明：
 
 - 根目录文档主要用于项目负责人个人整理、分析和判断
@@ -68,6 +74,13 @@
 - `../04-memory/09-progress.md`
 - `../04-memory/10-lessons.md`
 
+如果任务正式进入新阶段，还应同步检查：
+
+- `../../plan/README.md`
+- `../../plan/phase2/README.md`
+- `../../plan/phase2/kickoff-checklist.md`
+- `../../plan/phase3.md`
+
 ## 使用规则
 
 ### 1. 文档优先，代码第二
@@ -95,6 +108,16 @@
 
 - `../04-memory/09-progress.md`
 - `../04-memory/10-lessons.md`
+
+### 6. 阶段切换时同步更新计划文档
+
+当 `Phase 2 -> Phase 3` 这类阶段状态发生变化时，至少同步更新：
+
+- `../../README.md`
+- `../../plan/README.md`
+- `../../plan/phase2/README.md`
+- `../../plan/phase2/kickoff-checklist.md`
+- `../../plan/phase3.md`
 
 ## 当前项目定位
 

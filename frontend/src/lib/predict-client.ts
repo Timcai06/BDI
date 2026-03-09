@@ -1,5 +1,10 @@
 import { demoResult } from "@/lib/mock-data";
-import type { ApiError, PredictOptions, PredictionResult } from "@/lib/types";
+import type {
+  ApiError,
+  PredictOptions,
+  PredictionHistoryResponse,
+  PredictionResult
+} from "@/lib/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 
@@ -13,6 +18,22 @@ function cloneDemoResult(file: File, options: PredictOptions): PredictionResult 
       overlay_path: options.exportOverlay ? demoResult.artifacts.overlay_path : null
     }
   };
+}
+
+function getErrorMessage(payload: unknown, fallback: string): string {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "error" in payload &&
+    payload.error &&
+    typeof payload.error === "object" &&
+    "message" in payload.error &&
+    typeof payload.error.message === "string"
+  ) {
+    return payload.error.message;
+  }
+
+  return fallback;
 }
 
 export async function predictImage(
@@ -36,7 +57,7 @@ export async function predictImage(
 
     if (!response.ok) {
       const payload = (await response.json()) as ApiError;
-      throw new Error(payload.error.message);
+      throw new Error(getErrorMessage(payload, "识别失败，请稍后重试。"));
     }
 
     return (await response.json()) as PredictionResult;
@@ -46,4 +67,70 @@ export async function predictImage(
     }
     throw new Error("无法连接后端推理服务。");
   }
+}
+
+export async function listResults(): Promise<PredictionHistoryResponse> {
+  if (!API_BASE_URL) {
+    return {
+      items: [
+        {
+          image_id: demoResult.image_id,
+          created_at: demoResult.created_at,
+          model_name: demoResult.model_name,
+          model_version: demoResult.model_version,
+          backend: demoResult.backend,
+          inference_mode: demoResult.inference_mode,
+          inference_ms: demoResult.inference_ms,
+          detection_count: demoResult.detections.length,
+          artifacts: demoResult.artifacts
+        }
+      ]
+    };
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/results`);
+
+    if (!response.ok) {
+      const payload = (await response.json()) as ApiError;
+      throw new Error(getErrorMessage(payload, "历史结果加载失败。"));
+    }
+
+    return (await response.json()) as PredictionHistoryResponse;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error("无法加载历史结果。");
+  }
+}
+
+export async function getResult(imageId: string): Promise<PredictionResult> {
+  if (!API_BASE_URL) {
+    return demoResult;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/results/${imageId}`);
+
+    if (!response.ok) {
+      const payload = (await response.json()) as ApiError;
+      throw new Error(getErrorMessage(payload, "结果详情加载失败。"));
+    }
+
+    return (await response.json()) as PredictionResult;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error("无法加载结果详情。");
+  }
+}
+
+export function getOverlayDownloadUrl(imageId: string): string | null {
+  if (!API_BASE_URL) {
+    return demoResult.artifacts.overlay_path ?? null;
+  }
+
+  return `${API_BASE_URL}/results/${imageId}/overlay`;
 }

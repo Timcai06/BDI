@@ -2,7 +2,7 @@
 
 桥梁病害识别系统原型项目。
 
-这个仓库当前已经从纯文档仓进入“文档 + MVP 骨架并行”的阶段。
+这个仓库当前已经从纯文档仓进入“文档 + 可运行原型并行”的阶段。
 
 你在这里能快速看清三件事：
 
@@ -40,7 +40,7 @@
 - 已落地的 `backend/` MVP 骨架
 - 已落地的 `frontend/` MVP 骨架
 
-当前处在“Phase 2 进行中，mock 闭环与本地基础验证已完成，真实 YOLOv8 runner 代码与依赖环境已就绪，但尚未完成真实权重验证”的状态。
+当前处在“Phase 2 已完成、Phase 3 准备实施”的状态。
 
 ## Current Status
 
@@ -54,29 +54,32 @@
 - `Next.js` 前端基础骨架
 - `GET /health` 与 `POST /predict` mock 闭环
 - `plan/phase2/` 执行文档与开工清单
+- `plan/phase3/` 执行文档与开工清单
 - 可通过环境变量切换的真实 `YOLOv8-seg` runner 接入位
 - overlay 文件保存能力
 - 后端 `pytest` 7/7 通过
 - 后端 `ruff check .` 通过
-- 后端 `GET /health` 启动检查通过，当前活跃 runner 为 `mock-runner`
+- 后端 `GET /health` 启动检查通过
 - 前端 `test / lint / build` 通过
 - 后端已修正为兼容 `Python 3.9` 的真实模型环境
 - 已确认 `.venv-yolo` 中安装了 `ultralytics`
 - 已确认 `.venv-yolo` 中 `ultralytics + torch` 可正常导入
+- 已完成真实 `YOLOv8-seg` 单图推理联调验收
+- 已完成浏览器侧上传到结果展示的完整链路验证
+- 已确认前端可直接消费真实 runner 返回结果
+- 已完成标准 JSON 与 overlay 产物联调验证
 
 接下来进入：
 
-- Phase 2: 真模型接入与浏览器侧联调验证
+- Phase 3: 结果展示增强与系统稳定化
 
-当前 Phase 2 的重点很明确：
+当前 Phase 3 的重点很明确：
 
-- 安装并验证前后端依赖
-- 跑通本地测试和构建
-- 在兼容 Python 环境中安装真实模型依赖
-- 挂载真实 `YOLOv8-seg` 权重并完成单图验证
-- 用真实模型结果完成 overlay 与导出联调
-- 完成浏览器侧上传到结果展示的真实闭环验证
-- 挂载真实权重文件并完成真实 runner 验证
+- 完善结果页展示与说明表达
+- 增加 overlay / JSON 导出入口
+- 增加错误态、空态和失败反馈
+- 增加本地历史结果基础回看能力
+- 在不破坏统一协议的前提下稳定单图演示链路
 
 ## Repository Structure
 
@@ -107,19 +110,19 @@
 
 - 用于记录整体目标和各阶段开发任务
 - 推荐按 `phase1 -> phase5` 顺序推进
-- `phase2/` 已补充执行说明与开工清单
+- `phase2/` 与 `phase3/` 已补充执行说明与开工清单
 
 ## Recommended Reading Order
 
 如果是第一次进入项目，建议按下面的顺序读：
 
-1. [plan/overall-goals.md](/Users/justin/Desktop/BDI/plan/overall-goals.md)
-2. [plan/phase2.md](/Users/justin/Desktop/BDI/plan/phase2.md)
-3. [for_crt/02-系统架构草案.md](/Users/justin/Desktop/BDI/for_crt/02-系统架构草案.md)
-4. [for_crt/03-YOLOv8对接协议与兼容设计.md](/Users/justin/Desktop/BDI/for_crt/03-YOLOv8对接协议与兼容设计.md)
-5. [AGENTS/00-entry/AGENTS.md](/Users/justin/Desktop/BDI/AGENTS/00-entry/AGENTS.md)
+1. [AGENTS/00-entry/AGENTS.md](/Users/justin/Desktop/BDI/AGENTS/00-entry/AGENTS.md)
+2. [plan/overall-goals.md](/Users/justin/Desktop/BDI/plan/overall-goals.md)
+3. [plan/phase3.md](/Users/justin/Desktop/BDI/plan/phase3.md)
+4. [for_crt/02-系统架构草案.md](/Users/justin/Desktop/BDI/for_crt/02-系统架构草案.md)
+5. [for_crt/03-YOLOv8对接协议与兼容设计.md](/Users/justin/Desktop/BDI/for_crt/03-YOLOv8对接协议与兼容设计.md)
 
-如果你是来直接开工实现，重点先看第 2、4、5 份文档。
+如果你是来直接开工实现，先看 `AGENTS/00-entry/AGENTS.md`，再进入阶段计划和代码。
 
 ## Development Principle
 
@@ -140,30 +143,30 @@
 
 ## Next Step
 
-下一步建议继续推进 Phase 2，把当前已验证的 mock 骨架升级成真实可联调版本：
+下一步建议继续推进 Phase 3，把当前已跑通的单图闭环升级成更稳定的展示与回看版本：
 
-- 安装前后端依赖并完成测试
-- 接入真实 `YOLOv8-seg`
-- 生成 overlay 图
-- 验证前端可直接消费真实结果
+- 完善结果页
+- 增加导出交互
+- 增加历史结果基础能力
+- 强化错误态与演示稳定性
 
 推荐实际开发顺序：
 
-1. 先安装并验证 `backend/` 和 `frontend/` 依赖
-2. 先跑通测试，确认 mock 闭环稳定
-3. 再把真实 `YOLOv8-seg` 接进 adapter 层
-4. 最后补齐 overlay 与导出联调
+1. 先阅读 `AGENTS/` 与当前阶段计划文档
+2. 再确认 `Phase 3` 的结果页与导出范围
+3. 先补齐历史回看和错误态基础能力
+4. 最后再推进更高阶展示和演示优化
 
 ## Notes
 
-当前仓库仍然以文档驱动为主，但已经具备了前后端 MVP 骨架，并完成了 mock 路径的基础验证。
+当前仓库仍然以文档驱动为主，但已经具备真实单图闭环能力，并进入展示增强阶段。
 
-这意味着接下来的工作不再是“从零开始搭框架”，而是围绕统一协议，把 mock 闭环升级成真实模型闭环。
+这意味着接下来的工作不再是“从零开始搭框架”，而是围绕统一协议，把已跑通的真实链路提升成更完整的系统演示能力。
 
 补充说明：
 
 - 基础开发环境仍可使用当前 `Python 3.14`
 - 真实 `ultralytics` 模型依赖建议在 `Python 3.9` 到 `Python 3.12` 的虚拟环境中安装
 - 当前仓库不包含实际权重文件，未配置时后端会自动回退到 mock runner
-- 当前尚未确认本机已安装 `ultralytics` 并挂载真实权重，因此 Phase 2 还不能按“真实模型闭环完成”计算
 - 当前 `.venv-yolo` 已完成 `numpy<2` 调整，并已验证 `ultralytics + torch` 可导入
+- 所有开发任务开始前，应先参考 `AGENTS/` 目录确认约束与当前阶段，避免文档漂移

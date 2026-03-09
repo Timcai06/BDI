@@ -59,6 +59,22 @@ export interface PredictResponse {
 
 export type PredictionResult = PredictResponse;
 
+export interface PredictionHistoryItem {
+  image_id: string;
+  created_at: string;
+  model_name: string;
+  model_version: string;
+  backend: string;
+  inference_mode: string;
+  inference_ms: number;
+  detection_count: number;
+  artifacts: Artifacts;
+}
+
+export interface PredictionHistoryResponse {
+  items: PredictionHistoryItem[];
+}
+
 export interface ApiError {
   error: {
     code: string;

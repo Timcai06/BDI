@@ -1,4 +1,8 @@
-import { predictImage } from "@/lib/predict-client";
+import {
+  getOverlayDownloadUrl,
+  listResults,
+  predictImage
+} from "@/lib/predict-client";
 
 describe("predict-client", () => {
   it("falls back to mock data when no API base url is configured", async () => {
@@ -12,5 +16,16 @@ describe("predict-client", () => {
     expect(result.image_id).toBe("bridge-sample.jpg");
     expect(result.artifacts.overlay_path).toBeNull();
     expect(result.detections.length).toBeGreaterThan(0);
+  });
+
+  it("returns mock history when no API base url is configured", async () => {
+    const result = await listResults();
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].image_id).toBe("bridge-deck-demo.jpg");
+  });
+
+  it("returns a mock overlay path when available", () => {
+    expect(getOverlayDownloadUrl("bridge-deck-demo.jpg")).toContain("mock-artifacts");
   });
 });
