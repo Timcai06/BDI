@@ -27,8 +27,11 @@ describe("HistoryPanel", () => {
           }
         ]}
         loading={false}
+        errorMessage={null}
         onRefresh={() => {}}
+        onOpenUploader={() => {}}
         onSelect={onSelect}
+        getImageUrl={() => null}
       />
     );
 

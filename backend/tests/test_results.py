@@ -89,3 +89,28 @@ def test_get_result_overlay_returns_not_found_when_missing(tmp_path: Path, monke
     assert response.status_code == 404
     payload = response.json()
     assert payload["error"]["code"] == "OVERLAY_NOT_FOUND"
+
+
+def test_get_result_image_returns_uploaded_file(tmp_path: Path, monkeypatch) -> None:
+    client = create_test_client(tmp_path, monkeypatch)
+
+    predict_response = client.post(
+        "/predict",
+        files={"file": ("bridge.jpg", b"fake-jpeg-data", "image/jpeg")},
+    )
+
+    image_id = predict_response.json()["image_id"]
+    response = client.get(f"/results/{image_id}/image")
+
+    assert response.status_code == 200
+    assert response.content == b"fake-jpeg-data"
+
+
+def test_get_result_image_returns_not_found_when_missing(tmp_path: Path, monkeypatch) -> None:
+    client = create_test_client(tmp_path, monkeypatch)
+
+    response = client.get("/results/missing-image/image")
+
+    assert response.status_code == 404
+    payload = response.json()
+    assert payload["error"]["code"] == "IMAGE_NOT_FOUND"

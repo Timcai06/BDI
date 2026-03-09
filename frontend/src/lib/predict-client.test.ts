@@ -1,5 +1,6 @@
 import {
   getOverlayDownloadUrl,
+  getResultImageUrl,
   listResults,
   predictImage
 } from "@/lib/predict-client";
@@ -27,5 +28,9 @@ describe("predict-client", () => {
 
   it("returns a mock overlay path when available", () => {
     expect(getOverlayDownloadUrl("bridge-deck-demo.jpg")).toContain("mock-artifacts");
+  });
+
+  it("returns null for result images when no API base url is configured", () => {
+    expect(getResultImageUrl("bridge-deck-demo.jpg")).toBeNull();
   });
 });

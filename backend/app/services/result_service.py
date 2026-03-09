@@ -43,6 +43,17 @@ class ResultService:
             )
         return overlay_path
 
+    def get_upload_path(self, *, image_id: str) -> Path:
+        upload_path = self.store.upload_path(image_id)
+        if not upload_path.exists():
+            raise AppError(
+                code="IMAGE_NOT_FOUND",
+                message="Uploaded image does not exist.",
+                status_code=status.HTTP_404_NOT_FOUND,
+                details={"image_id": image_id},
+            )
+        return upload_path
+
     def _build_summary(self, result: PredictResponse) -> ResultSummary:
         return ResultSummary(
             image_id=result.image_id,
