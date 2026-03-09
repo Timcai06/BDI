@@ -7,7 +7,7 @@ describe("StatusCard", () => {
   it("renders the user-facing phase label and message", () => {
     render(<StatusCard phase="running" message="后端已接收任务，正在执行推理。" />);
 
-    expect(screen.getAllByText("推理中")).toHaveLength(2);
+    expect(screen.getByText("INFERENCE")).toBeInTheDocument();
     expect(screen.getByText("后端已接收任务，正在执行推理。")).toBeInTheDocument();
   });
 });

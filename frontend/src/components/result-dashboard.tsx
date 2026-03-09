@@ -1,4 +1,4 @@
-import { filterDetections, formatConfidence, getDetectionSummary } from "@/lib/result-utils";
+import { filterDetections, getDetectionSummary } from "@/lib/result-utils";
 import type { PredictionResult } from "@/lib/types";
 
 interface ResultDashboardProps {
@@ -6,6 +6,9 @@ interface ResultDashboardProps {
   categoryFilter: string;
   minConfidence: number;
   previewUrl?: string | null;
+  onExportJson: () => void;
+  onExportOverlay: () => void;
+  overlayDisabled: boolean;
 }
 
 function getCategoryColor(category: string) {
@@ -20,7 +23,10 @@ export function ResultDashboard({
   result,
   categoryFilter,
   minConfidence,
-  previewUrl
+  previewUrl,
+  onExportJson,
+  onExportOverlay,
+  overlayDisabled
 }: ResultDashboardProps) {
   const filteredDetections = filterDetections(
     result.detections,
@@ -38,11 +44,22 @@ export function ResultDashboard({
             <span className="text-xs font-mono text-slate-300">LIVE / {result.image_id}</span>
           </div>
           <div className="flex gap-2">
-            <button className="h-8 w-8 rounded-md hover:bg-white/10 flex items-center justify-center transition-colors">
-              <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" /></svg>
+            <button
+              aria-label="导出 JSON"
+              className="h-8 rounded-md border border-white/10 px-3 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10"
+              type="button"
+              onClick={onExportJson}
+            >
+              JSON
             </button>
-            <button className="h-8 w-8 rounded-md hover:bg-white/10 flex items-center justify-center transition-colors">
-              <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+            <button
+              aria-label="导出 Overlay"
+              className="h-8 rounded-md border border-white/10 px-3 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={overlayDisabled}
+              type="button"
+              onClick={onExportOverlay}
+            >
+              Overlay
             </button>
           </div>
         </div>
@@ -172,4 +189,3 @@ export function ResultDashboard({
     </div>
   );
 }
-

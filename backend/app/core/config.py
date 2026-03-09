@@ -28,7 +28,9 @@ class Settings(BaseModel):
 def get_settings() -> Settings:
     cors_origins = os.getenv("BDI_CORS_ALLOW_ORIGINS")
     weights_path = os.getenv("BDI_MODEL_WEIGHTS_PATH")
+    artifact_root = os.getenv("BDI_ARTIFACT_ROOT")
     return Settings(
+        artifact_root=Path(artifact_root) if artifact_root else Path("artifacts"),
         model_name=os.getenv("BDI_MODEL_NAME", "yolov8-seg"),
         model_version=os.getenv("BDI_MODEL_VERSION", "v1"),
         model_backend=os.getenv("BDI_MODEL_BACKEND", "pytorch"),

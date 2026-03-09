@@ -11,6 +11,7 @@ from app.core.config import get_settings
 from app.core.errors import AppError, ErrorPayload, ErrorResponse, app_error_handler
 from app.models.schemas import HealthResponse
 from app.services.predict_service import PredictService
+from app.services.result_service import ResultService
 from app.storage.local import LocalArtifactStore
 
 
@@ -23,6 +24,7 @@ def create_app() -> FastAPI:
         runner=runner,
         max_upload_size_bytes=settings.max_upload_size_bytes,
     )
+    result_service = ResultService(store=store)
 
     app = FastAPI(title=settings.app_name, version=settings.app_version)
     app.add_middleware(
@@ -46,6 +48,7 @@ def create_app() -> FastAPI:
         return JSONResponse(status_code=422, content=payload.model_dump())
 
     app.state.predict_service = predict_service
+    app.state.result_service = result_service
     app.state.health_payload = HealthResponse(
         service=settings.app_name,
         version=settings.app_version,

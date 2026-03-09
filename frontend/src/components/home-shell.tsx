@@ -2,10 +2,20 @@
 
 import { startTransition, useDeferredValue, useState, useEffect } from "react";
 
+import { HistoryPanel } from "@/components/history-panel";
 import { ResultDashboard } from "@/components/result-dashboard";
 import { StatusCard } from "@/components/status-card";
-import { predictImage } from "@/lib/predict-client";
-import type { PredictState, PredictionResult } from "@/lib/types";
+import {
+  getOverlayDownloadUrl,
+  getResult,
+  listResults,
+  predictImage
+} from "@/lib/predict-client";
+import type {
+  PredictState,
+  PredictionHistoryItem,
+  PredictionResult
+} from "@/lib/types";
 
 const initialState: PredictState = {
   phase: "idle",
@@ -13,11 +23,33 @@ const initialState: PredictState = {
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const navItems = ["Dashboard", "Projects", "Scans", "Settings"] as const;
+type NavItem = (typeof navItems)[number];
+
+function downloadTextFile(filename: string, content: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadRemoteFile(url: string, filename: string) {
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.target = "_blank";
+  anchor.rel = "noreferrer";
+  anchor.click();
+}
 
 export function HomeShell() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [confidence, setConfidence] = useState(0.45);
+  const [activeNav, setActiveNav] = useState<NavItem>("Dashboard");
 
   useEffect(() => {
     if (!selectedFile) {
@@ -31,6 +63,8 @@ export function HomeShell() {
 
   const [exportOverlay, setExportOverlay] = useState(true);
   const [result, setResult] = useState<PredictionResult | null>(null);
+  const [historyItems, setHistoryItems] = useState<PredictionHistoryItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [status, setStatus] = useState<PredictState>(initialState);
   const [categoryFilter, setCategoryFilter] = useState("全部");
   const [minConfidence, setMinConfidence] = useState(0.3);
@@ -41,6 +75,93 @@ export function HomeShell() {
   const categories = result
     ? ["全部", ...new Set(result.detections.map((item) => item.category))]
     : ["全部"];
+
+  async function loadHistory() {
+    setHistoryLoading(true);
+
+    try {
+      const history = await listResults();
+      setHistoryItems(history.items);
+      setStatus({
+        phase: "success",
+        message: `历史结果已刷新，当前共 ${history.items.length} 条记录。`
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "历史结果读取失败，请稍后重试。";
+      setStatus({
+        phase: "error",
+        message
+      });
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  async function handleSelectHistory(imageId: string) {
+    setStatus({
+      phase: "running",
+      message: `正在加载 ${imageId} 的历史结果。`
+    });
+
+    try {
+      const nextResult = await getResult(imageId);
+      startTransition(() => {
+        setResult(nextResult);
+        setPreviewUrl(null);
+        setCategoryFilter("全部");
+        setActiveNav("Dashboard");
+      });
+      setStatus({
+        phase: "success",
+        message: `已打开 ${imageId} 的历史结果。`
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "历史结果加载失败，请稍后重试。";
+      setStatus({
+        phase: "error",
+        message
+      });
+    }
+  }
+
+  function handleExportJson() {
+    if (!result) {
+      return;
+    }
+
+    downloadTextFile(
+      `${result.image_id}.json`,
+      JSON.stringify(result, null, 2),
+      "application/json"
+    );
+    setStatus({
+      phase: "success",
+      message: `已导出 ${result.image_id} 的 JSON 结果。`
+    });
+  }
+
+  function handleExportOverlay() {
+    if (!result) {
+      return;
+    }
+
+    const overlayUrl = getOverlayDownloadUrl(result.image_id);
+    if (!overlayUrl) {
+      setStatus({
+        phase: "error",
+        message: "当前结果没有可导出的 overlay 产物。"
+      });
+      return;
+    }
+
+    downloadRemoteFile(overlayUrl, `${result.image_id}-overlay.png`);
+    setStatus({
+      phase: "success",
+      message: `已触发 ${result.image_id} 的 overlay 导出。`
+    });
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -75,6 +196,7 @@ export function HomeShell() {
       startTransition(() => {
         setResult(prediction);
         setCategoryFilter("全部");
+        setActiveNav("Dashboard");
       });
 
       setStatus({
@@ -106,13 +228,21 @@ export function HomeShell() {
         </div>
 
         <nav className="flex-1 py-6 px-3 flex flex-col gap-2">
-          {["Dashboard", "Projects", "Scans", "Settings"].map((item, idx) => (
+          {navItems.map((item) => (
             <button
               key={item}
-              className={`flex items-center gap-4 px-3 py-2.5 rounded-lg transition-colors ${idx === 0
+              type="button"
+              className={`flex items-center gap-4 px-3 py-2.5 rounded-lg transition-colors ${activeNav === item
                   ? "bg-white/10 text-sky-400 font-medium"
                   : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
                 }`}
+              onClick={() => {
+                const nextNav = item as NavItem;
+                setActiveNav(nextNav);
+                if (nextNav === "Scans") {
+                  void loadHistory();
+                }
+              }}
             >
               <div className="shrink-0 h-5 w-5 bg-current opacity-70 mask-icon" />
               <span className="hidden lg:block text-sm">{item}</span>
@@ -125,17 +255,32 @@ export function HomeShell() {
       <section className="flex-1 flex flex-col min-w-0 bg-[#0F172A]/50 relative">
         <header className="h-16 shrink-0 flex items-center justify-between px-6 border-b border-white/5 bg-[#0B1120]/80 backdrop-blur">
           <h1 className="text-lg font-medium text-slate-100">
-            {result ? result.image_id : "Bridge Defect Identification MVP"}
+            {activeNav === "Scans"
+              ? "Historical Scan Archive"
+              : result
+                ? result.image_id
+                : "Bridge Defect Identification MVP"}
           </h1>
           <div className="flex items-center gap-4">
             <span className="px-2.5 py-1 rounded-md bg-white/5 border border-white/10 text-xs font-mono text-slate-400">
-              Phase 2
+              Phase 3
             </span>
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-6" style={{ scrollbarGutter: 'stable' }}>
-          {!result ? (
+          {activeNav === "Scans" ? (
+            <HistoryPanel
+              items={historyItems}
+              loading={historyLoading}
+              onRefresh={() => {
+                void loadHistory();
+              }}
+              onSelect={(imageId) => {
+                void handleSelectHistory(imageId);
+              }}
+            />
+          ) : !result ? (
             <div className="h-full flex flex-col items-center justify-center">
               <div className="w-full max-w-2xl">
                 <form
@@ -243,6 +388,9 @@ export function HomeShell() {
                 categoryFilter={deferredCategoryFilter}
                 minConfidence={deferredMinConfidence}
                 previewUrl={previewUrl}
+                onExportJson={handleExportJson}
+                onExportOverlay={handleExportOverlay}
+                overlayDisabled={!result.artifacts.overlay_path}
               />
             </div>
           )}
@@ -331,4 +479,3 @@ export function HomeShell() {
     </main>
   );
 }
-

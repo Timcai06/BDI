@@ -27,7 +27,7 @@ uvicorn app.main:app --reload
 
 ## 当前状态
 
-当前默认使用 mock runner。
+当前默认仍可使用 mock runner，但真实单图链路已完成验收。
 
 已确认：
 
@@ -36,8 +36,10 @@ uvicorn app.main:app --reload
 - `pytest` 7/7 通过
 - `ruff check .` 通过
 - `.venv-yolo` 中 `ultralytics + torch` 可正常导入
+- 真实 `YOLOv8-seg` 单图推理链路已完成联调验证
+- 标准 JSON 与 overlay 产物已完成联调验证
 
-已实现但尚未完成真实验收：
+已实现并已完成真实验收：
 
 - 通过环境变量选择真实 `YOLOv8-seg` runner
 - 将 Ultralytics 原始结果转换为统一协议
@@ -73,4 +75,4 @@ python3 -m pip install -r requirements-yolo.txt
 
 ## 当前结论
 
-后端的 mock MVP 闭环已经完成并通过基础验证；真实 runner 的代码路径、`Python 3.9` 兼容性和依赖导入也已确认，但真实权重推理尚未在当前仓库内完成验收，因此不能把真实模型接入视为已完成。
+后端的 mock MVP 闭环已经完成并通过基础验证；真实 runner 的代码路径、`Python 3.9` 兼容性、依赖导入和单图真实推理链路也已完成验收。当前后端阶段重点已从“真实接入验证”切换到“为 Phase 3 提供更稳定的结果导出、错误处理和历史回看基础能力”。

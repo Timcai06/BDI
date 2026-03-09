@@ -30,18 +30,18 @@
 
 - [x] 增加基于环境变量的真实 runner 选择逻辑
 - [x] 在兼容 Python 环境中安装 `ultralytics`
-- [ ] 接入本地 `YOLOv8-seg` 权重并完成真实推理
+- [x] 接入本地 `YOLOv8-seg` 权重并完成真实推理
 - [x] 将原始结果转换为统一协议的 adapter 结构已落位
 - [x] 生成标准 JSON 结果文件
 - [x] 生成 overlay 图并写入本地存储
-- [ ] 前端消费真实返回结果无需改协议
+- [x] 前端消费真实返回结果无需改协议
 
 注：
 
-- 前端已经按统一 schema 消费 mock 返回结果，真实 runner 返回结果尚未完成联调验证
-- `UltralyticsRunner`、runner factory 与相关测试已落位，但未在真实权重条件下完成验收
-- `.venv-yolo` 已安装 `ultralytics`，并已通过 `numpy<2` 调整恢复 `ultralytics + torch` 导入
-- 当前剩余关键阻塞为缺少真实权重文件，以及浏览器侧真实联调尚未完成
+- 已确认真实 `YOLOv8-seg` 权重链路可跑通，浏览器侧联调已完成
+- `UltralyticsRunner`、runner factory 与统一 schema 已通过真实场景验收
+- `.venv-yolo` 已安装 `ultralytics`，并已通过 `numpy<2` 约束维持可用依赖组合
+- 当前阶段阻塞已从“真实联调”切换为“Phase 3 展示增强与历史回看能力建设”
 
 ## Verification
 
@@ -49,11 +49,16 @@
 - [x] 前端测试通过
 - [x] 前端构建通过
 - [x] 后端启动检查通过
-- [ ] 单图上传联调通过
-- [ ] 错误路径联调通过
+- [x] 单图上传联调通过
+- [x] 错误路径联调通过
 
 注：
 
-- 已通过 `FastAPI TestClient` 验证 `GET /health` 与 `POST /predict` mock API 路径
-- 尚未完成浏览器侧上传到结果展示的端到端联调
-- 尚未完成真实权重场景下的错误路径验证
+- 已通过 `FastAPI TestClient` 验证 `GET /health` 与 `POST /predict` API 路径
+- 已完成浏览器侧上传到结果展示的端到端联调
+- 已完成真实权重场景下的基础错误路径验证
+
+## 阶段结论
+
+- [x] `Phase 2` 完成
+- [x] 进入 `Phase 3`
