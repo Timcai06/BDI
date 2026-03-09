@@ -134,3 +134,11 @@ export function getOverlayDownloadUrl(imageId: string): string | null {
 
   return `${API_BASE_URL}/results/${imageId}/overlay`;
 }
+
+export function getResultImageUrl(imageId: string): string | null {
+  if (!API_BASE_URL) {
+    return null;
+  }
+
+  return `${API_BASE_URL}/results/${imageId}/image`;
+}

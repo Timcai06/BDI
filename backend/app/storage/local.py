@@ -27,6 +27,9 @@ class LocalArtifactStore:
         destination.write_bytes(content)
         return str(destination)
 
+    def upload_path(self, image_id: str) -> Path:
+        return self.uploads_dir / image_id
+
     def save_json(self, *, image_id: str, payload: dict) -> str:
         destination = self.results_dir / f"{image_id}.json"
         destination.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

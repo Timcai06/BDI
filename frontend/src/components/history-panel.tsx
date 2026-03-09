@@ -1,10 +1,14 @@
+import { AdaptiveImage } from "@/components/adaptive-image";
 import type { PredictionHistoryItem } from "@/lib/types";
 
 interface HistoryPanelProps {
   items: PredictionHistoryItem[];
   loading: boolean;
+  errorMessage?: string | null;
   onRefresh: () => void;
   onSelect: (imageId: string) => void;
+  onOpenUploader: () => void;
+  getImageUrl: (imageId: string) => string | null;
 }
 
 function formatTime(value: string) {
@@ -20,12 +24,15 @@ function formatTime(value: string) {
 export function HistoryPanel({
   items,
   loading,
+  errorMessage,
   onRefresh,
-  onSelect
+  onSelect,
+  onOpenUploader,
+  getImageUrl
 }: HistoryPanelProps) {
   return (
     <div className="h-full rounded-[2rem] border border-white/10 bg-[#1E293B]/60 p-6 shadow-2xl backdrop-blur-xl">
-      <div className="flex items-center justify-between gap-4 border-b border-white/5 pb-5">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 pb-5">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-500">
             History
@@ -37,16 +44,48 @@ export function HistoryPanel({
             复用本地结果文件回看最近的检测记录。
           </p>
         </div>
-        <button
-          className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-200 transition-colors hover:bg-white/10"
-          type="button"
-          onClick={onRefresh}
-        >
-          刷新列表
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-200 transition-colors hover:bg-white/10"
+            type="button"
+            onClick={onRefresh}
+          >
+            刷新列表
+          </button>
+          <button
+            className="rounded-lg border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-xs font-semibold text-sky-300 transition-colors hover:bg-sky-500/20"
+            type="button"
+            onClick={onOpenUploader}
+          >
+            新建分析
+          </button>
+        </div>
       </div>
 
       <div className="mt-6 space-y-3">
+        {!loading && errorMessage ? (
+          <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-5 text-sm text-rose-200">
+            <p className="font-medium">历史结果读取失败</p>
+            <p className="mt-2 text-rose-100/80">{errorMessage}</p>
+            <div className="mt-4 flex gap-3">
+              <button
+                className="rounded-lg border border-rose-400/30 bg-rose-500/10 px-4 py-2 text-xs font-semibold text-rose-100 transition-colors hover:bg-rose-500/20"
+                type="button"
+                onClick={onRefresh}
+              >
+                重试
+              </button>
+              <button
+                className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-200 transition-colors hover:bg-white/10"
+                type="button"
+                onClick={onOpenUploader}
+              >
+                返回上传
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         {loading ? (
           <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-8 text-center text-sm text-slate-400">
             正在读取历史结果...
@@ -56,6 +95,15 @@ export function HistoryPanel({
         {!loading && items.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-8 text-center text-sm text-slate-400">
             暂无历史结果，可先上传一张巡检图像生成记录。
+            <div className="mt-4">
+              <button
+                className="rounded-lg border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-xs font-semibold text-sky-300 transition-colors hover:bg-sky-500/20"
+                type="button"
+                onClick={onOpenUploader}
+              >
+                去上传第一张图片
+              </button>
+            </div>
           </div>
         ) : null}
 
@@ -67,21 +115,38 @@ export function HistoryPanel({
                 type="button"
                 onClick={() => onSelect(item.image_id)}
               >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-mono uppercase tracking-[0.16em] text-sky-400">
-                      {item.backend}
-                    </span>
-                    <span className="text-xs text-slate-500">
-                      {formatTime(item.created_at)}
-                    </span>
+                <div className="flex min-w-0 gap-4">
+                  <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black/20">
+                    {getImageUrl(item.image_id) ? (
+                      <AdaptiveImage
+                        alt={item.image_id}
+                        className="object-cover"
+                        sizes="112px"
+                        src={getImageUrl(item.image_id) ?? ""}
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                        No Preview
+                      </div>
+                    )}
                   </div>
-                  <h3 className="mt-3 truncate text-sm font-medium text-white">
-                    {item.image_id}
-                  </h3>
-                  <p className="mt-2 text-xs text-slate-400">
-                    {item.model_name} / {item.model_version} / {item.inference_mode}
-                  </p>
+
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-mono uppercase tracking-[0.16em] text-sky-400">
+                        {item.backend}
+                      </span>
+                      <span className="text-xs text-slate-500">
+                        {formatTime(item.created_at)}
+                      </span>
+                    </div>
+                    <h3 className="mt-3 truncate text-sm font-medium text-white">
+                      {item.image_id}
+                    </h3>
+                    <p className="mt-2 text-xs text-slate-400">
+                      {item.model_name} / {item.model_version} / {item.inference_mode}
+                    </p>
+                  </div>
                 </div>
 
                 <div className="shrink-0 text-right">
