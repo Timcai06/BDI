@@ -24,6 +24,11 @@ uvicorn app.main:app --reload
 
 - `GET /health`
 - `POST /predict`
+- `GET /results`
+- `GET /results/{image_id}`
+- `GET /results/{image_id}/overlay`
+- `GET /results/{image_id}/image`
+- `DELETE /results/{image_id}`
 
 ## 当前状态
 
@@ -33,11 +38,12 @@ uvicorn app.main:app --reload
 
 - `GET /health` 可返回 `200`
 - `POST /predict` mock 路径测试通过
-- `pytest` 7/7 通过
+- `pytest` 17/17 通过
 - `ruff check .` 通过
 - `.venv-yolo` 中 `ultralytics + torch` 可正常导入
 - 真实 `YOLOv8-seg` 单图推理链路已完成联调验证
 - 标准 JSON 与 overlay 产物已完成联调验证
+- 结果列表、详情、原图、overlay 与删除接口测试通过
 
 已实现并已完成真实验收：
 
@@ -75,4 +81,6 @@ python3 -m pip install -r requirements-yolo.txt
 
 ## 当前结论
 
-后端的 mock MVP 闭环已经完成并通过基础验证；真实 runner 的代码路径、`Python 3.9` 兼容性、依赖导入和单图真实推理链路也已完成验收。当前后端阶段重点已从“真实接入验证”切换到“为 Phase 3 提供更稳定的结果导出、错误处理和历史回看基础能力”。
+后端的 mock MVP 闭环已经完成并通过基础验证；真实 runner 的代码路径、`Python 3.9` 兼容性、依赖导入和单图真实推理链路也已完成验收。除此之外，后端还已经落地了基于本地文件的结果管理能力，包括结果列表、详情读取、原图回看、overlay 下载和删除接口。
+
+按当前真实代码判断，后端不再只是“为 Phase 3 提供基础能力”，而是已经完成了 Phase 3 中历史回看与结果导出的后端基础设施，当前重点更偏向演示稳定性、前后端体验细化和文档同步。
