@@ -28,15 +28,55 @@ describe("HistoryPanel", () => {
         ]}
         loading={false}
         errorMessage={null}
+        deletingImageId={null}
         onRefresh={() => {}}
+        onDeleteRequest={() => {}}
         onOpenUploader={() => {}}
         onSelect={onSelect}
         getImageUrl={() => null}
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /bridge-001.jpg/i }));
+    fireEvent.click(screen.getByRole("button", { name: "打开" }));
 
     expect(onSelect).toHaveBeenCalledWith("bridge-001.jpg");
+  });
+
+  it("triggers delete request for the selected item", () => {
+    const onDeleteRequest = vi.fn();
+
+    render(
+      <HistoryPanel
+        items={[
+          {
+            image_id: "bridge-001.jpg",
+            created_at: "2026-03-09T10:00:00Z",
+            model_name: "yolov8-seg",
+            model_version: "v1-real",
+            backend: "pytorch",
+            inference_mode: "direct",
+            inference_ms: 231,
+            detection_count: 3,
+            artifacts: {
+              upload_path: "uploads/bridge-001.jpg",
+              json_path: "results/bridge-001.json",
+              overlay_path: "overlays/bridge-001.png"
+            }
+          }
+        ]}
+        loading={false}
+        errorMessage={null}
+        deletingImageId={null}
+        onRefresh={() => {}}
+        onDeleteRequest={onDeleteRequest}
+        onOpenUploader={() => {}}
+        onSelect={() => {}}
+        getImageUrl={() => null}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "删除" }));
+
+    expect(onDeleteRequest).toHaveBeenCalledWith("bridge-001.jpg");
   });
 });

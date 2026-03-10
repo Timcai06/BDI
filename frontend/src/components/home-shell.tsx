@@ -6,6 +6,7 @@ import { HistoryPanel } from "@/components/history-panel";
 import { ResultDashboard } from "@/components/result-dashboard";
 import { StatusCard } from "@/components/status-card";
 import {
+  deleteResult,
   getOverlayDownloadUrl,
   getResultImageUrl,
   getResult,
@@ -24,7 +25,7 @@ const initialState: PredictState = {
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-type NavItem = "Dashboard" | "Scans";
+type NavItem = "Home" | "Scans";
 
 function downloadTextFile(filename: string, content: string, type: string) {
   const blob = new Blob([content], { type });
@@ -49,7 +50,7 @@ export function HomeShell() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [confidence, setConfidence] = useState(0.45);
-  const [activeNav, setActiveNav] = useState<NavItem>("Dashboard");
+  const [activeNav, setActiveNav] = useState<NavItem>("Home");
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
 
   useEffect(() => {
@@ -67,6 +68,8 @@ export function HomeShell() {
   const [historyItems, setHistoryItems] = useState<PredictionHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
   const [status, setStatus] = useState<PredictState>(initialState);
   const [categoryFilter, setCategoryFilter] = useState("全部");
   const [minConfidence, setMinConfidence] = useState(0.3);
@@ -123,7 +126,7 @@ export function HomeShell() {
         setPreviewUrl(getResultImageUrl(imageId));
         setCategoryFilter("全部");
         setSelectedDetectionId(nextResult.detections[0]?.id ?? null);
-        setActiveNav("Dashboard");
+        setActiveNav("Home");
       });
       setStatus({
         phase: "success",
@@ -179,7 +182,7 @@ export function HomeShell() {
   function handleResetToUploader() {
     setSelectedFile(null);
     setPreviewUrl(null);
-    setActiveNav("Dashboard");
+    setActiveNav("Home");
     setStatus(initialState);
     setAnalysisModalOpen(true);
   }
@@ -286,7 +289,7 @@ export function HomeShell() {
         setResult(prediction);
         setCategoryFilter("全部");
         setSelectedDetectionId(prediction.detections[0]?.id ?? null);
-        setActiveNav("Dashboard");
+        setActiveNav("Home");
       });
 
       void loadHistory();
@@ -304,6 +307,34 @@ export function HomeShell() {
         phase: "error",
         message
       });
+    }
+  }
+
+  async function handleDeleteHistory(imageId: string) {
+    try {
+      setDeletingImageId(imageId);
+      await deleteResult(imageId);
+      setHistoryItems((current) => current.filter((item) => item.image_id !== imageId));
+      if (result?.image_id === imageId) {
+        setResult(null);
+        setSelectedDetectionId(null);
+        setPreviewUrl(null);
+        setActiveNav("Home");
+      }
+      setDeleteTargetId(null);
+      setStatus({
+        phase: "success",
+        message: `已删除 ${imageId} 的分析记录。`
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "删除记录失败，请稍后重试。";
+      setStatus({
+        phase: "error",
+        message
+      });
+    } finally {
+      setDeletingImageId(null);
     }
   }
 
@@ -336,14 +367,14 @@ export function HomeShell() {
         <nav className="flex-1 py-6 px-3 flex flex-col gap-2">
           <button
             type="button"
-            className={`flex items-center gap-4 px-3 py-2.5 rounded-lg transition-colors ${activeNav === "Dashboard"
+            className={`flex items-center gap-4 px-3 py-2.5 rounded-lg transition-colors ${activeNav === "Home"
                 ? "bg-white/10 text-sky-400 font-medium"
                 : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
               }`}
-            onClick={() => setActiveNav("Dashboard")}
+            onClick={() => setActiveNav("Home")}
           >
             <div className="shrink-0 h-5 w-5 bg-current opacity-70 mask-icon" />
-            <span className="hidden lg:block text-sm">分析工作台</span>
+            <span className="hidden lg:block text-sm">主页</span>
           </button>
 
           <button
@@ -371,7 +402,7 @@ export function HomeShell() {
               ? "Historical Scan Archive"
               : result
                 ? result.image_id
-                : "Bridge Defect Analysis Workspace"}
+                : "Bridge Defect Home"}
           </h1>
           <div className="flex items-center gap-4">
             <button
@@ -393,7 +424,11 @@ export function HomeShell() {
               items={historyItems}
               loading={historyLoading}
               errorMessage={historyError}
+              deletingImageId={deletingImageId}
               getImageUrl={getResultImageUrl}
+              onDeleteRequest={(imageId) => {
+                setDeleteTargetId(imageId);
+              }}
               onOpenUploader={handleResetToUploader}
               onRefresh={() => {
                 void loadHistory();
@@ -755,6 +790,45 @@ export function HomeShell() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {deleteTargetId ? (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#020617]/70 p-6 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-[#111827] p-8 shadow-2xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-rose-400">
+              Delete Record
+            </p>
+            <h2 className="mt-3 text-2xl font-light tracking-tight text-white">
+              确认删除这条分析记录？
+            </h2>
+            <p className="mt-4 text-sm leading-6 text-slate-400">
+              删除后，这条记录对应的 JSON、原图和 overlay 都会一起移除，且无法恢复。
+            </p>
+            <div className="mt-6 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-slate-200">
+              {deleteTargetId}
+            </div>
+            <div className="mt-8 flex gap-3">
+              <button
+                className="flex-1 rounded-xl border border-rose-500/40 bg-rose-500/10 px-6 py-4 text-sm font-semibold text-rose-200 transition-colors hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={deletingImageId === deleteTargetId}
+                type="button"
+                onClick={() => {
+                  void handleDeleteHistory(deleteTargetId);
+                }}
+              >
+                {deletingImageId === deleteTargetId ? "删除中..." : "确认删除"}
+              </button>
+              <button
+                className="rounded-xl border border-white/10 bg-white/5 px-6 py-4 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/10"
+                disabled={deletingImageId === deleteTargetId}
+                type="button"
+                onClick={() => setDeleteTargetId(null)}
+              >
+                取消
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

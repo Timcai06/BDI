@@ -5,8 +5,10 @@ interface HistoryPanelProps {
   items: PredictionHistoryItem[];
   loading: boolean;
   errorMessage?: string | null;
+  deletingImageId?: string | null;
   onRefresh: () => void;
   onSelect: (imageId: string) => void;
+  onDeleteRequest: (imageId: string) => void;
   onOpenUploader: () => void;
   getImageUrl: (imageId: string) => string | null;
 }
@@ -25,8 +27,10 @@ export function HistoryPanel({
   items,
   loading,
   errorMessage,
+  deletingImageId,
   onRefresh,
   onSelect,
+  onDeleteRequest,
   onOpenUploader,
   getImageUrl
 }: HistoryPanelProps) {
@@ -109,11 +113,9 @@ export function HistoryPanel({
 
         {!loading
           ? items.map((item) => (
-              <button
+              <article
                 key={item.image_id}
                 className="flex w-full items-start justify-between gap-4 rounded-2xl border border-white/5 bg-white/[0.03] p-4 text-left transition-colors hover:bg-white/[0.06]"
-                type="button"
-                onClick={() => onSelect(item.image_id)}
               >
                 <div className="flex min-w-0 gap-4">
                   <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-black/20">
@@ -150,6 +152,11 @@ export function HistoryPanel({
                 </div>
 
                 <div className="shrink-0 text-right">
+                  {deletingImageId === item.image_id ? (
+                    <div className="mb-3 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[11px] font-semibold text-amber-200">
+                      删除中...
+                    </div>
+                  ) : null}
                   <div className="text-lg font-mono text-sky-400">
                     {item.detection_count}
                   </div>
@@ -159,8 +166,26 @@ export function HistoryPanel({
                   <div className="mt-3 text-xs font-mono text-slate-400">
                     {item.inference_ms}ms
                   </div>
+                  <div className="mt-4 flex justify-end gap-2">
+                    <button
+                      className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-semibold text-slate-200 transition-colors hover:bg-white/10"
+                      disabled={deletingImageId === item.image_id}
+                      type="button"
+                      onClick={() => onSelect(item.image_id)}
+                    >
+                      打开
+                    </button>
+                    <button
+                      className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-[11px] font-semibold text-rose-200 transition-colors hover:bg-rose-500/20"
+                      disabled={deletingImageId === item.image_id}
+                      type="button"
+                      onClick={() => onDeleteRequest(item.image_id)}
+                    >
+                      删除
+                    </button>
+                  </div>
                 </div>
-              </button>
+              </article>
             ))
           : null}
       </div>

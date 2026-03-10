@@ -1,4 +1,5 @@
 import {
+  deleteResult,
   getOverlayDownloadUrl,
   getResultImageUrl,
   listResults,
@@ -32,5 +33,9 @@ describe("predict-client", () => {
 
   it("returns null for result images when no API base url is configured", () => {
     expect(getResultImageUrl("bridge-deck-demo.jpg")).toBeNull();
+  });
+
+  it("does not throw when deleting in mock mode", async () => {
+    await expect(deleteResult("bridge-deck-demo.jpg")).resolves.toBeUndefined();
   });
 });

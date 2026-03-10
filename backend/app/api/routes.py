@@ -6,6 +6,7 @@ from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse
 
 from app.models.schemas import (
+    DeleteResultResponse,
     HealthResponse,
     PredictOptions,
     PredictResponse,
@@ -63,3 +64,8 @@ async def get_result_overlay(request: Request, image_id: str) -> FileResponse:
 async def get_result_image(request: Request, image_id: str) -> FileResponse:
     image_path = request.app.state.result_service.get_upload_path(image_id=image_id)
     return FileResponse(image_path, filename=image_path.name)
+
+
+@router.delete("/results/{image_id}", response_model=DeleteResultResponse)
+async def delete_result(request: Request, image_id: str) -> DeleteResultResponse:
+    return request.app.state.result_service.delete_result(image_id=image_id)

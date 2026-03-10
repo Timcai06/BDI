@@ -76,6 +76,11 @@ class ResultListResponse(BaseModel):
     items: list[ResultSummary]
 
 
+class DeleteResultResponse(BaseModel):
+    deleted: bool = True
+    image_id: str
+
+
 class HealthResponse(BaseModel):
     status: Literal["ok"] = "ok"
     service: str
