@@ -81,5 +81,6 @@ class ResultService:
             inference_mode=result.inference_mode,
             inference_ms=result.inference_ms,
             detection_count=len(result.detections),
+            categories=sorted({item.category for item in result.detections}),
             artifacts=result.artifacts,
         )

@@ -68,6 +68,7 @@ export interface PredictionHistoryItem {
   inference_mode: string;
   inference_ms: number;
   detection_count: number;
+  categories: string[];
   artifacts: Artifacts;
 }
 

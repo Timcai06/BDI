@@ -69,6 +69,7 @@ class ResultSummary(BaseModel):
     inference_mode: str
     inference_ms: int = Field(ge=0)
     detection_count: int = Field(ge=0)
+    categories: list[str] = Field(default_factory=list)
     artifacts: ArtifactLinks
 
 

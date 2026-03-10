@@ -82,6 +82,7 @@ export async function listResults(): Promise<PredictionHistoryResponse> {
           inference_mode: demoResult.inference_mode,
           inference_ms: demoResult.inference_ms,
           detection_count: demoResult.detections.length,
+          categories: [...new Set(demoResult.detections.map((item) => item.category))],
           artifacts: demoResult.artifacts
         }
       ]
