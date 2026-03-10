@@ -6,9 +6,17 @@ interface HistoryPanelProps {
   loading: boolean;
   errorMessage?: string | null;
   deletingImageId?: string | null;
+  deleteSuccessMessage?: string | null;
+  filterMode: "recent" | "all";
+  searchQuery: string;
+  categoryFilter: string;
+  availableCategories: string[];
   onRefresh: () => void;
   onSelect: (imageId: string) => void;
   onDeleteRequest: (imageId: string) => void;
+  onFilterChange: (mode: "recent" | "all") => void;
+  onSearchQueryChange: (value: string) => void;
+  onCategoryFilterChange: (value: string) => void;
   onOpenUploader: () => void;
   getImageUrl: (imageId: string) => string | null;
 }
@@ -28,9 +36,17 @@ export function HistoryPanel({
   loading,
   errorMessage,
   deletingImageId,
+  deleteSuccessMessage,
+  filterMode,
+  searchQuery,
+  categoryFilter,
+  availableCategories,
   onRefresh,
   onSelect,
   onDeleteRequest,
+  onFilterChange,
+  onSearchQueryChange,
+  onCategoryFilterChange,
   onOpenUploader,
   getImageUrl
 }: HistoryPanelProps) {
@@ -67,6 +83,13 @@ export function HistoryPanel({
       </div>
 
       <div className="mt-6 space-y-3">
+        {!loading && deleteSuccessMessage ? (
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5 text-sm text-emerald-100">
+            <p className="font-medium">删除完成</p>
+            <p className="mt-2 text-emerald-100/80">{deleteSuccessMessage}</p>
+          </div>
+        ) : null}
+
         {!loading && errorMessage ? (
           <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-5 text-sm text-rose-200">
             <p className="font-medium">历史结果读取失败</p>
@@ -86,6 +109,80 @@ export function HistoryPanel({
               >
                 返回上传
               </button>
+            </div>
+          </div>
+        ) : null}
+
+        {!loading && items.length > 0 ? (
+          <div className="space-y-4 rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-4">
+            <div className="grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
+              <label className="block">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Search
+                </span>
+                <input
+                  className="mt-2 w-full rounded-lg border border-white/10 bg-[#0F172A] px-3 py-2 text-sm text-slate-100 outline-none transition-colors focus:border-sky-500"
+                  placeholder="搜索图片名、模型版本或后端类型"
+                  type="text"
+                  value={searchQuery}
+                  onChange={(event) => onSearchQueryChange(event.target.value)}
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Category
+                </span>
+                <select
+                  className="mt-2 w-full rounded-lg border border-white/10 bg-[#0F172A] px-3 py-2 text-sm text-slate-100 outline-none transition-colors focus:border-sky-500"
+                  value={categoryFilter}
+                  onChange={(event) => onCategoryFilterChange(event.target.value)}
+                >
+                  <option value="全部">全部病害</option>
+                  {availableCategories.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Record Filter
+                </p>
+                <p className="mt-1 text-sm text-slate-400">
+                  {filterMode === "recent"
+                    ? "当前只显示最近 5 条分析记录。"
+                    : "当前显示全部分析记录。"}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                    filterMode === "recent"
+                      ? "border border-sky-500/40 bg-sky-500/10 text-sky-300"
+                      : "border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"
+                  }`}
+                  type="button"
+                  onClick={() => onFilterChange("recent")}
+                >
+                  最近 5 条
+                </button>
+                <button
+                  className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                    filterMode === "all"
+                      ? "border border-sky-500/40 bg-sky-500/10 text-sky-300"
+                      : "border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"
+                  }`}
+                  type="button"
+                  onClick={() => onFilterChange("all")}
+                >
+                  全部
+                </button>
+              </div>
             </div>
           </div>
         ) : null}
@@ -148,6 +245,16 @@ export function HistoryPanel({
                     <p className="mt-2 text-xs text-slate-400">
                       {item.model_name} / {item.model_version} / {item.inference_mode}
                     </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {item.categories.map((category) => (
+                        <span
+                          key={category}
+                          className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-mono text-slate-300"
+                        >
+                          {category}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
 

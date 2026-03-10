@@ -70,6 +70,10 @@ export function HomeShell() {
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
+  const [deleteSuccessMessage, setDeleteSuccessMessage] = useState<string | null>(null);
+  const [historyFilterMode, setHistoryFilterMode] = useState<"recent" | "all">("recent");
+  const [historySearchQuery, setHistorySearchQuery] = useState("");
+  const [historyCategoryFilter, setHistoryCategoryFilter] = useState("全部");
   const [status, setStatus] = useState<PredictState>(initialState);
   const [categoryFilter, setCategoryFilter] = useState("全部");
   const [minConfidence, setMinConfidence] = useState(0.3);
@@ -81,6 +85,20 @@ export function HomeShell() {
   const categories = result
     ? ["全部", ...new Set(result.detections.map((item) => item.category))]
     : ["全部"];
+  const availableHistoryCategories = [...new Set(historyItems.flatMap((item) => item.categories))];
+  const filteredHistoryItems = historyItems.filter((item) => {
+    const query = historySearchQuery.trim().toLowerCase();
+    const matchesQuery =
+      query.length === 0 ||
+      item.image_id.toLowerCase().includes(query) ||
+      item.model_version.toLowerCase().includes(query) ||
+      item.backend.toLowerCase().includes(query);
+    const matchesCategory =
+      historyCategoryFilter === "全部" || item.categories.includes(historyCategoryFilter);
+    return matchesQuery && matchesCategory;
+  });
+  const visibleHistoryItems =
+    historyFilterMode === "recent" ? filteredHistoryItems.slice(0, 5) : filteredHistoryItems;
 
   useEffect(() => {
     void loadHistory({ silent: true });
@@ -113,6 +131,7 @@ export function HomeShell() {
   }
 
   async function handleSelectHistory(imageId: string) {
+    setDeleteSuccessMessage(null);
     setStatus({
       phase: "running",
       message: `正在加载 ${imageId} 的历史结果。`
@@ -321,7 +340,11 @@ export function HomeShell() {
         setPreviewUrl(null);
         setActiveNav("Home");
       }
+      if (historySearchQuery.trim()) {
+        setHistorySearchQuery("");
+      }
       setDeleteTargetId(null);
+      setDeleteSuccessMessage(`记录 ${imageId} 已被移除。`);
       setStatus({
         phase: "success",
         message: `已删除 ${imageId} 的分析记录。`
@@ -421,14 +444,22 @@ export function HomeShell() {
         <div className="flex-1 overflow-y-auto p-6" style={{ scrollbarGutter: 'stable' }}>
           {activeNav === "Scans" ? (
             <HistoryPanel
-              items={historyItems}
+              items={visibleHistoryItems}
               loading={historyLoading}
               errorMessage={historyError}
               deletingImageId={deletingImageId}
+              deleteSuccessMessage={deleteSuccessMessage}
+              filterMode={historyFilterMode}
+              searchQuery={historySearchQuery}
+              categoryFilter={historyCategoryFilter}
+              availableCategories={availableHistoryCategories}
               getImageUrl={getResultImageUrl}
               onDeleteRequest={(imageId) => {
                 setDeleteTargetId(imageId);
               }}
+              onFilterChange={setHistoryFilterMode}
+              onSearchQueryChange={setHistorySearchQuery}
+              onCategoryFilterChange={setHistoryCategoryFilter}
               onOpenUploader={handleResetToUploader}
               onRefresh={() => {
                 void loadHistory();

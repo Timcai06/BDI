@@ -35,6 +35,7 @@ def test_list_results_returns_recent_saved_predictions(tmp_path: Path, monkeypat
     assert len(payload["items"]) == 2
     assert payload["items"][0]["image_id"] == second.json()["image_id"]
     assert payload["items"][0]["detection_count"] == len(second.json()["detections"])
+    assert payload["items"][0]["categories"]
 
 
 def test_get_result_returns_saved_prediction_payload(tmp_path: Path, monkeypatch) -> None:
