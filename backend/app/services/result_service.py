@@ -5,7 +5,12 @@ from pathlib import Path
 from fastapi import status
 
 from app.core.errors import AppError
-from app.models.schemas import PredictResponse, ResultListResponse, ResultSummary
+from app.models.schemas import (
+    DeleteResultResponse,
+    PredictResponse,
+    ResultListResponse,
+    ResultSummary,
+)
 from app.storage.local import LocalArtifactStore
 
 
@@ -53,6 +58,18 @@ class ResultService:
                 details={"image_id": image_id},
             )
         return upload_path
+
+    def delete_result(self, *, image_id: str) -> DeleteResultResponse:
+        if self.store.load_result(image_id=image_id) is None:
+            raise AppError(
+                code="RESULT_NOT_FOUND",
+                message="Result does not exist.",
+                status_code=status.HTTP_404_NOT_FOUND,
+                details={"image_id": image_id},
+            )
+
+        self.store.delete_result_artifacts(image_id=image_id)
+        return DeleteResultResponse(image_id=image_id)
 
     def _build_summary(self, result: PredictResponse) -> ResultSummary:
         return ResultSummary(

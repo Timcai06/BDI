@@ -127,6 +127,28 @@ export async function getResult(imageId: string): Promise<PredictionResult> {
   }
 }
 
+export async function deleteResult(imageId: string): Promise<void> {
+  if (!API_BASE_URL) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/results/${imageId}`, {
+      method: "DELETE"
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json()) as ApiError;
+      throw new Error(getErrorMessage(payload, "删除记录失败。"));
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error("无法删除分析记录。");
+  }
+}
+
 export function getOverlayDownloadUrl(imageId: string): string | null {
   if (!API_BASE_URL) {
     return demoResult.artifacts.overlay_path ?? null;

@@ -114,3 +114,36 @@ def test_get_result_image_returns_not_found_when_missing(tmp_path: Path, monkeyp
     assert response.status_code == 404
     payload = response.json()
     assert payload["error"]["code"] == "IMAGE_NOT_FOUND"
+
+
+def test_delete_result_removes_saved_artifacts(tmp_path: Path, monkeypatch) -> None:
+    client = create_test_client(tmp_path, monkeypatch)
+
+    predict_response = client.post(
+        "/predict",
+        files={"file": ("bridge.jpg", b"fake-jpeg-data", "image/jpeg")},
+        data={"return_overlay": "true"},
+    )
+
+    image_id = predict_response.json()["image_id"]
+
+    response = client.delete(f"/results/{image_id}")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["deleted"] is True
+    assert payload["image_id"] == image_id
+
+    assert client.get(f"/results/{image_id}").status_code == 404
+    assert client.get(f"/results/{image_id}/image").status_code == 404
+    assert client.get(f"/results/{image_id}/overlay").status_code == 404
+
+
+def test_delete_result_returns_not_found_for_unknown_result(tmp_path: Path, monkeypatch) -> None:
+    client = create_test_client(tmp_path, monkeypatch)
+
+    response = client.delete("/results/missing-image")
+
+    assert response.status_code == 404
+    payload = response.json()
+    assert payload["error"]["code"] == "RESULT_NOT_FOUND"

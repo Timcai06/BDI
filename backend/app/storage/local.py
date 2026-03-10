@@ -62,3 +62,12 @@ class LocalArtifactStore:
                 break
         results.sort(key=lambda item: item.get("created_at", ""), reverse=True)
         return results
+
+    def delete_result_artifacts(self, *, image_id: str) -> None:
+        for path in (
+            self.result_path(image_id),
+            self.upload_path(image_id),
+            self.overlay_path(image_id),
+        ):
+            if path.exists():
+                path.unlink()
