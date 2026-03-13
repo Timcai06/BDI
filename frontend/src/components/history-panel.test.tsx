@@ -34,19 +34,21 @@ describe("HistoryPanel", () => {
         filterMode="recent"
         searchQuery=""
         categoryFilter="全部"
+        sortMode="newest"
         availableCategories={["裂缝"]}
         onRefresh={() => {}}
         onDeleteRequest={() => {}}
         onFilterChange={() => {}}
         onSearchQueryChange={() => {}}
         onCategoryFilterChange={() => {}}
+        onSortModeChange={() => {}}
         onOpenUploader={() => {}}
         onSelect={onSelect}
         getImageUrl={() => null}
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "打开" }));
+    fireEvent.click(screen.getByRole("article"));
 
     expect(onSelect).toHaveBeenCalledWith("bridge-001.jpg");
   });
@@ -81,12 +83,14 @@ describe("HistoryPanel", () => {
         filterMode="recent"
         searchQuery=""
         categoryFilter="全部"
+        sortMode="newest"
         availableCategories={["裂缝"]}
         onRefresh={() => {}}
         onDeleteRequest={onDeleteRequest}
         onFilterChange={() => {}}
         onSearchQueryChange={() => {}}
         onCategoryFilterChange={() => {}}
+        onSortModeChange={() => {}}
         onOpenUploader={() => {}}
         onSelect={() => {}}
         getImageUrl={() => null}
@@ -128,12 +132,14 @@ describe("HistoryPanel", () => {
         filterMode="recent"
         searchQuery=""
         categoryFilter="全部"
+        sortMode="newest"
         availableCategories={["裂缝"]}
         onRefresh={() => {}}
         onDeleteRequest={() => {}}
         onFilterChange={onFilterChange}
         onSearchQueryChange={() => {}}
         onCategoryFilterChange={() => {}}
+        onSortModeChange={() => {}}
         onOpenUploader={() => {}}
         onSelect={() => {}}
         getImageUrl={() => null}
@@ -176,12 +182,14 @@ describe("HistoryPanel", () => {
         filterMode="all"
         searchQuery=""
         categoryFilter="全部"
+        sortMode="newest"
         availableCategories={["裂缝"]}
         onRefresh={() => {}}
         onDeleteRequest={() => {}}
         onFilterChange={() => {}}
         onSearchQueryChange={onSearchQueryChange}
         onCategoryFilterChange={onCategoryFilterChange}
+        onSortModeChange={() => {}}
         onOpenUploader={() => {}}
         onSelect={() => {}}
         getImageUrl={() => null}
@@ -198,5 +206,56 @@ describe("HistoryPanel", () => {
 
     expect(onSearchQueryChange).toHaveBeenCalledWith("bridge");
     expect(onCategoryFilterChange).toHaveBeenCalledWith("裂缝");
+  });
+
+  it("updates the sort mode", () => {
+    const onSortModeChange = vi.fn();
+
+    render(
+      <HistoryPanel
+        items={[
+          {
+            image_id: "bridge-001.jpg",
+            created_at: "2026-03-09T10:00:00Z",
+            model_name: "yolov8-seg",
+            model_version: "v1-real",
+            backend: "pytorch",
+            inference_mode: "direct",
+            inference_ms: 231,
+            detection_count: 3,
+            categories: ["裂缝"],
+            artifacts: {
+              upload_path: "uploads/bridge-001.jpg",
+              json_path: "results/bridge-001.json",
+              overlay_path: "overlays/bridge-001.png"
+            }
+          }
+        ]}
+        loading={false}
+        errorMessage={null}
+        deletingImageId={null}
+        deleteSuccessMessage={null}
+        filterMode="all"
+        searchQuery=""
+        categoryFilter="全部"
+        sortMode="newest"
+        availableCategories={["裂缝"]}
+        onRefresh={() => {}}
+        onDeleteRequest={() => {}}
+        onFilterChange={() => {}}
+        onSearchQueryChange={() => {}}
+        onCategoryFilterChange={() => {}}
+        onSortModeChange={onSortModeChange}
+        onOpenUploader={() => {}}
+        onSelect={() => {}}
+        getImageUrl={() => null}
+      />
+    );
+
+    fireEvent.change(screen.getByDisplayValue("最新优先"), {
+      target: { value: "fastest" }
+    });
+
+    expect(onSortModeChange).toHaveBeenCalledWith("fastest");
   });
 });

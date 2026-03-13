@@ -11,18 +11,18 @@
 }
 
 :root {
-  --background: #0B1120;
-  --foreground: #F1F5F9;
-  --panel: rgba(30, 41, 59, 0.75);
-  --panel-strong: rgba(30, 41, 59, 0.95);
-  --border: rgba(255, 255, 255, 0.1);
-  --accent: #38BDF8;
-  --accent-deep: #0284C7;
+  --background: #000000;
+  --foreground: #FFFFFF;
+  --panel: rgba(0, 0, 0, 0.4);
+  --panel-strong: rgba(0, 0, 0, 0.6);
+  --border: rgba(255, 255, 255, 0.08);
+  --accent: #4285F4;
+  --accent-deep: #A06EE1;
   --success: #10B981;
   --danger: #EF4444;
-  --muted: #94A3B8;
-  --font-heading: "Inter", "Roboto", "Segoe UI", sans-serif;
-  --font-body: "Inter", "Roboto", "Segoe UI", sans-serif;
+  --muted: rgba(255, 255, 255, 0.6);
+  --font-heading: "Google Sans", "Inter", sans-serif;
+  --font-body: "Google Sans", "Inter", sans-serif;
 }
 
 * {
@@ -38,7 +38,14 @@ body {
   margin: 0;
   color: var(--foreground);
   font-family: var(--font-body), sans-serif;
-  overflow: hidden; /* For full screen dashboard */
+  overflow: hidden;
+  /* For full screen dashboard */
+  background-color: var(--background);
+  /* Cinematic edge glows (Google Flow style) */
+  background-image:
+    radial-gradient(ellipse 60% 40% at 50% -20%, rgba(66, 133, 244, 0.15), transparent),
+    radial-gradient(ellipse 60% 40% at 50% 120%, rgba(160, 110, 225, 0.15), transparent);
+  background-attachment: fixed;
 }
 
 a {
@@ -53,10 +60,10 @@ input {
 
 .surface {
   background: var(--panel);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--border);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 .section-title {
