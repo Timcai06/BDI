@@ -7,6 +7,7 @@ import {
   useEffect,
   useState
 } from "react";
+import Link from "next/link";
 
 import { HistoryPanel } from "@/components/history-panel";
 import { ResultDashboard } from "@/components/result-dashboard";
@@ -422,15 +423,14 @@ export function HomeShell() {
 
   return (
     <main className="flex h-screen w-full bg-black text-slate-200 overflow-hidden font-sans">
-      {/* 极简左侧侧边栏 */}
       <aside className="w-20 lg:w-64 shrink-0 border-r border-white/5 bg-black flex flex-col">
         <div className="flex h-16 items-center justify-center lg:justify-start lg:px-6 border-b border-white/5">
-          <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-80">
             <div className="h-8 w-8 rounded-lg bg-black border border-white/20 flex items-center justify-center">
               <span className="text-white font-bold font-mono">BDI</span>
             </div>
             <span className="hidden lg:block font-semibold tracking-[0.2em] uppercase text-white">INFRA-SCAN</span>
-          </div>
+          </Link>
         </div>
 
         <div className="px-3 pt-6">
