@@ -9,11 +9,11 @@ const phaseStyleMap: Record<AppPhase, string> = {
 };
 
 const phaseLabelMap: Record<AppPhase, string> = {
-  idle: "STANDBY",
-  uploading: "UPLOADING",
-  running: "INFERENCE",
-  success: "COMPLETED",
-  error: "FAILED"
+  idle: "待开始",
+  uploading: "上传中",
+  running: "识别中",
+  success: "已完成",
+  error: "失败"
 };
 
 interface StatusCardProps {

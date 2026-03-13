@@ -1,5 +1,10 @@
 import type { Detection, PredictionResult } from "@/lib/types";
 
+interface Size {
+  width: number;
+  height: number;
+}
+
 export function formatConfidence(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
@@ -22,4 +27,45 @@ export function filterDetections(
     const categoryMatched = category === "全部" || item.category === category;
     return categoryMatched && item.confidence >= minConfidence;
   });
+}
+
+export function getDetectionOverlayStyle(
+  bbox: Detection["bbox"],
+  imageSize: Size,
+  frameSize: Size
+): Record<"left" | "top" | "width" | "height", string> {
+  if (
+    imageSize.width <= 0 ||
+    imageSize.height <= 0 ||
+    frameSize.width <= 0 ||
+    frameSize.height <= 0
+  ) {
+    return {
+      left: "0%",
+      top: "0%",
+      width: "0%",
+      height: "0%"
+    };
+  }
+
+  const scale = Math.min(
+    frameSize.width / imageSize.width,
+    frameSize.height / imageSize.height
+  );
+  const renderedWidth = imageSize.width * scale;
+  const renderedHeight = imageSize.height * scale;
+  const offsetX = (frameSize.width - renderedWidth) / 2;
+  const offsetY = (frameSize.height - renderedHeight) / 2;
+
+  const left = offsetX + bbox.x * scale;
+  const top = offsetY + bbox.y * scale;
+  const width = bbox.width * scale;
+  const height = bbox.height * scale;
+
+  return {
+    left: `${(left / frameSize.width * 100).toFixed(3)}%`,
+    top: `${(top / frameSize.height * 100).toFixed(3)}%`,
+    width: `${(width / frameSize.width * 100).toFixed(3)}%`,
+    height: `${(height / frameSize.height * 100).toFixed(3)}%`
+  };
 }
