@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi import UploadFile, status
 
-from app.adapters.base import ModelRunner
+from app.adapters.manager import RunnerManager
 from app.core.errors import AppError
 from app.models.schemas import ArtifactLinks, Detection, PredictOptions, PredictResponse
 from app.storage.local import LocalArtifactStore
@@ -18,11 +18,11 @@ class PredictService:
         self,
         *,
         store: LocalArtifactStore,
-        runner: ModelRunner,
+        runner_manager: RunnerManager,
         max_upload_size_bytes: int,
     ) -> None:
         self.store = store
-        self.runner = runner
+        self.runner_manager = runner_manager
         self.max_upload_size_bytes = max_upload_size_bytes
 
     async def predict(self, *, file: UploadFile, options: PredictOptions) -> PredictResponse:
@@ -69,10 +69,29 @@ class PredictService:
         image_id = self.store.build_image_id(file.filename)
         upload_path = self.store.save_upload(image_id=image_id, content=content)
 
-        raw_prediction = self.runner.predict(
+        try:
+            model_spec, runner = self.runner_manager.resolve(options.model_version)
+        except KeyError as exc:
+            raise AppError(
+                code="UNKNOWN_MODEL_VERSION",
+                message="Requested model version is not registered.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                details={"model_version": options.model_version},
+            ) from exc
+        except RuntimeError as exc:
+            raise AppError(
+                code="MODEL_UNAVAILABLE",
+                message=str(exc),
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                details={"model_version": options.model_version},
+            ) from exc
+
+        normalized_options = options.model_copy(update={"model_version": model_spec.model_version})
+
+        raw_prediction = runner.predict(
             image_bytes=content,
             image_name=file.filename,
-            options=options,
+            options=normalized_options,
         )
 
         response = PredictResponse(
@@ -96,7 +115,7 @@ class PredictService:
             artifacts=ArtifactLinks(upload_path=upload_path, json_path="", overlay_path=None),
         )
 
-        if options.return_overlay and raw_prediction.overlay_png:
+        if normalized_options.return_overlay and raw_prediction.overlay_png:
             overlay_path = self.store.save_overlay(
                 image_id=image_id,
                 content=raw_prediction.overlay_png,

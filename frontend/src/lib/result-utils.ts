@@ -18,6 +18,41 @@ export function getDetectionSummary(result: PredictionResult): string {
   return `检出 ${result.detections.length} 处病害，涉及 ${categories.size} 类病害。`;
 }
 
+export interface DetectionCategoryDiffItem {
+  category: string;
+  primaryCount: number;
+  comparisonCount: number;
+  delta: number;
+}
+
+export function buildDetectionCategoryDiff(
+  primary: PredictionResult,
+  comparison: PredictionResult
+): DetectionCategoryDiffItem[] {
+  const categories = new Set([
+    ...primary.detections.map((item) => item.category),
+    ...comparison.detections.map((item) => item.category)
+  ]);
+
+  return [...categories]
+    .sort((left, right) => left.localeCompare(right, "zh-CN"))
+    .map((category) => {
+      const primaryCount = primary.detections.filter(
+        (item) => item.category === category
+      ).length;
+      const comparisonCount = comparison.detections.filter(
+        (item) => item.category === category
+      ).length;
+
+      return {
+        category,
+        primaryCount,
+        comparisonCount,
+        delta: comparisonCount - primaryCount
+      };
+    });
+}
+
 export function filterDetections(
   detections: Detection[],
   category: string,

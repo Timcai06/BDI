@@ -1,5 +1,6 @@
 import { demoResult } from "@/lib/mock-data";
 import {
+  buildDetectionCategoryDiff,
   filterDetections,
   formatConfidence,
   getDetectionOverlayStyle,
@@ -34,5 +35,28 @@ describe("result-utils", () => {
       width: "25.000%",
       height: "17.578%"
     });
+  });
+
+  it("builds category-level detection diff between two results", () => {
+    const diff = buildDetectionCategoryDiff(demoResult, {
+      ...demoResult,
+      model_version: "mock-v2",
+      detections: [demoResult.detections[0]]
+    });
+
+    expect(diff).toEqual([
+      {
+        category: "剥落",
+        primaryCount: 1,
+        comparisonCount: 0,
+        delta: -1
+      },
+      {
+        category: "裂缝",
+        primaryCount: 1,
+        comparisonCount: 1,
+        delta: 0
+      }
+    ]);
   });
 });

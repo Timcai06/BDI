@@ -20,6 +20,8 @@
 - 已修复后端对 `Python 3.9` 的类型语法兼容问题
 - 已确认 `.venv-yolo` 中安装了 `ultralytics`
 - 已将 `.venv-yolo` 中的 `numpy` 调整为 `<2`，并确认 `ultralytics + torch` 可导入
+- 已确认多模型注册与 runner 管理新增代码兼容 `.venv-yolo` 的 `Python 3.9`
+- 已完成 `.venv-yolo` 下 `import app.main`、`pytest` 与 `compileall app` 验证
 - 已完成真实 `YOLOv8-seg` 单图推理联调验收
 - 已完成浏览器侧上传到结果展示的完整链路验证
 - 已确认前端消费真实 runner 返回结果无需协议改动

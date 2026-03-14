@@ -38,6 +38,26 @@ def test_list_results_returns_recent_saved_predictions(tmp_path: Path, monkeypat
     assert payload["items"][0]["categories"]
 
 
+def test_list_models_returns_registered_catalog(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("BDI_ARTIFACT_ROOT", str(tmp_path / "artifacts"))
+    monkeypatch.setenv(
+        "BDI_EXTRA_MODELS",
+        '[{"model_version":"mock-v2","backend":"mock","runner_kind":"mock"}]',
+    )
+    client = TestClient(create_app())
+
+    response = client.get("/models")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["active_version"] in {"mock-v1", "mock-v2"}
+    assert payload["items"][0]["model_version"] == payload["active_version"]
+    assert payload["items"][0]["is_active"] is True
+    assert payload["items"][0]["is_available"] is True
+    assert any(item["model_version"] == "mock-v1" for item in payload["items"])
+    assert any(item["model_version"] == "mock-v2" for item in payload["items"])
+
+
 def test_get_result_returns_saved_prediction_payload(tmp_path: Path, monkeypatch) -> None:
     client = create_test_client(tmp_path, monkeypatch)
 

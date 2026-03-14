@@ -9,9 +9,10 @@
 
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
+  /* 动画定义 */
   @keyframes pulse-slow {
-    0%, 100% { padding: 0; opacity: 1; transform: scale(1); }
-    50% { opacity: 0.8; transform: scale(1.02) rotate(1deg); }
+    0%, 100% { opacity: 0.8; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.02); }
   }
   
   @keyframes text-flow {
@@ -20,8 +21,27 @@
     100% { background-position: 0% 50%; }
   }
 
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  @keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
   --animate-pulse-slow: pulse-slow 8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   --animate-text-flow: text-flow 8s ease infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-shimmer: shimmer 2s linear infinite;
+  --animate-gradient-shift: gradient-shift 15s ease infinite;
 }
 
 :root {
@@ -39,12 +59,17 @@
   --font-body: "Google Sans", "Inter", sans-serif;
 }
 
+/* ============================================
+   基础样式与重置
+   ============================================ */
+
 * {
   box-sizing: border-box;
 }
 
 html {
   background: var(--background);
+  scroll-behavior: smooth;
 }
 
 body {
@@ -52,14 +77,15 @@ body {
   margin: 0;
   color: var(--foreground);
   font-family: var(--font-body), sans-serif;
-  /* overflow: hidden; Removed for landing page scrolling */
-  /* For full screen dashboard */
   background-color: var(--background);
   /* Cinematic edge glows (Google Flow style) */
   background-image:
     radial-gradient(ellipse 60% 40% at 50% -20%, rgba(66, 133, 244, 0.15), transparent),
     radial-gradient(ellipse 60% 40% at 50% 120%, rgba(160, 110, 225, 0.15), transparent);
   background-attachment: fixed;
+  /* GPU 加速 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
@@ -71,6 +97,33 @@ button,
 input {
   font: inherit;
 }
+
+/* ============================================
+   GPU 加速优化
+   ============================================ */
+
+/* 为频繁动画的元素启用 GPU 层 */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* 减少动画偏好支持 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================
+   工具类
+   ============================================ */
 
 .surface {
   background: var(--panel);
@@ -87,4 +140,87 @@ input {
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--muted);
+}
+
+/* ============================================
+   性能优化辅助类
+   ============================================ */
+
+/* 内容可见性优化 - 离屏内容不渲染 */
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+/* will-change 自动管理 */
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-opacity {
+  will-change: opacity;
+}
+
+/* 防止布局抖动 */
+.contain-layout {
+  contain: layout;
+}
+
+.contain-paint {
+  contain: paint;
+}
+
+/* ============================================
+   滚动条样式
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ============================================
+   选择文本样式
+   ============================================ */
+
+::selection {
+  background: rgba(66, 133, 244, 0.3);
+  color: white;
+}
+
+/* ============================================
+   焦点样式（无障碍）
+   ============================================ */
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   图片优化
+   ============================================ */
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* 防止图片加载时的布局抖动 */
+img[width][height] {
+  aspect-ratio: attr(width) / attr(height);
 }

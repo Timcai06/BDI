@@ -12,7 +12,7 @@ def test_health_endpoint_returns_runtime_status() -> None:
     payload = response.json()
     assert payload["status"] == "ok"
     assert payload["ready"] is True
-    assert payload["active_runner"] == "mock-runner"
+    assert payload["active_runner"] == "mock-runner:mock-v1"
 
 
 def test_health_options_request_includes_cors_headers() -> None:

@@ -1,4 +1,4 @@
-import type { PredictionResult } from "@/lib/types";
+import type { ModelCatalogResponse, PredictionResult } from "@/lib/types";
 
 export const demoResult: PredictionResult = {
   schema_version: "1.0.0",
@@ -61,3 +61,52 @@ export const demoResult: PredictionResult = {
     overlay_path: "/mock-artifacts/bridge-deck-demo-overlay.png"
   }
 };
+
+export const demoModelCatalog: ModelCatalogResponse = {
+  active_version: "v1-demo",
+  items: [
+    {
+      model_name: "yolov8-seg",
+      model_version: "v1-demo",
+      backend: "mock",
+      supports_masks: true,
+      supports_sliced_inference: true,
+      is_active: true,
+      is_available: true
+    },
+    {
+      model_name: "yolov8-seg",
+      model_version: "mock-v2",
+      backend: "mock",
+      supports_masks: true,
+      supports_sliced_inference: false,
+      is_active: false,
+      is_available: true
+    }
+  ]
+};
+
+export function buildDemoResultForModelVersion(modelVersion: string): PredictionResult {
+  if (modelVersion === "mock-v2") {
+    return {
+      ...demoResult,
+      model_version: modelVersion,
+      inference_ms: 241,
+      detections: [
+        {
+          ...demoResult.detections[0],
+          confidence: 0.91,
+          metrics: {
+            ...demoResult.detections[0].metrics,
+            length_mm: 318.2
+          }
+        }
+      ]
+    };
+  }
+
+  return {
+    ...demoResult,
+    model_version: modelVersion
+  };
+}

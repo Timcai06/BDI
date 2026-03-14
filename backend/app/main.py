@@ -5,7 +5,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.adapters.factory import load_runner
+from app.adapters.manager import RunnerManager
+from app.adapters.registry import ModelRegistry
 from app.api.routes import router
 from app.core.config import get_settings
 from app.core.errors import AppError, ErrorPayload, ErrorResponse, app_error_handler
@@ -18,10 +19,15 @@ from app.storage.local import LocalArtifactStore
 def create_app() -> FastAPI:
     settings = get_settings()
     store = LocalArtifactStore(settings.artifact_root)
-    runner = load_runner(settings)
+    registry = ModelRegistry.from_settings(settings)
+    runner_manager = RunnerManager(
+        registry=registry,
+        allow_fallback=settings.allow_mock_fallback,
+    )
+    active_spec, active_runner = runner_manager.resolve()
     predict_service = PredictService(
         store=store,
-        runner=runner,
+        runner_manager=runner_manager,
         max_upload_size_bytes=settings.max_upload_size_bytes,
     )
     result_service = ResultService(store=store)
@@ -49,11 +55,13 @@ def create_app() -> FastAPI:
 
     app.state.predict_service = predict_service
     app.state.result_service = result_service
+    app.state.model_registry = registry
+    app.state.active_model_version = active_spec.model_version
     app.state.health_payload = HealthResponse(
         service=settings.app_name,
         version=settings.app_version,
-        ready=runner.ready,
-        active_runner=runner.name,
+        ready=active_runner.ready,
+        active_runner=f"{active_runner.name}:{active_spec.model_version}",
         storage_root=str(store.root),
     )
     app.include_router(router)
