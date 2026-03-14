@@ -23,6 +23,7 @@ uvicorn app.main:app --reload
 ## 当前接口
 
 - `GET /health`
+- `GET /models`
 - `POST /predict`
 - `GET /results`
 - `GET /results/{image_id}`
@@ -51,6 +52,7 @@ uvicorn app.main:app --reload
 - 将 Ultralytics 原始结果转换为统一协议
 - 生成 overlay 与标准 JSON 产物
 - 后端代码已修正为兼容 `Python 3.9`
+- 已验证新增多模型骨架在 `.venv-yolo` 的 `Python 3.9` 环境中可正常 import、测试和编译
 
 ## 真实模型接入
 
@@ -64,9 +66,16 @@ python3 -m pip install -r requirements-yolo.txt
 export BDI_MODEL_WEIGHTS_PATH=/absolute/path/to/your-model.pt
 export BDI_MODEL_VERSION=v1-real
 export BDI_MODEL_DEVICE=cpu
+export BDI_EXTRA_MODELS='[{"model_version":"mock-v2","backend":"mock","runner_kind":"mock"},{"model_version":"v2-real","backend":"pytorch","weights_path":"/absolute/path/to/your-second-model.pt"}]'
 ```
 
 推荐使用 `Python 3.9` 到 `Python 3.12` 的虚拟环境安装 `ultralytics`。
+
+同时需要注意：
+
+- 真实模型环境当前以 `.venv-yolo` 的 `Python 3.9` 兼容性为硬约束
+- 后端新增代码应避免引入仅 `Python 3.10+` 才支持的语法
+- 特别是 `Path | None`、`str | None` 这类联合类型写法，应统一改用 `Optional[...]`
 
 如果你在 `Python 3.9` 环境中遇到 `NumPy 2.x` 与 `torch`/`ultralytics` 的兼容报错，请重新安装：
 
@@ -78,6 +87,29 @@ python3 -m pip install -r requirements-yolo.txt
 当前 `requirements-yolo.txt` 已显式约束 `numpy<2`，用于避免已验证到的 `torch 2.2.2 + NumPy 2.0.2` 导入兼容问题。
 
 未配置权重路径、权重不可用，或真实依赖未安装时，后端会自动回退到 mock runner，保持前后端协议可联调。
+
+如果你需要在同一个后端中注册多个模型版本，可以使用 `BDI_EXTRA_MODELS`。
+
+推荐格式如下：
+
+```bash
+export BDI_EXTRA_MODELS='[
+  {"model_version":"mock-v2","backend":"mock","runner_kind":"mock"},
+  {"model_version":"v2-real","backend":"pytorch","weights_path":"/absolute/path/to/your-second-model.pt"}
+]'
+```
+
+当前前端可通过 `GET /models` 读取可选模型版本列表，并在发起 `/predict` 时传入 `model_version`。
+
+本轮兼容性验证补充结论：
+
+```bash
+./.venv-yolo/bin/python -c "import app.main; print('import-ok')"
+./.venv-yolo/bin/python -m pytest
+PYTHONPYCACHEPREFIX=/tmp/bdi-pyc ./.venv-yolo/bin/python -m compileall app
+```
+
+以上检查已通过，说明当前 `backend/app` 在 `Python 3.9` 真实模型环境中可正常导入、测试和编译。
 
 ## 当前结论
 

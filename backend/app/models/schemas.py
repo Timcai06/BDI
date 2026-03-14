@@ -10,7 +10,7 @@ class PredictOptions(BaseModel):
     confidence: float = Field(default=0.25, ge=0, le=1)
     iou: float = Field(default=0.45, ge=0, le=1)
     inference_mode: Literal["direct", "sliced"] = "direct"
-    model_version: str = Field(default="mock-v1", min_length=1, max_length=64)
+    model_version: Optional[str] = Field(default=None, min_length=1, max_length=64)
     return_overlay: bool = False
 
 
@@ -89,6 +89,21 @@ class HealthResponse(BaseModel):
     ready: bool
     active_runner: str
     storage_root: str
+
+
+class ModelCatalogItem(BaseModel):
+    model_name: str
+    model_version: str
+    backend: str
+    supports_masks: bool = True
+    supports_sliced_inference: bool = False
+    is_active: bool = False
+    is_available: bool = True
+
+
+class ModelCatalogResponse(BaseModel):
+    active_version: str
+    items: list[ModelCatalogItem]
 
 
 class RawDetection(BaseModel):

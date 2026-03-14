@@ -34,6 +34,16 @@
 
 当前机器的 `Python 3.14` 可以支撑基础 FastAPI 开发，但 `ultralytics` 依赖的 `torch` 暂时无法直接安装，因此真实模型接入建议单独使用 `Python 3.9` 到 `Python 3.12` 的虚拟环境。
 
+### 8.5. 后端类型语法也必须服从真实模型环境
+
+即使主开发环境可以运行更新的 Python 版本，后端新增代码仍要以真实模型运行环境为准。像 `Path | None` 这类 `Python 3.10+` 才支持的联合类型写法，会在 `.venv-yolo` 的 `Python 3.9` 环境里直接导致 Pydantic 导入失败。
+
+这意味着：
+
+- 后端新增代码默认按 `Python 3.9` 可运行标准书写
+- `Optional[...]`、`Dict[...]`、`Tuple[...]` 这类兼容写法优先
+- 每轮涉及后端结构调整后，最好都在 `.venv-yolo` 下至少执行一次 `import app.main` 或 `pytest`
+
 ### 9. “代码已落位” 不能等同于 “功能已完成”
 
 像真实 runner 工厂、adapter 和前端统一 schema 这类能力，即使代码已经写好，也必须区分：

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import numpy as np
 from PIL import Image
 
-from app.core.config import Settings
+from app.adapters.registry import ModelSpec
 from app.models.schemas import (
     BoundingBox,
     MaskPayload,
@@ -30,17 +30,20 @@ class UltralyticsRunner:
     ready: bool = True
 
     @classmethod
-    def from_settings(cls, settings: Settings) -> "UltralyticsRunner":
+    def from_model_spec(cls, spec: ModelSpec) -> "UltralyticsRunner":
         from ultralytics import YOLO
 
-        model = YOLO(str(settings.model_weights_path))
+        if spec.weights_path is None:
+            raise RuntimeError("Ultralytics runner requires a configured weights path.")
+
+        model = YOLO(str(spec.weights_path))
         return cls(
-            model_name=settings.model_name,
-            model_version=settings.model_version,
-            backend=settings.model_backend,
-            weights_path=str(settings.model_weights_path),
-            device=settings.model_device,
-            imgsz=settings.model_imgsz,
+            model_name=spec.model_name,
+            model_version=spec.model_version,
+            backend=spec.backend,
+            weights_path=str(spec.weights_path),
+            device=spec.device,
+            imgsz=spec.imgsz,
             model=model,
         )
 

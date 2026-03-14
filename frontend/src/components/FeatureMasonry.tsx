@@ -1,4 +1,9 @@
+"use client";
+
 import { GlowingCard } from "./ui/GlowingCard";
+import { ScrollReveal, StaggerContainer, StaggerItem, fadeInUp } from "@/lib/animations";
+import { motion, useInView } from "framer-motion";
+import { useRef } from "react";
 
 export function FeatureMasonry() {
   const features = [
@@ -12,6 +17,7 @@ export function FeatureMasonry() {
         </svg>
       ),
       className: "md:col-span-2 md:row-span-2",
+      delay: 0
     },
     {
       title: "智能分析",
@@ -23,6 +29,7 @@ export function FeatureMasonry() {
         </svg>
       ),
       className: "md:col-span-1 md:row-span-1",
+      delay: 0.1
     },
     {
       title: "安全防护",
@@ -34,6 +41,7 @@ export function FeatureMasonry() {
         </svg>
       ),
       className: "md:col-span-1 md:row-span-2",
+      delay: 0.2
     },
     {
       title: "极简集成",
@@ -45,36 +53,91 @@ export function FeatureMasonry() {
         </svg>
       ),
       className: "md:col-span-2 md:row-span-1",
+      delay: 0.3
     },
   ];
 
+  const sectionRef = useRef<HTMLElement>(null);
+  const isInView = useInView(sectionRef, { once: true, amount: 0.1 });
+
   return (
-    <section className="py-24 relative">
+    <section ref={sectionRef} className="py-24 relative">
+      {/* 背景光晕效果 */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[500px] bg-white/[0.02] blur-[100px] rounded-full pointer-events-none" />
       
-      <div className="grid grid-cols-1 md:grid-cols-3 auto-rows-[250px] gap-6 relative z-10">
+      {/* Section Title with Animation */}
+      <ScrollReveal className="text-center mb-16" delay={0}>
+        <motion.span 
+          className="section-title inline-block mb-4"
+          initial={{ opacity: 0, y: 10 }}
+          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+          transition={{ duration: 0.5 }}
+        >
+          Core Features
+        </motion.span>
+        <motion.h2 
+          className="text-3xl md:text-4xl font-light text-white mb-4"
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+        >
+          核心能力
+        </motion.h2>
+        <motion.p 
+          className="text-white/50 max-w-2xl mx-auto"
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          为桥梁基础设施巡检打造的智能化解决方案
+        </motion.p>
+      </ScrollReveal>
+
+      {/* Masonry Grid with Stagger Animation */}
+      <StaggerContainer 
+        className="grid grid-cols-1 md:grid-cols-3 auto-rows-[250px] gap-6 relative z-10"
+        staggerDelay={0.1}
+      >
         {features.map((feature, idx) => (
-          <GlowingCard key={idx} className={feature.className}>
-            <div className="flex flex-col h-full justify-between">
-              <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6">
-                {feature.icon}
-              </div>
-              
-              <div className="mt-auto">
-                <h3 className="text-2xl font-light text-white mb-1 tracking-wide">
-                  {feature.title}
-                </h3>
-                <p className="text-xs font-mono text-white/40 uppercase tracking-widest mb-4">
-                  {feature.subtitle}
-                </p>
-                <p className="text-sm text-slate-400 font-light leading-relaxed">
-                  {feature.description}
-                </p>
-              </div>
-            </div>
-          </GlowingCard>
+          <StaggerItem key={idx} className={feature.className}>
+            <motion.div
+              className="h-full"
+              whileHover={{ 
+                scale: 1.02,
+                transition: { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }
+              }}
+              style={{ willChange: "transform" }}
+            >
+              <GlowingCard className="h-full">
+                <div className="flex flex-col h-full justify-between">
+                  <motion.div 
+                    className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6"
+                    whileHover={{ 
+                      rotate: 5,
+                      scale: 1.1,
+                      transition: { duration: 0.2 }
+                    }}
+                  >
+                    {feature.icon}
+                  </motion.div>
+                  
+                  <div className="mt-auto">
+                    <h3 className="text-2xl font-light text-white mb-1 tracking-wide">
+                      {feature.title}
+                    </h3>
+                    <p className="text-xs font-mono text-white/40 uppercase tracking-widest mb-4">
+                      {feature.subtitle}
+                    </p>
+                    <p className="text-sm text-slate-400 font-light leading-relaxed">
+                      {feature.description}
+                    </p>
+                  </div>
+                </div>
+              </GlowingCard>
+            </motion.div>
+          </StaggerItem>
         ))}
-      </div>
+      </StaggerContainer>
     </section>
   );
 }

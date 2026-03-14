@@ -1,6 +1,11 @@
-import { demoResult } from "@/lib/mock-data";
+import {
+  buildDemoResultForModelVersion,
+  demoModelCatalog,
+  demoResult
+} from "@/lib/mock-data";
 import type {
   ApiError,
+  ModelCatalogResponse,
   PredictOptions,
   PredictionHistoryResponse,
   PredictionResult
@@ -9,13 +14,16 @@ import type {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 
 function cloneDemoResult(file: File, options: PredictOptions): PredictionResult {
+  const modelVersion = options.modelVersion ?? demoResult.model_version;
+  const base = buildDemoResultForModelVersion(modelVersion);
+
   return {
-    ...demoResult,
+    ...base,
     image_id: file.name,
     artifacts: {
-      ...demoResult.artifacts,
+      ...base.artifacts,
       upload_path: `uploads/${file.name}`,
-      overlay_path: options.exportOverlay ? demoResult.artifacts.overlay_path : null
+      overlay_path: options.exportOverlay ? base.artifacts.overlay_path : null
     }
   };
 }
@@ -48,6 +56,9 @@ export async function predictImage(
   formData.append("file", file);
   formData.append("confidence", String(options.confidence));
   formData.append("return_overlay", String(options.exportOverlay));
+  if (options.modelVersion) {
+    formData.append("model_version", options.modelVersion);
+  }
 
   try {
     const response = await fetch(`${API_BASE_URL}/predict`, {
@@ -66,6 +77,28 @@ export async function predictImage(
       throw error;
     }
     throw new Error("无法连接后端推理服务。");
+  }
+}
+
+export async function listModels(): Promise<ModelCatalogResponse> {
+  if (!API_BASE_URL) {
+    return demoModelCatalog;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/models`);
+
+    if (!response.ok) {
+      const payload = (await response.json()) as ApiError;
+      throw new Error(getErrorMessage(payload, "模型列表加载失败。"));
+    }
+
+    return (await response.json()) as ModelCatalogResponse;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error("无法加载模型列表。");
   }
 }
 
@@ -164,4 +197,28 @@ export function getResultImageUrl(imageId: string): string | null {
   }
 
   return `${API_BASE_URL}/results/${imageId}/image`;
+}
+
+export async function getResultImageFile(imageId: string): Promise<File> {
+  const imageUrl = getResultImageUrl(imageId);
+
+  if (!imageUrl) {
+    throw new Error("当前环境无法读取历史原图。");
+  }
+
+  const response = await fetch(imageUrl);
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as ApiError | null;
+    throw new Error(getErrorMessage(payload, "历史原图加载失败。"));
+  }
+
+  const blob = await response.blob();
+  const contentType = blob.type || "image/jpeg";
+  const fallbackName = `${imageId}.jpg`;
+  const filename =
+    response.headers
+      .get("content-disposition")
+      ?.match(/filename="?([^"]+)"?/)?.[1] ?? fallbackName;
+
+  return new File([blob], filename, { type: contentType });
 }

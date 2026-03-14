@@ -1,8 +1,21 @@
+import json
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
+
+
+class ConfiguredModel(BaseModel):
+    model_name: Optional[str] = None
+    model_version: str
+    backend: Optional[str] = None
+    runner_kind: Optional[Literal["mock", "ultralytics"]] = None
+    weights_path: Optional[Path] = None
+    device: Optional[str] = None
+    imgsz: Optional[int] = None
+    supports_masks: bool = True
+    supports_sliced_inference: bool = False
 
 
 class Settings(BaseModel):
@@ -17,6 +30,7 @@ class Settings(BaseModel):
     model_device: str = "cpu"
     model_imgsz: int = 1280
     allow_mock_fallback: bool = True
+    extra_models: list[ConfiguredModel] = Field(default_factory=list)
     cors_allow_origins: list[str] = Field(
         default_factory=lambda: [
             "http://localhost:3000",
@@ -29,6 +43,7 @@ def get_settings() -> Settings:
     cors_origins = os.getenv("BDI_CORS_ALLOW_ORIGINS")
     weights_path = os.getenv("BDI_MODEL_WEIGHTS_PATH")
     artifact_root = os.getenv("BDI_ARTIFACT_ROOT")
+    extra_models_raw = os.getenv("BDI_EXTRA_MODELS")
     return Settings(
         artifact_root=Path(artifact_root) if artifact_root else Path("artifacts"),
         model_name=os.getenv("BDI_MODEL_NAME", "yolov8-seg"),
@@ -39,6 +54,19 @@ def get_settings() -> Settings:
         model_imgsz=int(os.getenv("BDI_MODEL_IMGSZ", "1280")),
         allow_mock_fallback=os.getenv("BDI_ALLOW_MOCK_FALLBACK", "true").lower()
         in {"1", "true", "yes", "on"},
+        extra_models=[
+            ConfiguredModel(
+                **{
+                    **item,
+                    "weights_path": Path(item["weights_path"])
+                    if item.get("weights_path")
+                    else None,
+                }
+            )
+            for item in json.loads(extra_models_raw)
+        ]
+        if extra_models_raw
+        else [],
         cors_allow_origins=[
             item.strip()
             for item in cors_origins.split(",")

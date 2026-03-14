@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse
@@ -8,6 +8,8 @@ from fastapi.responses import FileResponse
 from app.models.schemas import (
     DeleteResultResponse,
     HealthResponse,
+    ModelCatalogItem,
+    ModelCatalogResponse,
     PredictOptions,
     PredictResponse,
     ResultListResponse,
@@ -21,6 +23,26 @@ async def health(request: Request) -> HealthResponse:
     return request.app.state.health_payload
 
 
+@router.get("/models", response_model=ModelCatalogResponse)
+async def list_models(request: Request) -> ModelCatalogResponse:
+    registry = request.app.state.model_registry
+    active_model_version = request.app.state.active_model_version
+    items = [
+        ModelCatalogItem(
+            model_name=spec.model_name,
+            model_version=spec.model_version,
+            backend=spec.backend,
+            supports_masks=spec.supports_masks,
+            supports_sliced_inference=spec.supports_sliced_inference,
+            is_active=spec.model_version == active_model_version,
+            is_available=spec.is_available,
+        )
+        for spec in registry.list_specs()
+    ]
+    items.sort(key=lambda item: (not item.is_active, item.model_version))
+    return ModelCatalogResponse(active_version=active_model_version, items=items)
+
+
 @router.post("/predict", response_model=PredictResponse)
 async def predict(
     request: Request,
@@ -28,7 +50,7 @@ async def predict(
     confidence: Annotated[float, Form()] = 0.25,
     iou: Annotated[float, Form()] = 0.45,
     inference_mode: Annotated[str, Form()] = "direct",
-    model_version: Annotated[str, Form()] = "mock-v1",
+    model_version: Annotated[Optional[str], Form()] = None,
     return_overlay: Annotated[bool, Form()] = False,
 ) -> PredictResponse:
     options = PredictOptions(

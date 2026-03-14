@@ -20,12 +20,15 @@ import {
 import {
   deleteResult,
   getOverlayDownloadUrl,
+  getResultImageFile,
   getResultImageUrl,
   getResult,
+  listModels,
   listResults,
   predictImage
 } from "@/lib/predict-client";
 import type {
+  ModelCatalogItem,
   PredictState,
   PredictionHistoryItem,
   PredictionResult
@@ -83,7 +86,17 @@ export function HomeShell() {
   }, [selectedFile]);
 
   const [exportOverlay, setExportOverlay] = useState(true);
+  const [availableModels, setAvailableModels] = useState<ModelCatalogItem[]>([]);
+  const [selectedModelVersion, setSelectedModelVersion] = useState<string | null>(null);
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const [modelsError, setModelsError] = useState<string | null>(null);
   const [result, setResult] = useState<PredictionResult | null>(null);
+  const [comparisonResult, setComparisonResult] = useState<PredictionResult | null>(null);
+  const [compareModelVersion, setCompareModelVersion] = useState<string | null>(null);
+  const [compareStatus, setCompareStatus] = useState<PredictState>({
+    phase: "idle",
+    message: "选择一个次模型后，可对同一张本地图片执行快速对比。"
+  });
   const [historyItems, setHistoryItems] = useState<PredictionHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -107,6 +120,20 @@ export function HomeShell() {
   const categories = result
     ? ["全部", ...new Set(result.detections.map((item) => item.category))]
     : ["全部"];
+  const canUseResultImageForCompare = Boolean(result && getResultImageUrl(result.image_id));
+  const comparisonPreviewUrl = comparisonResult
+    ? getResultImageUrl(comparisonResult.image_id) ?? previewUrl
+    : null;
+  const comparisonOverlayPreviewUrl = comparisonResult
+    ? getOverlayDownloadUrl(comparisonResult.image_id) ?? comparisonResult.artifacts.overlay_path ?? null
+    : null;
+  const compareOptions = availableModels
+    .filter((model) => model.model_version !== result?.model_version)
+    .map((model) => ({
+      value: model.model_version,
+      label: `${model.model_version} · ${model.backend}${model.is_active ? " · active" : ""}`,
+      disabled: !model.is_available
+    }));
   const availableHistoryCategories = [...new Set(historyItems.flatMap((item) => item.categories))];
   const filteredHistoryItems = filterHistoryItems(historyItems, {
     query: historySearchQuery,
@@ -176,6 +203,59 @@ export function HomeShell() {
     void loadHistory({ silent: true });
   }, [loadHistory]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadModels() {
+      setModelsLoading(true);
+      setModelsError(null);
+
+      try {
+        const catalog = await listModels();
+        if (cancelled) {
+          return;
+        }
+        setAvailableModels(catalog.items);
+        setSelectedModelVersion((current) => {
+          if (current) {
+            return current;
+          }
+          const preferred =
+            catalog.items.find(
+              (item) => item.model_version === catalog.active_version && item.is_available
+            ) ?? catalog.items.find((item) => item.is_available);
+          return preferred?.model_version ?? null;
+        });
+        setCompareModelVersion((current) => {
+          if (current) {
+            return current;
+          }
+          const fallback = catalog.items.find(
+            (item) => item.model_version !== catalog.active_version && item.is_available
+          );
+          return fallback?.model_version ?? null;
+        });
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        const message =
+          error instanceof Error ? error.message : "模型列表加载失败，请稍后重试。";
+        setModelsError(message);
+      } finally {
+        if (!cancelled) {
+          setModelsLoading(false);
+        }
+      }
+    }
+
+    void loadModels();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   async function handleSelectHistory(imageId: string) {
     setDeleteSuccessMessage(null);
     setStatus({
@@ -187,12 +267,17 @@ export function HomeShell() {
       const nextResult = await getResult(imageId);
       startTransition(() => {
         setResult(nextResult);
+        setComparisonResult(null);
         setSelectedFile(null);
         setPreviewUrl(getResultImageUrl(imageId));
         setCategoryFilter("全部");
         setSelectedDetectionId(nextResult.detections[0]?.id ?? null);
         setResultViewMode("image");
         setActiveNav("Home");
+      });
+      setCompareStatus({
+        phase: "idle",
+        message: "历史记录已打开，可直接选择其他模型版本继续做对比分析。"
       });
       setStatus({
         phase: "success",
@@ -351,15 +436,21 @@ export function HomeShell() {
 
       const prediction = await predictImage(selectedFile, {
         confidence,
-        exportOverlay
+        exportOverlay,
+        modelVersion: selectedModelVersion
       });
 
       startTransition(() => {
         setResult(prediction);
+        setComparisonResult(null);
         setCategoryFilter("全部");
         setSelectedDetectionId(prediction.detections[0]?.id ?? null);
         setResultViewMode("image");
         setActiveNav("Home");
+      });
+      setCompareStatus({
+        phase: "idle",
+        message: "主结果已生成，可继续选择其他模型版本做快速对比。"
       });
 
       void loadHistory();
@@ -419,6 +510,65 @@ export function HomeShell() {
     } finally {
       setDeletingImageId(null);
     }
+  }
+
+  async function handleRunComparison() {
+    if (!result) {
+      setCompareStatus({
+        phase: "error",
+        message: "当前没有可用于对比的结果。"
+      });
+      return;
+    }
+
+    if (!compareModelVersion) {
+      setCompareStatus({
+        phase: "error",
+        message: "请先选择一个用于对比的模型版本。"
+      });
+      return;
+    }
+
+    setCompareStatus({
+      phase: "running",
+      message: `正在使用 ${compareModelVersion} 对同一张图片执行二次推理。`
+    });
+
+    try {
+      const sourceFile =
+        selectedFile ?? (await getResultImageFile(result.image_id));
+      const nextComparison = await predictImage(sourceFile, {
+        confidence,
+        exportOverlay,
+        modelVersion: compareModelVersion
+      });
+      setComparisonResult(nextComparison);
+      setCompareStatus({
+        phase: "success",
+        message: `对比完成：${result.model_version} vs ${nextComparison.model_version}。`
+      });
+      pushActionNotice(
+        "模型对比已完成",
+        `${result.model_version} 与 ${nextComparison.model_version} 的结果已生成。`,
+        "success"
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "模型对比失败，请稍后重试。";
+      setCompareStatus({
+        phase: "error",
+        message
+      });
+      pushActionNotice("模型对比失败", message, "error");
+    }
+  }
+
+  function handleClearComparison() {
+    setComparisonResult(null);
+    setCompareStatus({
+      phase: "idle",
+      message: "已清除对比结果，你可以重新选择一个模型版本再次比较。"
+    });
   }
 
   return (
@@ -558,7 +708,7 @@ export function HomeShell() {
                       </div>
                       <h3 className="text-lg tracking-wider uppercase font-medium text-white">上传分析</h3>
                       <p className="mt-2 text-xs text-slate-400 leading-relaxed font-light">
-                        打开上传面板，选择巡检图片并调整模型置信度阈值。
+                        打开上传面板，选择巡检图片并调整模型版本与置信度阈值。
                       </p>
                     </button>
 
@@ -655,10 +805,16 @@ export function HomeShell() {
             <div className="h-full">
               <ResultDashboard
                 result={result}
+                comparisonResult={comparisonResult}
+                compareStatus={compareStatus}
+                compareModelVersion={compareModelVersion}
+                compareOptions={compareOptions}
                 categoryFilter={deferredCategoryFilter}
                 minConfidence={deferredMinConfidence}
                 previewUrl={previewUrl}
                 overlayPreviewUrl={result.artifacts.overlay_path ?? null}
+                comparisonPreviewUrl={comparisonPreviewUrl}
+                comparisonOverlayPreviewUrl={comparisonOverlayPreviewUrl}
                 viewMode={resultViewMode}
                 onViewModeChange={setResultViewMode}
                 onExportJson={handleExportJson}
@@ -674,7 +830,15 @@ export function HomeShell() {
                 onRerun={() => {
                   void handleRerunCurrentImage();
                 }}
+                onCompareModelVersionChange={setCompareModelVersion}
+                onRunComparison={() => {
+                  void handleRunComparison();
+                }}
+                onClearComparison={handleClearComparison}
                 rerunDisabled={!selectedFile}
+                compareDisabled={
+                  (!selectedFile && !canUseResultImageForCompare) || compareOptions.length === 0
+                }
               />
             </div>
           )}
@@ -764,7 +928,7 @@ export function HomeShell() {
                   执行新视觉分析
                 </h2>
                 <p className="mt-3 text-sm text-slate-400 font-light">
-                  请选择目标图像，引擎会即刻启动推理。
+                  请选择目标图像，并确认使用的模型版本后启动推理。
                 </p>
               </div>
               <button
@@ -817,6 +981,40 @@ export function HomeShell() {
 
               <div className="mt-8 grid gap-6 sm:grid-cols-2">
                 <label className="rounded-xl border border-white/5 bg-white/[0.02] p-5 block">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">
+                    模型版本
+                  </span>
+                  <div className="mt-3">
+                    <select
+                      className="w-full rounded-lg border border-white/10 bg-black px-3 py-2 text-sm text-white/80 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-60"
+                      value={selectedModelVersion ?? ""}
+                      disabled={modelsLoading || availableModels.length === 0}
+                      onChange={(event) => setSelectedModelVersion(event.target.value || null)}
+                    >
+                      {availableModels.map((model) => (
+                        <option
+                          key={model.model_version}
+                          value={model.model_version}
+                          disabled={!model.is_available}
+                        >
+                          {model.model_version} · {model.backend}
+                          {!model.is_available ? " · unavailable" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-2 text-xs text-white/35 font-light">
+                      {modelsLoading
+                        ? "正在读取可用模型列表..."
+                        : modelsError
+                          ? modelsError
+                          : selectedModelVersion
+                            ? `当前将使用 ${selectedModelVersion} 执行推理。`
+                            : "未读取到模型列表时，将回退到当前 active model。"}
+                    </p>
+                  </div>
+                </label>
+
+                <label className="rounded-xl border border-white/5 bg-white/[0.02] p-5 block">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">最低置信度</span>
                   <div className="mt-4 flex items-center gap-4">
                     <input
@@ -858,7 +1056,13 @@ export function HomeShell() {
               <div className="mt-8 flex gap-3">
                 <button
                   className="flex-1 rounded-xl bg-sky-500/10 border border-sky-500/50 px-6 py-4 text-sm font-semibold text-sky-400 transition-all hover:bg-sky-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={!selectedFile || status.phase === "uploading" || status.phase === "running"}
+                  disabled={
+                    !selectedFile ||
+                    status.phase === "uploading" ||
+                    status.phase === "running" ||
+                    availableModels.length === 0 ||
+                    !selectedModelVersion
+                  }
                   title={!selectedFile ? "请先选择一张待分析图片" : undefined}
                   type="submit"
                 >

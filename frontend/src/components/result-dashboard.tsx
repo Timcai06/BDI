@@ -2,18 +2,29 @@ import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 
 import { AdaptiveImage } from "@/components/adaptive-image";
 import {
+  buildDetectionCategoryDiff,
   filterDetections,
   getDetectionOverlayStyle,
   getDetectionSummary
 } from "@/lib/result-utils";
-import type { Detection, PredictionResult } from "@/lib/types";
+import type { Detection, PredictionResult, PredictState } from "@/lib/types";
 
 interface ResultDashboardProps {
   result: PredictionResult;
+  comparisonResult?: PredictionResult | null;
+  compareStatus?: PredictState;
+  compareModelVersion?: string | null;
+  compareOptions: Array<{
+    value: string;
+    label: string;
+    disabled?: boolean;
+  }>;
   categoryFilter: string;
   minConfidence: number;
   previewUrl?: string | null;
   overlayPreviewUrl?: string | null;
+  comparisonPreviewUrl?: string | null;
+  comparisonOverlayPreviewUrl?: string | null;
   viewMode: "image" | "overlay";
   onViewModeChange: (mode: "image" | "overlay") => void;
   onExportJson: () => void;
@@ -24,7 +35,11 @@ interface ResultDashboardProps {
   onOpenHistory: () => void;
   onReset: () => void;
   onRerun: () => void;
+  onCompareModelVersionChange: (modelVersion: string) => void;
+  onRunComparison: () => void;
+  onClearComparison: () => void;
   rerunDisabled: boolean;
+  compareDisabled: boolean;
 }
 
 function getCategoryColor(category: string) {
@@ -37,10 +52,16 @@ function getCategoryColor(category: string) {
 
 export function ResultDashboard({
   result,
+  comparisonResult,
+  compareStatus,
+  compareModelVersion,
+  compareOptions,
   categoryFilter,
   minConfidence,
   previewUrl,
   overlayPreviewUrl,
+  comparisonPreviewUrl,
+  comparisonOverlayPreviewUrl,
   viewMode,
   onViewModeChange,
   onExportJson,
@@ -51,7 +72,11 @@ export function ResultDashboard({
   onOpenHistory,
   onReset,
   onRerun,
-  rerunDisabled
+  onCompareModelVersionChange,
+  onRunComparison,
+  onClearComparison,
+  rerunDisabled,
+  compareDisabled
 }: ResultDashboardProps) {
   const frameRef = useRef<HTMLDivElement>(null);
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
@@ -70,10 +95,22 @@ export function ResultDashboard({
     : "--";
   const activePreviewUrl =
     viewMode === "overlay" && overlayPreviewUrl ? overlayPreviewUrl : previewUrl;
+  const activeComparisonPreviewUrl =
+    viewMode === "overlay" && comparisonOverlayPreviewUrl
+      ? comparisonOverlayPreviewUrl
+      : comparisonPreviewUrl;
   const current =
     filteredDetections.find((item) => item.id === selectedDetectionId) ??
     filteredDetections[0] ??
     null;
+  const comparisonDetectionCount = comparisonResult?.detections.length ?? null;
+  const detectionDelta =
+    comparisonDetectionCount === null
+      ? null
+      : comparisonDetectionCount - result.detections.length;
+  const categoryDiffItems = comparisonResult
+    ? buildDetectionCategoryDiff(result, comparisonResult)
+    : [];
 
   useEffect(() => {
     const node = frameRef.current;
@@ -246,6 +283,78 @@ export function ResultDashboard({
             <span>{new Date().toISOString().split("T")[1].slice(0, 8)} UTC</span>
           </div>
         </div>
+
+        {comparisonResult ? (
+          <div className="border-t border-white/5 bg-black/20 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">
+                图像级对比
+              </p>
+              <span className="text-xs font-mono text-slate-400">
+                {viewMode === "overlay" ? "同步叠加图预览" : "同步原图预览"}
+              </span>
+            </div>
+            <div className="grid gap-4 xl:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-[#0B1120]/70 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
+                      主模型
+                    </p>
+                    <p className="mt-1 text-sm text-white">{result.model_version}</p>
+                  </div>
+                  <div className="text-right text-xs font-mono text-slate-400">
+                    <div>{result.detections.length} detections</div>
+                    <div>{result.inference_ms}ms</div>
+                  </div>
+                </div>
+                <div className="relative aspect-video overflow-hidden rounded-xl border border-white/5 bg-black">
+                  {activePreviewUrl ? (
+                    <AdaptiveImage
+                      alt={`${result.model_version} preview`}
+                      className="object-contain opacity-90"
+                      src={activePreviewUrl}
+                      sizes="(min-width: 1280px) 35vw, 100vw"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-500">
+                      无可用预览
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-sky-500/20 bg-sky-500/[0.05] p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-300/70">
+                      对比模型
+                    </p>
+                    <p className="mt-1 text-sm text-white">{comparisonResult.model_version}</p>
+                  </div>
+                  <div className="text-right text-xs font-mono text-slate-300">
+                    <div>{comparisonResult.detections.length} detections</div>
+                    <div>{comparisonResult.inference_ms}ms</div>
+                  </div>
+                </div>
+                <div className="relative aspect-video overflow-hidden rounded-xl border border-white/5 bg-black">
+                  {activeComparisonPreviewUrl ? (
+                    <AdaptiveImage
+                      alt={`${comparisonResult.model_version} preview`}
+                      className="object-contain opacity-90"
+                      src={activeComparisonPreviewUrl}
+                      sizes="(min-width: 1280px) 35vw, 100vw"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-500">
+                      无可用预览
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {/* 病害详情列表 - 嵌入主画布右侧作为辅助，或者在窄屏时下放 */}
@@ -281,6 +390,179 @@ export function ResultDashboard({
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="rounded-[1.5rem] border border-white/10 bg-[#1E293B]/60 p-5 shadow-lg backdrop-blur">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">
+                模型对比
+              </p>
+              <p className="mt-2 text-sm text-slate-400">
+                使用同一张本地图片再跑一个模型版本，快速比较结果数量、耗时与版本差异。
+              </p>
+            </div>
+            {comparisonResult ? (
+              <button
+                className="rounded-md border border-white/10 px-3 py-2 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10"
+                type="button"
+                onClick={onClearComparison}
+              >
+                清除对比
+              </button>
+            ) : null}
+          </div>
+
+          <div className="mt-4 flex gap-3">
+            <select
+              className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-sm text-white/80 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={compareDisabled}
+              value={compareModelVersion ?? ""}
+              onChange={(event) => onCompareModelVersionChange(event.target.value)}
+            >
+              {compareOptions.length === 0 ? (
+                <option value="">暂无可对比模型</option>
+              ) : (
+                compareOptions.map((option) => (
+                  <option key={option.value} value={option.value} disabled={option.disabled}>
+                    {option.label}
+                  </option>
+                ))
+              )}
+            </select>
+            <button
+              className="rounded-lg border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-300 transition-colors hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={compareDisabled || !compareModelVersion}
+              type="button"
+              onClick={onRunComparison}
+            >
+              {compareStatus?.phase === "running" ? "对比中..." : "开始对比"}
+            </button>
+          </div>
+
+          <p className="mt-3 text-xs text-slate-400">
+            {compareStatus?.message ??
+              "当前结果来自主模型，你可以选一个其他版本快速做二次推理。"}
+          </p>
+
+          {comparisonResult ? (
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-white/5 bg-[#0B1120]/50 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
+                  主结果
+                </p>
+                <div className="mt-3 space-y-2 text-sm text-slate-300">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">模型版本</span>
+                    <span className="font-mono text-white">{result.model_version}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">病害数量</span>
+                    <span className="font-mono text-white">{result.detections.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">推理耗时</span>
+                    <span className="font-mono text-white">{result.inference_ms}ms</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-sky-500/20 bg-sky-500/[0.06] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-300/70">
+                  对比结果
+                </p>
+                <div className="mt-3 space-y-2 text-sm text-slate-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">模型版本</span>
+                    <span className="font-mono text-white">{comparisonResult.model_version}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">病害数量</span>
+                    <span className="font-mono text-white">{comparisonResult.detections.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">推理耗时</span>
+                    <span className="font-mono text-white">{comparisonResult.inference_ms}ms</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="sm:col-span-2 rounded-xl border border-white/5 bg-white/[0.02] p-4 text-sm text-slate-300">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
+                  差异摘要
+                </p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-lg bg-black/20 px-3 py-3">
+                    <div className="text-xs text-slate-500">病害数量差值</div>
+                    <div className="mt-1 font-mono text-white">
+                      {detectionDelta === null
+                        ? "--"
+                        : detectionDelta > 0
+                          ? `+${detectionDelta}`
+                          : `${detectionDelta}`}
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-black/20 px-3 py-3">
+                    <div className="text-xs text-slate-500">耗时差值</div>
+                    <div className="mt-1 font-mono text-white">
+                      {comparisonResult.inference_ms - result.inference_ms > 0
+                        ? `+${comparisonResult.inference_ms - result.inference_ms}ms`
+                        : `${comparisonResult.inference_ms - result.inference_ms}ms`}
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-black/20 px-3 py-3">
+                    <div className="text-xs text-slate-500">当前对比</div>
+                    <div className="mt-1 font-mono text-white">
+                      {result.model_version} vs {comparisonResult.model_version}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="sm:col-span-2 rounded-xl border border-white/5 bg-white/[0.02] p-4 text-sm text-slate-300">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
+                  病害差异
+                </p>
+                <p className="mt-2 text-xs text-slate-400">
+                  当前按病害类别统计差异，用于快速判断主模型和对比模型分别多检或少检了什么。
+                </p>
+                <div className="mt-4 space-y-2">
+                  {categoryDiffItems.map((item) => {
+                    const deltaTone =
+                      item.delta === 0
+                        ? "text-slate-300"
+                        : item.delta > 0
+                          ? "text-sky-300"
+                          : "text-amber-300";
+                    const deltaLabel =
+                      item.delta === 0
+                        ? "一致"
+                        : item.delta > 0
+                          ? "对比模型更多"
+                          : "主模型更多";
+
+                    return (
+                      <div
+                        key={item.category}
+                        className="grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] items-center gap-3 rounded-lg border border-white/5 bg-black/20 px-3 py-3 text-xs"
+                      >
+                        <div className="font-medium text-white">{item.category}</div>
+                        <div className="font-mono text-slate-400">
+                          主 {item.primaryCount}
+                        </div>
+                        <div className="font-mono text-slate-400">
+                          对比 {item.comparisonCount}
+                        </div>
+                        <div className={`text-right font-medium ${deltaTone}`}>
+                          {deltaLabel}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="rounded-[1.5rem] border border-white/10 bg-[#1E293B]/60 shadow-lg backdrop-blur flex-1 flex flex-col overflow-hidden">

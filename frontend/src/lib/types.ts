@@ -9,6 +9,7 @@ export interface PredictState {
 export interface PredictOptions {
   confidence: number;
   exportOverlay: boolean;
+  modelVersion?: string | null;
 }
 
 export interface BoundingBox {
@@ -74,6 +75,21 @@ export interface PredictionHistoryItem {
 
 export interface PredictionHistoryResponse {
   items: PredictionHistoryItem[];
+}
+
+export interface ModelCatalogItem {
+  model_name: string;
+  model_version: string;
+  backend: string;
+  supports_masks: boolean;
+  supports_sliced_inference: boolean;
+  is_active: boolean;
+  is_available: boolean;
+}
+
+export interface ModelCatalogResponse {
+  active_version: string;
+  items: ModelCatalogItem[];
 }
 
 export interface ApiError {
