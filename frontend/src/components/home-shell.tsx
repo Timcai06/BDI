@@ -28,6 +28,10 @@ import {
   listResults,
   predictImage
 } from "@/lib/predict-client";
+import {
+  MAX_UPLOAD_SIZE_MB,
+  getUploadSizeError
+} from "@/lib/upload-validation";
 import type {
   ModelCatalogItem,
   PredictState,
@@ -420,6 +424,15 @@ export function HomeShell() {
       setStatus({
         phase: "error",
         message: "请先选择一张 jpg、jpeg 或 png 图像。"
+      });
+      return;
+    }
+
+    const uploadSizeError = getUploadSizeError(selectedFile);
+    if (uploadSizeError) {
+      setStatus({
+        phase: "error",
+        message: uploadSizeError
       });
       return;
     }
@@ -922,14 +935,14 @@ export function HomeShell() {
       </aside>
 
       {analysisModalOpen ? (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 p-6 backdrop-blur-md">
-          <div className="w-full max-w-3xl rounded-[2rem] border border-white/10 bg-black/40 p-10 shadow-[0_0_100px_rgba(0,0,0,1)]">
-            <div className="flex items-start justify-between gap-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 sm:p-6 backdrop-blur-md overflow-y-auto">
+          <div className="w-full max-w-3xl rounded-[2rem] border border-white/10 bg-black/40 p-6 sm:p-10 shadow-[0_0_100px_rgba(0,0,0,1)] my-auto">
+            <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40 mb-2">
                   分析面板
                 </p>
-                <h2 className="mt-2 text-3xl font-light tracking-[0.05em] uppercase text-white">
+                <h2 className="mt-2 text-2xl sm:text-3xl font-light tracking-[0.05em] uppercase text-white">
                   执行新视觉分析
                 </h2>
                 <p className="mt-3 text-sm text-slate-400 font-light">
@@ -937,7 +950,7 @@ export function HomeShell() {
                 </p>
               </div>
               <button
-                className="rounded-full border border-white/10 bg-white/5 w-10 h-10 flex items-center justify-center text-slate-200 transition-colors hover:bg-white/10"
+                className="rounded-full border border-white/10 bg-white/5 w-10 h-10 flex items-center justify-center text-slate-200 transition-colors hover:bg-white/10 flex-shrink-0"
                 type="button"
                 onClick={closeAnalysisModal}
               >
@@ -945,15 +958,28 @@ export function HomeShell() {
               </button>
             </div>
 
-            <form className="mt-10" onSubmit={handleSubmit}>
-              <label className="relative flex min-h-[280px] cursor-pointer flex-col items-center justify-center rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/20 transition-all duration-500 group overflow-hidden">
+            <form className="mt-8" onSubmit={handleSubmit}>
+              <label className="relative flex min-h-[200px] sm:min-h-[240px] cursor-pointer flex-col items-center justify-center rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/20 transition-all duration-500 group overflow-hidden">
                 <input
                   accept=".jpg,.jpeg,.png"
                   className="hidden"
                   name="image"
                   type="file"
                   onChange={(event) => {
-                    setSelectedFile(event.target.files?.[0] ?? null);
+                    const nextFile = event.target.files?.[0] ?? null;
+                    const uploadSizeError = nextFile ? getUploadSizeError(nextFile) : null;
+
+                    if (uploadSizeError) {
+                      setSelectedFile(null);
+                      setStatus({
+                        phase: "error",
+                        message: uploadSizeError
+                      });
+                      event.target.value = "";
+                      return;
+                    }
+
+                    setSelectedFile(nextFile);
                     setStatus(initialState);
                   }}
                 />
@@ -981,11 +1007,14 @@ export function HomeShell() {
                   <span className="text-lg font-light text-slate-200 tracking-wide">
                     {selectedFile ? selectedFile.name : "点击或拖拽上传图像"}
                   </span>
+                  <span className="mt-3 text-xs uppercase tracking-[0.28em] text-slate-500">
+                    支持 JPG / JPEG / PNG，单张最大 {MAX_UPLOAD_SIZE_MB}MB
+                  </span>
                 </div>
               </label>
 
-              <div className="mt-8 grid gap-6 sm:grid-cols-2">
-                <label className="rounded-xl border border-white/5 bg-white/[0.02] p-5 block">
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                <label className="rounded-xl border border-white/5 bg-white/[0.02] p-4 block">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">
                     模型版本
                   </span>
@@ -1046,7 +1075,7 @@ export function HomeShell() {
                   </div>
                 </label>
 
-                <label className="rounded-xl border border-white/5 bg-white/[0.02] p-5 flex items-center justify-between cursor-pointer group hover:bg-white/[0.04] transition-colors">
+                <label className="rounded-xl border border-white/5 bg-white/[0.02] p-4 flex items-center justify-between cursor-pointer group hover:bg-white/[0.04] transition-colors">
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 block mb-1">导出叠加图</span>
                     <span className="text-xs text-white/30 font-light">同步生成基带画框图</span>
@@ -1063,13 +1092,13 @@ export function HomeShell() {
                 </label>
               </div>
 
-              <div className="mt-6">
+              <div className="mt-4">
                 <StatusCard phase={status.phase} message={status.message} />
               </div>
 
-              <div className="mt-8 flex gap-3">
+              <div className="mt-6 flex gap-3 sticky bottom-0 bg-black/40 -mx-6 sm:-mx-10 px-6 sm:px-10 py-4 border-t border-white/5">
                 <button
-                  className="flex-1 rounded-xl bg-sky-500/10 border border-sky-500/50 px-6 py-4 text-sm font-semibold text-sky-400 transition-all hover:bg-sky-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex-1 rounded-xl bg-sky-500/10 border border-sky-500/50 px-6 py-3.5 text-sm font-semibold text-sky-400 transition-all hover:bg-sky-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={
                     !selectedFile ||
                     status.phase === "uploading" ||
@@ -1083,7 +1112,7 @@ export function HomeShell() {
                   {status.phase === "idle" || status.phase === "error" ? "开始执行 AI 识别" : "推理中..."}
                 </button>
                 <button
-                  className="rounded-xl border border-white/10 bg-white/5 px-6 py-4 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/10"
+                  className="rounded-xl border border-white/10 bg-white/5 px-6 py-3.5 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/10"
                   type="button"
                   onClick={closeAnalysisModal}
                 >

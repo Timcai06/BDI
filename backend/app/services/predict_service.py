@@ -59,9 +59,10 @@ class PredictService:
             )
 
         if len(content) > self.max_upload_size_bytes:
+            max_upload_size_mb = self.max_upload_size_bytes / (1024 * 1024)
             raise AppError(
                 code="FILE_TOO_LARGE",
-                message="Uploaded image exceeds the maximum allowed size.",
+                message=f"Uploaded image exceeds the maximum allowed size of {max_upload_size_mb:g}MB.",
                 status_code=status.HTTP_400_BAD_REQUEST,
                 details={"max_upload_size_bytes": self.max_upload_size_bytes},
             )

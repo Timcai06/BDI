@@ -35,6 +35,8 @@ uvicorn app.main:app --reload
 
 当前默认仍可使用 mock runner，但真实单图链路已完成验收。
 
+默认单图上传上限为 `30MB`，可通过 `BDI_MAX_UPLOAD_SIZE_BYTES` 环境变量覆盖。
+
 已确认：
 
 - `GET /health` 可返回 `200`

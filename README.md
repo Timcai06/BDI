@@ -37,10 +37,14 @@
 
 - 项目目标、架构和协议文档
 - 分阶段开发计划
-- 已落地的 `backend/` MVP 骨架
-- 已落地的 `frontend/` MVP 骨架
+- 已落地并持续演进的 `backend/` 原型骨架
+- 已落地并持续演进的 `frontend/` 原型骨架
 
-当前处在“Phase 2 已完成、Phase 3 已进入收口阶段，核心目标已基本完成”的状态。
+当前更准确的状态是：
+
+- `Phase 2` 已完成
+- `Phase 3` 的用户侧闭环已基本成立
+- `Phase 4` 已启动，并已完成第一轮多模型骨架建设
 
 ## Current Status
 
@@ -69,11 +73,7 @@
 - 已确认前端可直接消费真实 runner 返回结果
 - 已完成标准 JSON 与 overlay 产物联调验证
 
-当前仍处于：
-
-- Phase 3: 结果展示增强与系统稳定化
-
-按当前代码实现，Phase 3 已完成或已具备：
+当前已完成或已具备：
 
 - 更完整的结果页展示与说明表达
 - overlay / JSON 导出入口
@@ -84,12 +84,30 @@
 - 更精确的结果框映射与展示
 - 统一动作反馈提示与更清晰的按钮状态说明
 - 首页、历史页、结果页主要文案已完成一轮统一
+- 多模型注册、加载与切换骨架
+- `GET /models` 模型列表接口
+- 前端模型选择与模型版本展示
+- 本地图片的双模型对比
+- 历史记录结果的再次模型对比
+- 图像级并排对比
+- 病害类别级差异对比
 
-当前 Phase 3 剩余重点主要是：
+当前进入 `Phase 4` 后，已完成的核心能力包括：
+
+- `ModelSpec` / `ModelRegistry` / `RunnerManager` 骨架
+- `model_name` 与 `model_version` 的基础分离
+- `/predict` 按 `model_version` 选择 runner
+- 多模型配置入口与 `.env` 示例
+- `Python 3.9` 真实模型环境兼容修复
+- 模型系统关系文档与新模型接入手册
+
+当前仍值得继续推进的重点主要是：
 
 - 继续做少量视觉和文案 polish
 - 视需要补充更强的 mask 可视化表达
-- 在确认口径后正式标记 Phase 3 完成
+- 接入第二个真实模型版本，验证“同类模型换权重即可切换”
+- 增加更清晰的模型可用性提示
+- 继续推进 `sliced` 推理与 batch 能力
 
 ## Repository Structure
 
@@ -128,10 +146,13 @@
 
 1. [AGENTS/00-entry/AGENTS.md](/Users/justin/Desktop/BDI/AGENTS/00-entry/AGENTS.md)
 2. [product-landing-research.md](/Users/justin/Desktop/BDI/product-landing-research.md)
-3. [plan/overall-goals.md](/Users/justin/Desktop/BDI/plan/overall-goals.md)
-4. [plan/phase3.md](/Users/justin/Desktop/BDI/plan/phase3.md)
-5. [for_crt/02-系统架构草案.md](/Users/justin/Desktop/BDI/for_crt/02-系统架构草案.md)
-6. [for_crt/03-YOLOv8对接协议与兼容设计.md](/Users/justin/Desktop/BDI/for_crt/03-YOLOv8对接协议与兼容设计.md)
+3. [today-work-and-project-overview.md](/Users/justin/Desktop/BDI/today-work-and-project-overview.md)
+4. [model-system-relationship.md](/Users/justin/Desktop/BDI/model-system-relationship.md)
+5. [new-model-integration-playbook.md](/Users/justin/Desktop/BDI/new-model-integration-playbook.md)
+6. [plan/overall-goals.md](/Users/justin/Desktop/BDI/plan/overall-goals.md)
+7. [plan/phase4.md](/Users/justin/Desktop/BDI/plan/phase4.md)
+8. [for_crt/02-系统架构草案.md](/Users/justin/Desktop/BDI/for_crt/02-系统架构草案.md)
+9. [for_crt/03-YOLOv8对接协议与兼容设计.md](/Users/justin/Desktop/BDI/for_crt/03-YOLOv8对接协议与兼容设计.md)
 
 如果你是来直接开工实现，先看 `AGENTS/00-entry/AGENTS.md`，再进入阶段计划和代码。
 
@@ -154,26 +175,27 @@
 
 ## Next Step
 
-下一步建议在 Phase 3 收口后，开始为 Phase 4 做准备：
+下一步建议是在当前多模型骨架基础上，继续把 `Phase 4` 做实：
 
-- 整理并确认 Phase 3 完成口径
-- 优先补齐模型注册、统一推理接口和结果适配骨架
-- 再评估多模型切换与批量任务的最小落地范围
-- 保持前后端统一协议稳定
+- 接入第二个真实模型版本
+- 验证“换权重 + 少量配置”是否足以完成同类模型切换
+- 增加更清晰的模型可用性提示
+- 推进 `sliced` 推理与 batch 能力
+- 继续保持前后端统一协议稳定
 
 推荐实际开发顺序：
 
 1. 先阅读 `AGENTS/` 与当前阶段计划文档
-2. 再确认 `Phase 3` 的结果页与导出范围
-3. 先补齐模型注册、runner 适配层和统一结果协议
+2. 再确认当前多模型骨架与统一结果协议
+3. 先接入第二个真实模型版本做验证
 4. 再推进批量任务、切片推理等 `Phase 4` 能力
 5. 最后再推进更高阶展示和演示优化
 
 ## Notes
 
-当前仓库仍然以文档驱动为主，但已经具备真实单图闭环能力，并已实际完成 Phase 3 的绝大部分展示增强与体验打磨能力。
+当前仓库仍然以文档驱动为主，但已经具备真实单图闭环能力，也已经完成了 `Phase 4` 的第一轮模型接入层升级。
 
-这意味着接下来的工作不再是“从零开始搭框架”，而是围绕统一协议，把已跑通的真实链路提升成更完整的系统演示能力。
+这意味着接下来的工作不再是“从零开始搭框架”，而是围绕统一协议，把已跑通的真实链路继续提升成真正可替换模型、可稳定演示、可持续扩展的系统原型。
 
 补充说明：
 

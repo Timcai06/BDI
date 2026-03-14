@@ -22,7 +22,7 @@ class Settings(BaseModel):
     app_name: str = "bridge-defect-api"
     app_version: str = "0.1.0"
     artifact_root: Path = Field(default=Path("artifacts"))
-    max_upload_size_bytes: int = 10 * 1024 * 1024
+    max_upload_size_bytes: int = 30 * 1024 * 1024
     model_name: str = "yolov8-seg"
     model_version: str = "v1"
     model_backend: str = "pytorch"
@@ -46,6 +46,9 @@ def get_settings() -> Settings:
     extra_models_raw = os.getenv("BDI_EXTRA_MODELS")
     return Settings(
         artifact_root=Path(artifact_root) if artifact_root else Path("artifacts"),
+        max_upload_size_bytes=int(
+            os.getenv("BDI_MAX_UPLOAD_SIZE_BYTES", str(30 * 1024 * 1024))
+        ),
         model_name=os.getenv("BDI_MODEL_NAME", "yolov8-seg"),
         model_version=os.getenv("BDI_MODEL_VERSION", "v1"),
         model_backend=os.getenv("BDI_MODEL_BACKEND", "pytorch"),

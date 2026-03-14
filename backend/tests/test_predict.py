@@ -86,3 +86,18 @@ def test_predict_rejects_missing_file_field() -> None:
     assert response.status_code == 422
     payload = response.json()
     assert payload["error"]["code"] == "INVALID_REQUEST"
+
+
+def test_predict_accepts_25mb_png_by_default() -> None:
+    client = TestClient(create_app())
+    content = b"0" * (25 * 1024 * 1024)
+
+    response = client.post(
+        "/predict",
+        files={"file": ("bridge.png", content, "image/png")},
+        data={"confidence": "0.35", "model_version": "mock-v1"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["image_id"]
