@@ -12,7 +12,7 @@ interface GlowingCardProps {
 export function GlowingCard({ children, className = "", delay = 0 }: GlowingCardProps) {
   return (
     <motion.div
-      className={`relative group overflow-hidden rounded-[24px] bg-black/40 backdrop-blur-2xl border border-white/5 transition-colors duration-500 hover:border-white/20 hover:bg-white/[0.02] ${className}`}
+      className={`relative group overflow-hidden rounded-[24px] bg-[#030303] backdrop-blur-2xl border border-white/[0.04] transition-all duration-500 hover:border-white/20 hover:bg-white/[0.03] hover:shadow-[0_0_40px_rgba(66,133,244,0.05)] ${className}`}
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.1 }}
@@ -29,7 +29,7 @@ export function GlowingCard({ children, className = "", delay = 0 }: GlowingCard
     >
       {/* Edge Lit Highlight Effect - 使用 GPU 加速 */}
       <motion.div 
-        className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 pointer-events-none"
+        className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent opacity-0 pointer-events-none"
         initial={false}
         whileHover={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
@@ -38,7 +38,7 @@ export function GlowingCard({ children, className = "", delay = 0 }: GlowingCard
       
       {/* 微妙的内部光晕 */}
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-transparent" />
       </div>
       
       {/* Content wrapper */}
@@ -58,13 +58,13 @@ interface LightweightCardProps {
 export function LightweightCard({ children, className = "" }: LightweightCardProps) {
   return (
     <div
-      className={`relative group overflow-hidden rounded-[24px] bg-black/40 backdrop-blur-2xl border border-white/5 transition-colors duration-300 hover:border-white/20 hover:bg-white/[0.02] ${className}`}
+      className={`relative group overflow-hidden rounded-[24px] bg-[#030303] backdrop-blur-2xl border border-white/[0.04] transition-all duration-300 hover:border-white/20 hover:bg-white/[0.03] hover:shadow-[0_0_40px_rgba(66,133,244,0.05)] ${className}`}
       style={{ 
         willChange: "auto",
         transform: "translateZ(0)" // 强制 GPU 层
       }}
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-white-[0.08] via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
       <div className="relative z-10 p-8 h-full flex flex-col">
         {children}
       </div>

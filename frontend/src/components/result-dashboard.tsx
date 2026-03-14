@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 
 import { AdaptiveImage } from "@/components/adaptive-image";
+import { formatModelLabel } from "@/lib/model-labels";
 import {
   buildDetectionCategoryDiff,
   filterDetections,
@@ -301,7 +302,7 @@ export function ResultDashboard({
                     <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
                       主模型
                     </p>
-                    <p className="mt-1 text-sm text-white">{result.model_version}</p>
+                    <p className="mt-1 text-sm text-white">{formatModelLabel(result)}</p>
                   </div>
                   <div className="text-right text-xs font-mono text-slate-400">
                     <div>{result.detections.length} detections</div>
@@ -330,7 +331,7 @@ export function ResultDashboard({
                     <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-300/70">
                       对比模型
                     </p>
-                    <p className="mt-1 text-sm text-white">{comparisonResult.model_version}</p>
+                    <p className="mt-1 text-sm text-white">{formatModelLabel(comparisonResult)}</p>
                   </div>
                   <div className="text-right text-xs font-mono text-slate-300">
                     <div>{comparisonResult.detections.length} detections</div>
@@ -454,7 +455,7 @@ export function ResultDashboard({
                 <div className="mt-3 space-y-2 text-sm text-slate-300">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">模型版本</span>
-                    <span className="font-mono text-white">{result.model_version}</span>
+                    <span className="font-mono text-white">{formatModelLabel(result)}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">病害数量</span>
@@ -474,7 +475,9 @@ export function ResultDashboard({
                 <div className="mt-3 space-y-2 text-sm text-slate-200">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400">模型版本</span>
-                    <span className="font-mono text-white">{comparisonResult.model_version}</span>
+                    <span className="font-mono text-white">
+                      {formatModelLabel(comparisonResult)}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400">病害数量</span>
@@ -513,7 +516,7 @@ export function ResultDashboard({
                   <div className="rounded-lg bg-black/20 px-3 py-3">
                     <div className="text-xs text-slate-500">当前对比</div>
                     <div className="mt-1 font-mono text-white">
-                      {result.model_version} vs {comparisonResult.model_version}
+                      {formatModelLabel(result)} vs {formatModelLabel(comparisonResult)}
                     </div>
                   </div>
                 </div>

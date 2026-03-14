@@ -17,6 +17,7 @@ import {
   sortHistoryItems,
   type HistorySortMode
 } from "@/lib/history-utils";
+import { formatModelLabel } from "@/lib/model-labels";
 import {
   deleteResult,
   getOverlayDownloadUrl,
@@ -131,7 +132,7 @@ export function HomeShell() {
     .filter((model) => model.model_version !== result?.model_version)
     .map((model) => ({
       value: model.model_version,
-      label: `${model.model_version} · ${model.backend}${model.is_active ? " · active" : ""}`,
+      label: `${formatModelLabel(model)} · ${model.backend}${model.is_active ? " · active" : ""}`,
       disabled: !model.is_available
     }));
   const availableHistoryCategories = [...new Set(historyItems.flatMap((item) => item.categories))];
@@ -545,11 +546,11 @@ export function HomeShell() {
       setComparisonResult(nextComparison);
       setCompareStatus({
         phase: "success",
-        message: `对比完成：${result.model_version} vs ${nextComparison.model_version}。`
+        message: `对比完成：${formatModelLabel(result)} vs ${formatModelLabel(nextComparison)}。`
       });
       pushActionNotice(
         "模型对比已完成",
-        `${result.model_version} 与 ${nextComparison.model_version} 的结果已生成。`,
+        `${formatModelLabel(result)} 与 ${formatModelLabel(nextComparison)} 的结果已生成。`,
         "success"
       );
     } catch (error) {
@@ -572,11 +573,15 @@ export function HomeShell() {
   }
 
   return (
-    <main className="flex h-screen w-full bg-black text-slate-200 overflow-hidden font-sans">
-      <aside className="w-20 lg:w-64 shrink-0 border-r border-white/5 bg-black flex flex-col">
+    <main className="flex h-screen w-full bg-black text-slate-200 overflow-hidden font-sans relative">
+      {/* 纯黑设计背景纹理层 */}
+      <div className="bg-grid" />
+      <div className="bg-noise" />
+
+      <aside className="w-20 lg:w-64 shrink-0 border-r border-white/5 bg-transparent flex flex-col relative z-10">
         <div className="flex h-16 items-center justify-center lg:justify-start lg:px-6 border-b border-white/5">
           <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-80">
-            <div className="h-8 w-8 rounded-lg bg-black border border-white/20 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-lg bg-[#050505] border border-white/10 flex items-center justify-center">
               <span className="text-white font-bold font-mono">BDI</span>
             </div>
             <span className="hidden lg:block font-semibold tracking-[0.2em] uppercase text-white">INFRA-SCAN</span>
@@ -600,8 +605,8 @@ export function HomeShell() {
           <button
             type="button"
             className={`flex items-center gap-4 px-3 py-2.5 rounded-lg transition-colors ${activeNav === "Home"
-              ? "bg-white/10 text-white font-medium shadow-[inset_2px_0_0_0_#fff]"
-              : "text-slate-500 hover:text-slate-300 hover:bg-white/5"
+              ? "bg-white/[0.04] text-white font-medium shadow-[inset_2px_0_0_0_#fff]"
+              : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.02]"
               }`}
             onClick={() => setActiveNav("Home")}
           >
@@ -612,8 +617,8 @@ export function HomeShell() {
           <button
             type="button"
             className={`flex items-center gap-4 px-3 py-2.5 rounded-lg transition-colors ${activeNav === "Scans"
-              ? "bg-white/10 text-white font-medium shadow-[inset_2px_0_0_0_#fff]"
-              : "text-slate-500 hover:text-slate-300 hover:bg-white/5"
+              ? "bg-white/[0.04] text-white font-medium shadow-[inset_2px_0_0_0_#fff]"
+              : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.02]"
               }`}
             onClick={() => {
               setActiveNav("Scans");
@@ -627,8 +632,8 @@ export function HomeShell() {
       </aside>
 
       {/* 主视图区 (图传/回放/上传) */}
-      <section className="flex-1 flex flex-col min-w-0 bg-transparent relative">
-        <header className="h-16 shrink-0 flex items-center justify-between px-6 border-b border-white/5 bg-black/60 backdrop-blur-3xl">
+      <section className="flex-1 flex flex-col min-w-0 bg-transparent relative z-10">
+        <header className="h-16 shrink-0 flex items-center justify-between px-6 border-b border-white/5 bg-transparent backdrop-blur-[100px]">
           <h1 className="text-lg font-medium text-white uppercase tracking-[0.1em]">
             {activeNav === "Scans"
               ? "历史分析档案"
@@ -682,7 +687,7 @@ export function HomeShell() {
           ) : !result ? (
             <div className="h-full flex flex-col items-center justify-center">
               <div className="w-full max-w-2xl relative z-10">
-                <div className="rounded-[2rem] border border-white/5 bg-black/40 p-8 shadow-2xl backdrop-blur-3xl">
+                <div className="rounded-[24px] border border-white/[0.04] bg-[#030303] p-8 shadow-[0_0_60px_rgba(66,133,244,0.03)] backdrop-blur-3xl">
                   <div className="text-center">
                     <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40 mb-3">
                       工作台
@@ -734,7 +739,7 @@ export function HomeShell() {
                 </div>
 
                 <div className="mt-6 grid gap-4 lg:grid-cols-[1.5fr_1fr]">
-                  <div className="rounded-auth border border-white/5 bg-black/20 p-6 shadow-xl backdrop-blur-xl rounded-2xl">
+                  <div className="rounded-[24px] border border-white/[0.04] bg-[#030303] p-6 shadow-[0_0_60px_rgba(160,110,225,0.03)] backdrop-blur-3xl">
                     <div className="flex items-center justify-between mb-4">
                       <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/50">
                         最近记录
@@ -781,7 +786,7 @@ export function HomeShell() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-white/5 bg-black/20 p-6 shadow-xl backdrop-blur-xl flex flex-col justify-center">
+                  <div className="rounded-[24px] border border-white/[0.04] bg-[#030303] p-6 shadow-[0_0_60px_rgba(66,133,244,0.03)] backdrop-blur-3xl flex flex-col justify-center">
                     <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/50">
                       系统建议
                     </p>
@@ -899,8 +904,8 @@ export function HomeShell() {
                     <span className="text-white/90">{result.inference_ms}ms</span>
                   </div>
                   <div className="flex justify-between border-b border-white/5 pb-2">
-                    <span className="text-white/50">模型版本</span>
-                    <span className="text-white/70">{result.model_version}</span>
+                    <span className="text-white/50">当前模型</span>
+                    <span className="text-white/70">{formatModelLabel(result)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-white/50">当前参数</span>
@@ -997,7 +1002,7 @@ export function HomeShell() {
                           value={model.model_version}
                           disabled={!model.is_available}
                         >
-                          {model.model_version} · {model.backend}
+                          {formatModelLabel(model)} · {model.backend}
                           {!model.is_available ? " · unavailable" : ""}
                         </option>
                       ))}
@@ -1008,7 +1013,16 @@ export function HomeShell() {
                         : modelsError
                           ? modelsError
                           : selectedModelVersion
-                            ? `当前将使用 ${selectedModelVersion} 执行推理。`
+                            ? `当前将使用 ${
+                              formatModelLabel(
+                                availableModels.find(
+                                  (model) => model.model_version === selectedModelVersion
+                                ) ?? {
+                                  model_name: "unknown",
+                                  model_version: selectedModelVersion
+                                }
+                              )
+                            } 执行推理。`
                             : "未读取到模型列表时，将回退到当前 active model。"}
                     </p>
                   </div>
