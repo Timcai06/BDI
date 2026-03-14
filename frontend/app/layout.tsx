@@ -80,7 +80,6 @@ export const metadata: Metadata = {
   },
 
   // 其他
-  manifest: "/manifest.json",
   category: "technology",
 };
 
