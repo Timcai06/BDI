@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import { AdaptiveImage } from "@/components/adaptive-image";
 import type { HistorySortMode } from "@/lib/history-utils";
+import { formatModelLabel } from "@/lib/model-labels";
 import type { PredictionHistoryItem } from "@/lib/types";
 
 interface HistoryPanelProps {
@@ -294,15 +295,15 @@ export function HistoryPanel({
                 {col.map((item) => {
                   const isCenter = centerImageId === null || centerImageId === item.image_id;
 
-                  return (
-                    <article
-                      key={item.image_id}
-                      data-image-id={item.image_id}
-                      className={`group relative flex w-full flex-col overflow-hidden rounded-2xl bg-black/20 transition-all duration-700 ease-out cursor-pointer border border-white/5 hover:border-white/20
-                        ${isCenter ? 'scale-100 opacity-100 blur-none z-10' : 'scale-[0.98] opacity-60 blur-sm hover:opacity-80 hover:blur-[2px]'}
-                      `}
-                      onClick={() => onSelect(item.image_id)}
-                    >
+                    return (
+                      <article
+                        key={item.image_id}
+                        data-image-id={item.image_id}
+                        className={`group relative flex w-full flex-col overflow-hidden rounded-2xl bg-[#030303] transition-all duration-700 ease-out cursor-pointer border border-white/[0.04] hover:border-white/20 hover:shadow-[0_0_40px_rgba(66,133,244,0.05)]
+                          ${isCenter ? "scale-100 opacity-100 saturate-100 z-10" : "scale-[0.98] opacity-35 saturate-[0.2] hover:opacity-70 hover:saturate-[0.6]"}
+                        `}
+                        onClick={() => onSelect(item.image_id)}
+                      >
                       {/* Image Thumbnail */}
                       <div className="relative aspect-[4/3] w-full overflow-hidden bg-black/40">
                         {getImageUrl(item.image_id) ? (
@@ -333,9 +334,14 @@ export function HistoryPanel({
                       <div className="absolute inset-0 flex flex-col justify-between p-5 pointer-events-none">
                         {/* Top Metadata */}
                         <div className="flex justify-between items-start">
-                          <span className="rounded bg-black/40 backdrop-blur-md px-2 py-1 text-[10px] font-mono uppercase tracking-[0.16em] text-sky-400 border border-white/10">
+                          <span className="rounded bg-black/40 backdrop-blur-md px-2 py-1 text-[10px] font-mono tracking-[0.08em] text-sky-400 border border-white/10 max-w-[75%] truncate">
+                            {formatModelLabel(item)}
+                          </span>
+                          <span className="rounded bg-black/40 backdrop-blur-md px-2 py-1 text-[10px] font-mono uppercase tracking-[0.16em] text-white/60 border border-white/10">
                             {item.backend}
                           </span>
+                        </div>
+                        <div className="mt-2 flex justify-end">
                           <span className="text-[10px] font-mono text-white/50 bg-black/40 px-2 py-1 rounded backdrop-blur-md">
                             {item.inference_ms}ms
                           </span>

@@ -16,7 +16,7 @@ const nextConfig = {
   // 实验性功能
   experimental: {
     // 优化 CSS
-    optimizeCss: true,
+    optimizeCss: false,
     // 优化包体积
     optimizePackageImports: ['framer-motion'],
   },
