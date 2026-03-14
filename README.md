@@ -127,10 +127,11 @@
 如果是第一次进入项目，建议按下面的顺序读：
 
 1. [AGENTS/00-entry/AGENTS.md](/Users/justin/Desktop/BDI/AGENTS/00-entry/AGENTS.md)
-2. [plan/overall-goals.md](/Users/justin/Desktop/BDI/plan/overall-goals.md)
-3. [plan/phase3.md](/Users/justin/Desktop/BDI/plan/phase3.md)
-4. [for_crt/02-系统架构草案.md](/Users/justin/Desktop/BDI/for_crt/02-系统架构草案.md)
-5. [for_crt/03-YOLOv8对接协议与兼容设计.md](/Users/justin/Desktop/BDI/for_crt/03-YOLOv8对接协议与兼容设计.md)
+2. [product-landing-research.md](/Users/justin/Desktop/BDI/product-landing-research.md)
+3. [plan/overall-goals.md](/Users/justin/Desktop/BDI/plan/overall-goals.md)
+4. [plan/phase3.md](/Users/justin/Desktop/BDI/plan/phase3.md)
+5. [for_crt/02-系统架构草案.md](/Users/justin/Desktop/BDI/for_crt/02-系统架构草案.md)
+6. [for_crt/03-YOLOv8对接协议与兼容设计.md](/Users/justin/Desktop/BDI/for_crt/03-YOLOv8对接协议与兼容设计.md)
 
 如果你是来直接开工实现，先看 `AGENTS/00-entry/AGENTS.md`，再进入阶段计划和代码。
 
@@ -156,15 +157,17 @@
 下一步建议在 Phase 3 收口后，开始为 Phase 4 做准备：
 
 - 整理并确认 Phase 3 完成口径
-- 评估多模型切换与批量任务的最小落地范围
+- 优先补齐模型注册、统一推理接口和结果适配骨架
+- 再评估多模型切换与批量任务的最小落地范围
 - 保持前后端统一协议稳定
 
 推荐实际开发顺序：
 
 1. 先阅读 `AGENTS/` 与当前阶段计划文档
 2. 再确认 `Phase 3` 的结果页与导出范围
-3. 先补齐历史回看和错误态基础能力
-4. 最后再推进更高阶展示和演示优化
+3. 先补齐模型注册、runner 适配层和统一结果协议
+4. 再推进批量任务、切片推理等 `Phase 4` 能力
+5. 最后再推进更高阶展示和演示优化
 
 ## Notes
 
