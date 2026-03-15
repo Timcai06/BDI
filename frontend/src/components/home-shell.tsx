@@ -11,6 +11,7 @@ import Link from "next/link";
 
 import { HistoryPanel } from "@/components/history-panel";
 import { ResultDashboard } from "@/components/result-dashboard";
+import { ScanAnimation } from "@/components/scan-animation";
 import { StatusCard } from "@/components/status-card";
 import {
   filterHistoryItems,
@@ -76,6 +77,7 @@ function downloadRemoteFile(url: string, filename: string) {
 export function HomeShell() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [confidence, setConfidence] = useState(0.45);
   const [activeNav, setActiveNav] = useState<NavItem>("Home");
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
@@ -113,6 +115,8 @@ export function HomeShell() {
   const [historyCategoryFilter, setHistoryCategoryFilter] = useState("全部");
   const [historySortMode, setHistorySortMode] = useState<HistorySortMode>("newest");
   const [status, setStatus] = useState<PredictState>(initialState);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [scanPhase, setScanPhase] = useState<"uploading" | "analyzing" | "detecting" | "complete">("uploading");
   const [actionNotices, setActionNotices] = useState<ActionNotice[]>([]);
   const [categoryFilter, setCategoryFilter] = useState("全部");
   const [minConfidence, setMinConfidence] = useState(0.3);
@@ -353,6 +357,82 @@ export function HomeShell() {
     setAnalysisModalOpen(false);
   }
 
+  // 文件大小格式化
+  function formatFileSize(bytes: number): string {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  }
+
+  // 拖拽事件处理
+  function handleDragEnter(event: React.DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (status.phase !== "uploading" && status.phase !== "running") {
+      setIsDragging(true);
+    }
+  }
+
+  function handleDragOver(event: React.DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function handleDragLeave(event: React.DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    // 检查是否真的离开了元素（而不是进入了子元素）
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX;
+    const y = event.clientY;
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setIsDragging(false);
+    }
+  }
+
+  function handleDrop(event: React.DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
+
+    if (status.phase === "uploading" || status.phase === "running") {
+      return;
+    }
+
+    const files = event.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      // 检查文件类型
+      const validTypes = ["image/jpeg", "image/jpg", "image/png"];
+      if (!validTypes.includes(file.type)) {
+        setStatus({
+          phase: "error",
+          message: "不支持的文件格式，请上传 JPG 或 PNG 图片"
+        });
+        return;
+      }
+      // 检查文件大小
+      const uploadSizeError = getUploadSizeError(file);
+      if (uploadSizeError) {
+        setSelectedFile(null);
+        setStatus({
+          phase: "error",
+          message: uploadSizeError
+        });
+        return;
+      }
+      setSelectedFile(file);
+      setStatus(initialState);
+    }
+  }
+
+  function handleClearFile() {
+    setSelectedFile(null);
+    setStatus(initialState);
+  }
+
   function getStatusSuggestion() {
     if (status.phase === "error") {
       return {
@@ -437,22 +517,74 @@ export function HomeShell() {
       return;
     }
 
+    // Reset progress
+    setUploadProgress(0);
+    setScanPhase("uploading");
+
+    // Simulate upload progress (0% to 30%)
+    const uploadInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 30) {
+          return prev;
+        }
+        return prev + Math.random() * 5;
+      });
+    }, 200);
+
     setStatus({
       phase: "uploading",
       message: `正在上传 ${selectedFile.name}，随后会进入推理流程。`
     });
 
+    // Simulate upload time based on file size
+    const uploadTime = Math.min(2000, 500 + selectedFile.size / 50000);
+    await new Promise(resolve => setTimeout(resolve, uploadTime));
+
+    clearInterval(uploadInterval);
+    setUploadProgress(30);
+
     try {
+      // Analyzing phase (30% to 60%)
+      setScanPhase("analyzing");
       setStatus({
         phase: "running",
         message: "后端已接收任务，正在执行 YOLOv8-seg 推理。"
       });
+
+      const analyzeInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 60) {
+            return prev;
+          }
+          return prev + Math.random() * 3;
+        });
+      }, 300);
 
       const prediction = await predictImage(selectedFile, {
         confidence,
         exportOverlay,
         modelVersion: selectedModelVersion
       });
+
+      clearInterval(analyzeInterval);
+
+      // Detecting phase (60% to 100%)
+      setScanPhase("detecting");
+      const detectInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 95) {
+            return prev;
+          }
+          return prev + Math.random() * 4;
+        });
+      }, 150);
+
+      // Simulate processing time
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      clearInterval(detectInterval);
+      setUploadProgress(100);
+      setScanPhase("complete");
 
       startTransition(() => {
         setResult(prediction);
@@ -867,7 +999,11 @@ export function HomeShell() {
       <aside className="w-[360px] shrink-0 border-l border-white/5 bg-black flex flex-col z-10 relative shadow-[-20px_0_50px_rgba(0,0,0,0.8)]">
         <div className="p-6 border-b border-white/5">
           <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/50 mb-2">系统状态</p>
-          <StatusCard phase={status.phase} message={status.message} />
+          <StatusCard 
+            phase={status.phase} 
+            message={status.message} 
+            progress={uploadProgress}
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
@@ -959,7 +1095,19 @@ export function HomeShell() {
             </div>
 
             <form className="mt-8" onSubmit={handleSubmit}>
-              <label className="relative flex min-h-[200px] sm:min-h-[240px] cursor-pointer flex-col items-center justify-center rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/20 transition-all duration-500 group overflow-hidden">
+              <label
+                className={`relative flex min-h-[200px] sm:min-h-[260px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-all duration-300 overflow-hidden ${
+                  isDragging
+                    ? "border-sky-500/80 bg-sky-500/10 scale-[1.02]"
+                    : selectedFile
+                      ? "border-white/20 bg-white/[0.04]"
+                      : "border-white/10 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/30"
+                } ${status.phase === "uploading" || status.phase === "running" ? "pointer-events-none" : ""}`}
+                onDragEnter={handleDragEnter}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
                 <input
                   accept=".jpg,.jpeg,.png"
                   className="hidden"
@@ -984,33 +1132,110 @@ export function HomeShell() {
                   }}
                 />
 
-                {previewUrl && (
+                {/* 背景预览图 */}
+                {previewUrl && !selectedFile && (
                   <div
-                    className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-30 transition-opacity duration-700 group-hover:opacity-10"
+                    className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-20 transition-opacity duration-700"
                     style={{ backgroundImage: `url(${previewUrl})` }}
                   />
                 )}
 
+                {/* 扫描动画 */}
                 {(status.phase === "uploading" || status.phase === "running") && (
-                  <div className="absolute inset-0 pointer-events-none">
-                    <div className="w-full h-[2px] bg-white/80 shadow-[0_0_20px_rgba(255,255,255,0.8)] animate-[scan_2s_ease-in-out_infinite]" />
-                    <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent animate-[scan_2s_ease-in-out_infinite]" style={{ height: "30%" }} />
+                  <div className="absolute inset-0">
+                    <ScanAnimation phase={scanPhase} progress={uploadProgress} />
                   </div>
                 )}
 
-                <div className="relative z-10 flex flex-col items-center text-center p-6">
-                  <div className="w-16 h-16 mb-6 rounded-full border border-white/10 bg-black/40 backdrop-blur-sm flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
-                    <svg className="w-6 h-6 text-white/70 group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
+                {/* 拖拽悬停遮罩 */}
+                {isDragging && (
+                  <div className="absolute inset-0 bg-sky-500/10 backdrop-blur-[2px] flex items-center justify-center">
+                    <div className="flex flex-col items-center">
+                      <div className="w-20 h-20 rounded-full bg-sky-500/20 flex items-center justify-center mb-4 animate-pulse">
+                        <svg className="w-10 h-10 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                      </div>
+                      <span className="text-lg font-medium text-sky-300">释放以上传文件</span>
+                    </div>
                   </div>
-                  <span className="text-lg font-light text-slate-200 tracking-wide">
-                    {selectedFile ? selectedFile.name : "点击或拖拽上传图像"}
-                  </span>
-                  <span className="mt-3 text-xs uppercase tracking-[0.28em] text-slate-500">
-                    支持 JPG / JPEG / PNG，单张最大 {MAX_UPLOAD_SIZE_MB}MB
-                  </span>
-                </div>
+                )}
+
+                {/* 内容区域 */}
+                {!isDragging && (
+                  <div className="relative z-10 flex flex-col items-center text-center p-6 w-full">
+                    {selectedFile ? (
+                      // 文件预览模式
+                      <div className="flex flex-col items-center w-full max-w-md">
+                        {/* 缩略图 */}
+                        {previewUrl ? (
+                          <div className="relative mb-4">
+                            <div className="w-32 h-32 rounded-xl overflow-hidden border border-white/10 shadow-lg">
+                              <img
+                                src={previewUrl}
+                                alt="预览"
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            {/* 清除按钮 */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleClearFile();
+                              }}
+                              className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:bg-rose-500/80 hover:text-white hover:border-rose-500 transition-all duration-200"
+                              title="移除文件"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="w-24 h-24 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
+                            <svg className="w-10 h-10 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        )}
+
+                        {/* 文件信息 */}
+                        <div className="text-center">
+                          <p className="text-base font-medium text-white mb-1 truncate max-w-[280px]" title={selectedFile.name}>
+                            {selectedFile.name}
+                          </p>
+                          <div className="flex items-center justify-center gap-3 text-xs text-white/40">
+                            <span>{formatFileSize(selectedFile.size)}</span>
+                            <span className="w-1 h-1 rounded-full bg-white/20" />
+                            <span className="uppercase">{selectedFile.type.split('/')[1] || 'image'}</span>
+                          </div>
+                        </div>
+
+                        {/* 更换提示 */}
+                        <p className="mt-4 text-xs text-white/30">
+                          点击或拖拽新文件以更换
+                        </p>
+                      </div>
+                    ) : (
+                      // 空状态
+                      <>
+                        <div className={`w-16 h-16 mb-6 rounded-full border border-white/10 bg-black/40 backdrop-blur-sm flex items-center justify-center transition-all duration-500 ${isDragging ? 'scale-125' : 'group-hover:scale-110'}`}>
+                          <svg className="w-6 h-6 text-white/70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                          </svg>
+                        </div>
+                        <span className="text-lg font-light text-slate-200 tracking-wide">
+                          点击或拖拽上传图像
+                        </span>
+                        <span className="mt-3 text-xs uppercase tracking-[0.28em] text-slate-500">
+                          支持 JPG / JPEG / PNG，单张最大 {MAX_UPLOAD_SIZE_MB}MB
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
               </label>
 
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -1093,7 +1318,11 @@ export function HomeShell() {
               </div>
 
               <div className="mt-4">
-                <StatusCard phase={status.phase} message={status.message} />
+                <StatusCard 
+                  phase={status.phase} 
+                  message={status.message} 
+                  progress={uploadProgress}
+                />
               </div>
 
               <div className="mt-6 flex gap-3 sticky bottom-0 bg-black/40 -mx-6 sm:-mx-10 px-6 sm:px-10 py-4 border-t border-white/5">

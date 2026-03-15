@@ -19,9 +19,14 @@ const phaseLabelMap: Record<AppPhase, string> = {
 interface StatusCardProps {
   phase: AppPhase;
   message: string;
+  progress?: number; // 0-100
+  uploadSpeed?: string; // e.g. "2.5 MB/s"
 }
 
-export function StatusCard({ phase, message }: StatusCardProps) {
+export function StatusCard({ phase, message, progress, uploadSpeed }: StatusCardProps) {
+  const showProgress = phase === "uploading" || phase === "running";
+  const progressPercent = Math.min(100, Math.max(0, progress ?? 0));
+
   return (
     <div className={`rounded-xl border p-4 transition-all duration-300 ${phaseStyleMap[phase]}`}>
       <div className="flex items-center justify-between gap-3">
@@ -35,7 +40,31 @@ export function StatusCard({ phase, message }: StatusCardProps) {
           </div>
           <h3 className="text-sm font-mono font-bold tracking-wide">{phaseLabelMap[phase]}</h3>
         </div>
+        
+        {/* Progress percentage */}
+        {showProgress && progress !== undefined && (
+          <span className="text-xs font-mono font-semibold">{Math.round(progressPercent)}%</span>
+        )}
       </div>
+
+      {/* Progress Bar */}
+      {showProgress && (
+        <div className="mt-3">
+          <div className="h-1.5 w-full bg-black/40 rounded-full overflow-hidden">
+            <div 
+              className="h-full rounded-full bg-current transition-all duration-300 ease-out"
+              style={{ 
+                width: `${progressPercent}%`,
+                boxShadow: '0 0 10px currentColor'
+              }}
+            />
+          </div>
+          {uploadSpeed && phase === "uploading" && (
+            <p className="mt-2 text-[10px] font-mono text-current/60">{uploadSpeed}</p>
+          )}
+        </div>
+      )}
+
       <p className="mt-3 text-xs leading-5 text-current/80 opacity-90">{message}</p>
     </div>
   );
