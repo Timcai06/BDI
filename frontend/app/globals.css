@@ -45,16 +45,16 @@
 }
 
 :root {
-  --background: #000000;
-  --foreground: #F8FAFC; /* Softer white for less halation */
+  --background: #05070d;
+  --foreground: #f6fbff;
   --panel: rgba(255, 255, 255, 0.02);
   --panel-strong: rgba(255, 255, 255, 0.04);
-  --border: rgba(255, 255, 255, 0.05); /* Hairline borders */
-  --accent: #4285F4;
-  --accent-deep: #A06EE1;
+  --border: rgba(255, 255, 255, 0.06);
+  --accent: #4d8dff;
+  --accent-deep: #63e6ff;
   --success: #10B981;
   --danger: #EF4444;
-  --muted: rgba(255, 255, 255, 0.5); /* Softer muted */
+  --muted: rgba(255, 255, 255, 0.52);
   --font-heading: "Google Sans", "Inter", sans-serif;
   --font-body: "Google Sans", "Inter", sans-serif;
 }
@@ -80,8 +80,9 @@ body {
   background-color: var(--background);
   /* Cinematic edge glows (Google Flow style) */
   background-image:
-    radial-gradient(ellipse 60% 40% at 50% -20%, rgba(66, 133, 244, 0.12), transparent),
-    radial-gradient(ellipse 60% 40% at 50% 120%, rgba(160, 110, 225, 0.12), transparent);
+    radial-gradient(ellipse 60% 40% at 50% -20%, rgba(77, 141, 255, 0.14), transparent),
+    radial-gradient(ellipse 45% 30% at 85% 18%, rgba(99, 230, 255, 0.08), transparent),
+    radial-gradient(ellipse 50% 35% at 15% 100%, rgba(77, 141, 255, 0.1), transparent);
   background-attachment: fixed;
   /* GPU 加速 */
   -webkit-font-smoothing: antialiased;
@@ -156,16 +157,16 @@ input {
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--border);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
 }
 
 .section-title {
   font-family: var(--font-heading), sans-serif;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--muted);
+  color: rgba(179, 214, 255, 0.66);
 }
 
 /* ============================================
