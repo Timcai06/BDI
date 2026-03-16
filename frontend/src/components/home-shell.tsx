@@ -11,7 +11,7 @@ import Link from "next/link";
 
 import { classifyError, ErrorMessage, type ErrorType } from "@/components/error-message";
 import { FileValidator, ValidationErrorList, type ValidationError } from "@/components/file-validator";
-import { HistoryPanel } from "@/components/history-panel";
+import { HistoryPanel } from "@/components/history";
 import { QuickActions } from "@/components/quick-actions";
 import { RecentScans } from "@/components/recent-scans";
 import { ResultDashboard } from "@/components/result-dashboard";
