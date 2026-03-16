@@ -51,6 +51,77 @@ function getCategoryColor(category: string) {
   return "border-emerald-400 bg-emerald-400/10 text-emerald-400";
 }
 
+function getPrimaryFinding(result: PredictionResult): string {
+  if (result.detections.length === 0) {
+    return "本次未识别到明确病害";
+  }
+
+  const categoryCounts = result.detections.reduce<Record<string, number>>((acc, item) => {
+    acc[item.category] = (acc[item.category] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const [topCategory, topCount] =
+    Object.entries(categoryCounts).sort((left, right) => right[1] - left[1])[0] ?? [];
+
+  if (!topCategory || !topCount) {
+    return `识别到 ${result.detections.length} 处病害`;
+  }
+
+  return `${topCategory} 是本次主要风险，共识别 ${topCount} 处`;
+}
+
+function getResultNextStep(result: PredictionResult): string {
+  if (result.detections.length === 0) {
+    return "建议先降低阈值或更换一张更清晰的巡检照片，再重新分析。";
+  }
+
+  if (result.detections.length === 1) {
+    return "建议先查看病害详情确认定位与置信度，再决定是否导出结果。";
+  }
+
+  return "建议先在病害列表中逐项查看，再根据需要做模型对比或导出结果。";
+}
+
+function getComparisonRecommendation(
+  result: PredictionResult,
+  comparisonResult: PredictionResult,
+  detectionDelta: number,
+  categoryDiffItems: ReturnType<typeof buildDetectionCategoryDiff>
+): string {
+  const inferenceDelta = comparisonResult.inference_ms - result.inference_ms;
+  const strongestDiff =
+    [...categoryDiffItems].sort((left, right) => Math.abs(right.delta) - Math.abs(left.delta))[0] ?? null;
+
+  if (detectionDelta === 0) {
+    if (inferenceDelta < 0) {
+      return `两版识别结果接近，建议优先保留更快的 ${formatModelLabel(comparisonResult)}。`;
+    }
+
+    if (inferenceDelta > 0) {
+      return `两版识别结果接近，建议继续使用当前主模型 ${formatModelLabel(result)}。`;
+    }
+
+    return "两版结果和耗时都很接近，建议继续使用当前主模型。";
+  }
+
+  if (detectionDelta > 0) {
+    return strongestDiff
+      ? `${formatModelLabel(comparisonResult)} 识别到更多病害，尤其是 ${strongestDiff.category}，但耗时${inferenceDelta > 0 ? "更高" : "更低"}。`
+      : `${formatModelLabel(comparisonResult)} 识别到更多病害，适合继续做复核。`;
+  }
+
+  return strongestDiff
+    ? `${formatModelLabel(result)} 检出的病害更多，尤其是 ${strongestDiff.category}，当前主模型更适合作为默认版本。`
+    : `${formatModelLabel(result)} 检出的病害更多，建议优先保留当前主模型。`;
+}
+
+function getDetectionPriorityScore(detection: Detection): number {
+  const areaScore = detection.metrics.area_mm2 ? detection.metrics.area_mm2 / 100 : 0;
+  const lengthScore = detection.metrics.length_mm ? detection.metrics.length_mm / 10 : 0;
+  return detection.confidence * 1000 + areaScore + lengthScore;
+}
+
 export function ResultDashboard({
   result,
   comparisonResult,
@@ -80,12 +151,17 @@ export function ResultDashboard({
   compareDisabled
 }: ResultDashboardProps) {
   const frameRef = useRef<HTMLDivElement>(null);
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  const detectionItemRefs = useRef<Record<string, HTMLArticleElement | null>>({});
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const filteredDetections = filterDetections(
     result.detections,
     categoryFilter,
     minConfidence
+  );
+  const prioritizedDetections = [...filteredDetections].sort(
+    (left, right) => getDetectionPriorityScore(right) - getDetectionPriorityScore(left)
   );
   const averageConfidence = filteredDetections.length
     ? (
@@ -101,9 +177,10 @@ export function ResultDashboard({
       ? comparisonOverlayPreviewUrl
       : comparisonPreviewUrl;
   const current =
-    filteredDetections.find((item) => item.id === selectedDetectionId) ??
-    filteredDetections[0] ??
+    prioritizedDetections.find((item) => item.id === selectedDetectionId) ??
+    prioritizedDetections[0] ??
     null;
+  const topPriorityDetection = prioritizedDetections[0] ?? null;
   const comparisonDetectionCount = comparisonResult?.detections.length ?? null;
   const detectionDelta =
     comparisonDetectionCount === null
@@ -112,6 +189,12 @@ export function ResultDashboard({
   const categoryDiffItems = comparisonResult
     ? buildDetectionCategoryDiff(result, comparisonResult)
     : [];
+  const primaryFinding = getPrimaryFinding(result);
+  const resultNextStep = getResultNextStep(result);
+  const comparisonRecommendation =
+    comparisonResult && detectionDelta !== null
+      ? getComparisonRecommendation(result, comparisonResult, detectionDelta, categoryDiffItems)
+      : null;
 
   useEffect(() => {
     const node = frameRef.current;
@@ -144,6 +227,20 @@ export function ResultDashboard({
     setImageSize({
       width: target.naturalWidth,
       height: target.naturalHeight
+    });
+  }
+
+  function handleFocusDetection(detection: Detection | null) {
+    if (!detection) {
+      return;
+    }
+
+    onSelectDetection(detection);
+    requestAnimationFrame(() => {
+      detectionItemRefs.current[detection.id]?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest"
+      });
     });
   }
 
@@ -186,47 +283,53 @@ export function ResultDashboard({
                 查看叠加图
               </button>
             </div>
-            <button
-              className="h-8 rounded-md border border-white/10 px-3 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10"
-              type="button"
-              onClick={onOpenHistory}
-            >
-              历史记录
-            </button>
-            <button
-              className="h-8 rounded-md border border-white/10 px-3 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10"
-              type="button"
-              onClick={onReset}
-            >
-              更换图片
-            </button>
-            <button
-              className="h-8 rounded-md border border-white/10 px-3 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={rerunDisabled}
-              title={rerunDisabled ? "历史记录无法直接重跑，请重新上传原图后再分析" : "使用当前本地图片重新分析"}
-              type="button"
-              onClick={onRerun}
-            >
-              重新分析
-            </button>
-            <button
-              aria-label="导出 JSON"
-              className="h-8 rounded-md border border-white/10 px-3 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10"
-              type="button"
-              onClick={onExportJson}
-            >
-              JSON
-            </button>
-            <button
-              aria-label="导出叠加图"
-              className="h-8 rounded-md border border-white/10 px-3 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={overlayDisabled}
-              title={overlayDisabled ? "当前结果没有可导出的 overlay 文件" : "导出叠加图"}
-              type="button"
-              onClick={onExportOverlay}
-            >
-              叠加图
-            </button>
+            <div className="flex rounded-md border border-white/10 bg-black/20 p-1">
+              <button
+                className="h-7 rounded px-3 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10"
+                type="button"
+                onClick={onOpenHistory}
+              >
+                历史记录
+              </button>
+            </div>
+            <div className="flex rounded-md border border-white/10 bg-black/20 p-1">
+              <button
+                className="h-7 rounded px-3 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10"
+                type="button"
+                onClick={onReset}
+              >
+                更换图片
+              </button>
+              <button
+                className="h-7 rounded px-3 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={rerunDisabled}
+                title={rerunDisabled ? "历史记录无法直接重跑，请重新上传原图后再分析" : "使用当前本地图片重新分析"}
+                type="button"
+                onClick={onRerun}
+              >
+                重新分析
+              </button>
+            </div>
+            <div className="flex rounded-md border border-white/10 bg-black/20 p-1">
+              <button
+                aria-label="导出 JSON"
+                className="h-7 rounded px-3 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10"
+                type="button"
+                onClick={onExportJson}
+              >
+                导出 JSON
+              </button>
+              <button
+                aria-label="导出叠加图"
+                className="h-7 rounded px-3 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={overlayDisabled}
+                title={overlayDisabled ? "当前结果没有可导出的 overlay 文件" : "导出叠加图"}
+                type="button"
+                onClick={onExportOverlay}
+              >
+                导出叠加图
+              </button>
+            </div>
           </div>
         </div>
 
@@ -251,7 +354,7 @@ export function ResultDashboard({
             <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
 
             <div className="absolute inset-0 z-10">
-              {filteredDetections.map((item) => {
+              {prioritizedDetections.map((item) => {
                 const colorCls = getCategoryColor(item.category);
                 const isSelected = item.id === selectedDetectionId;
                 const overlayStyle = getDetectionOverlayStyle(
@@ -267,7 +370,7 @@ export function ResultDashboard({
                       ...overlayStyle,
                       backgroundColor: "transparent"
                     }}
-                    onClick={() => onSelectDetection(item)}
+                    onClick={() => handleFocusDetection(item)}
                   >
                     <div className="absolute inset-0 bg-current opacity-10 group-hover:opacity-20 transition-opacity" />
                     <span className="absolute -top-[21px] left-[-1.5px] px-1.5 py-0.5 text-[10px] font-mono font-bold bg-current text-[#0B1120] whitespace-nowrap opacity-80 group-hover:opacity-100 transition-opacity shadow-sm">
@@ -361,13 +464,27 @@ export function ResultDashboard({
       {/* 病害详情列表 - 嵌入主画布右侧作为辅助，或者在窄屏时下放 */}
       <aside className="w-full xl:w-96 shrink-0 flex flex-col gap-6">
         <div className="rounded-[1.5rem] border border-white/10 bg-[#1E293B]/60 p-5 shadow-lg backdrop-blur shrink-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500 mb-2">结果摘要</p>
-          <h3 className="text-xl text-slate-100 font-light tracking-tight">{getDetectionSummary(result)}</h3>
+          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500 mb-2">结果结论</p>
+          <h3 className="text-xl text-slate-100 font-light tracking-tight">{primaryFinding}</h3>
+          <p className="mt-2 text-sm text-slate-300">{getDetectionSummary(result)}</p>
           <p className="mt-3 text-sm text-slate-400">
             {activePreviewUrl
               ? `当前正在查看${viewMode === "overlay" ? "叠加图" : "原图"}，可继续筛选、导出或重新分析。`
               : "当前为历史记录回看模式，已恢复结构化结果和病害详情。"}
           </p>
+          <div className="mt-4 rounded-xl border border-sky-500/15 bg-sky-500/[0.06] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-300/70">建议下一步</p>
+            <p className="mt-2 text-sm leading-relaxed text-slate-200">{resultNextStep}</p>
+            {topPriorityDetection ? (
+              <button
+                className="mt-4 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-200 transition-colors hover:bg-sky-500/20"
+                type="button"
+                onClick={() => handleFocusDetection(topPriorityDetection)}
+              >
+                查看最高风险病害
+              </button>
+            ) : null}
+          </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3">
             <div className="bg-[#0B1120]/50 rounded-lg p-3 border border-white/5">
@@ -494,6 +611,11 @@ export function ResultDashboard({
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
                   差异摘要
                 </p>
+                {comparisonRecommendation ? (
+                  <div className="mt-3 rounded-lg border border-sky-500/15 bg-sky-500/[0.06] px-3 py-3 text-sm leading-relaxed text-slate-100">
+                    {comparisonRecommendation}
+                  </div>
+                ) : null}
                 <div className="mt-3 grid gap-3 sm:grid-cols-3">
                   <div className="rounded-lg bg-black/20 px-3 py-3">
                     <div className="text-xs text-slate-500">病害数量差值</div>
@@ -571,25 +693,35 @@ export function ResultDashboard({
         <div className="rounded-[1.5rem] border border-white/10 bg-[#1E293B]/60 shadow-lg backdrop-blur flex-1 flex flex-col overflow-hidden">
           <div className="p-5 border-b border-white/5 flex items-center justify-between shrink-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">病害列表</p>
-            <span className="font-mono text-xs text-slate-400">{filteredDetections.length} 项</span>
+            <span className="font-mono text-xs text-slate-400">{prioritizedDetections.length} 项</span>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
-            {filteredDetections.map((item, index) => {
+          <div ref={listContainerRef} className="flex-1 overflow-y-auto p-3 space-y-2">
+            {prioritizedDetections.map((item, index) => {
               const colorCls = getCategoryColor(item.category);
               const colorCode = colorCls.match(/text-\[(.*?)\]/)?.[1] || "#10B981";
               const isSelected = item.id === selectedDetectionId;
+              const isHighestPriority = item.id === topPriorityDetection?.id;
 
               return (
                 <article
                   key={item.id}
+                  ref={(node) => {
+                    detectionItemRefs.current[item.id] = node;
+                  }}
                   className={`rounded-xl border p-3 transition-colors group cursor-pointer ${isSelected ? "border-sky-500/40 bg-sky-500/[0.08]" : "border-white/5 bg-white/[0.02] hover:bg-white/[0.04]"}`}
-                  onClick={() => onSelectDetection(item)}
+                  data-detection-id={item.id}
+                  onClick={() => handleFocusDetection(item)}
                 >
                   <div className="flex items-center justify-between gap-4 mb-2">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-mono text-slate-500">{String(index + 1).padStart(2, '0')}.</span>
                       <h4 className="text-sm font-medium text-slate-200 uppercase">{item.category}</h4>
+                      {isHighestPriority ? (
+                        <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-200">
+                          优先查看
+                        </span>
+                      ) : null}
                     </div>
                     <span className="text-xs font-mono px-2 py-0.5 rounded border border-white/10" style={{ color: colorCode }}>
                       {(item.confidence * 100).toFixed(1)}%

@@ -556,6 +556,8 @@ export function HomeShell() {
   }
 
   const statusSuggestion = getStatusSuggestion();
+  const selectedModel =
+    availableModels.find((model) => model.model_version === selectedModelVersion) ?? null;
 
   async function handleRerunCurrentImage() {
     if (!selectedFile) {
@@ -1374,6 +1376,9 @@ export function HomeShell() {
                         <span className="mt-3 text-xs uppercase tracking-[0.28em] text-slate-500">
                           支持 JPG / JPEG / PNG，单张最大 {MAX_UPLOAD_SIZE_MB}MB
                         </span>
+                        <span className="mt-4 max-w-md text-xs leading-relaxed text-white/35">
+                          建议优先上传桥面、梁底或裂缝近景照片，清晰度越高，识别与对比结果越稳定。
+                        </span>
                       </>
                     )}
                   </div>
@@ -1466,6 +1471,41 @@ export function HomeShell() {
                 </label>
               </div>
 
+              <div className="mt-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">
+                    3 提交前确认
+                  </p>
+                  <p className="text-xs text-white/35">确认输入与输出后即可开始分析。</p>
+                </div>
+                <div className="mt-4 rounded-2xl border border-white/5 bg-white/[0.02] p-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-white/5 bg-black/20 px-4 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">待分析图片</p>
+                      <p className="mt-2 text-sm text-white">
+                        {selectedFile ? selectedFile.name : "尚未选择图片"}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-white/5 bg-black/20 px-4 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">模型版本</p>
+                      <p className="mt-2 text-sm text-white">
+                        {selectedModel ? formatModelLabel(selectedModel) : "等待模型列表加载"}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-white/5 bg-black/20 px-4 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">最低置信度</p>
+                      <p className="mt-2 text-sm text-white">{confidence.toFixed(2)}</p>
+                    </div>
+                    <div className="rounded-xl border border-white/5 bg-black/20 px-4 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">预计输出</p>
+                      <p className="mt-2 text-sm text-white">
+                        {exportOverlay ? "结构化结果 + 叠加图" : "结构化结果"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Validation errors */}
               {validationErrors.length > 0 && (
                 <div className="mt-4">
@@ -1514,7 +1554,7 @@ export function HomeShell() {
                   title={!selectedFile ? "请先选择一张待分析图片" : undefined}
                   type="submit"
                 >
-                  {status.phase === "idle" || status.phase === "error" ? "3 开始分析" : "分析中..."}
+                  {status.phase === "idle" || status.phase === "error" ? "4 开始分析" : "分析中..."}
                 </button>
                 <button
                   className="rounded-xl border border-white/10 bg-white/5 px-6 py-3.5 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/10"

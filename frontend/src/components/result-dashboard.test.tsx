@@ -18,6 +18,10 @@ vi.mock("next/image", () => ({
 }));
 
 describe("ResultDashboard", () => {
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
   it("only renders overlay markers that match the active filters", () => {
     const { container } = render(
       <ResultDashboard
@@ -133,5 +137,47 @@ describe("ResultDashboard", () => {
     expect(screen.getByText("病害差异")).toBeInTheDocument();
     expect(screen.getByText("主模型更多")).toBeInTheDocument();
     expect(screen.getByText(/v1-demo.*mock-v2/i)).toBeInTheDocument();
+  });
+
+  it("jumps to the highest priority detection from the conclusion card", () => {
+    const onSelectDetection = vi.fn();
+
+    render(
+      <ResultDashboard
+        result={demoResult}
+        comparisonResult={null}
+        compareStatus={{ phase: "idle", message: "ready" }}
+        compareModelVersion="mock-v2"
+        compareOptions={[{ value: "mock-v2", label: "mock-v2" }]}
+        categoryFilter="全部"
+        minConfidence={0.3}
+        previewUrl="/uploads/bridge-deck-demo.jpg"
+        overlayPreviewUrl={demoResult.artifacts.overlay_path ?? null}
+        comparisonPreviewUrl={null}
+        comparisonOverlayPreviewUrl={null}
+        viewMode="image"
+        onViewModeChange={() => {}}
+        onExportJson={() => {}}
+        onExportOverlay={() => {}}
+        overlayDisabled={false}
+        selectedDetectionId={demoResult.detections[1]?.id ?? null}
+        onSelectDetection={onSelectDetection}
+        onOpenHistory={() => {}}
+        onReset={() => {}}
+        onRerun={() => {}}
+        rerunDisabled={false}
+        onCompareModelVersionChange={() => {}}
+        onRunComparison={() => {}}
+        onClearComparison={() => {}}
+        compareDisabled={false}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "查看最高风险病害" }));
+
+    expect(onSelectDetection).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "det-crack-001" })
+    );
+    expect(screen.getByText("优先查看")).toBeInTheDocument();
   });
 });
