@@ -9,10 +9,15 @@ import {
 } from "react";
 import Link from "next/link";
 
+import { classifyError, ErrorMessage, type ErrorType } from "@/components/error-message";
+import { FileValidator, ValidationErrorList, type ValidationError } from "@/components/file-validator";
 import { HistoryPanel } from "@/components/history-panel";
+import { QuickActions } from "@/components/quick-actions";
+import { RecentScans } from "@/components/recent-scans";
 import { ResultDashboard } from "@/components/result-dashboard";
 import { ScanAnimation } from "@/components/scan-animation";
 import { StatusCard } from "@/components/status-card";
+import { DashboardStats } from "@/components/dashboard-stats";
 import {
   filterHistoryItems,
   sortHistoryItems,
@@ -118,6 +123,16 @@ export function HomeShell() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [scanPhase, setScanPhase] = useState<"uploading" | "analyzing" | "detecting" | "complete">("uploading");
   const [actionNotices, setActionNotices] = useState<ActionNotice[]>([]);
+  
+  // Error handling states
+  const [lastError, setLastError] = useState<{
+    type: ErrorType;
+    message: string;
+    timestamp: number;
+  } | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const MAX_RETRIES = 3;
   const [categoryFilter, setCategoryFilter] = useState("全部");
   const [minConfidence, setMinConfidence] = useState(0.3);
   const [selectedDetectionId, setSelectedDetectionId] = useState<string | null>(null);
@@ -404,25 +419,21 @@ export function HomeShell() {
     const files = event.dataTransfer.files;
     if (files.length > 0) {
       const file = files[0];
-      // 检查文件类型
-      const validTypes = ["image/jpeg", "image/jpg", "image/png"];
-      if (!validTypes.includes(file.type)) {
+      
+      // Validate file
+      const errors = validateDroppedFile(file);
+      if (errors.length > 0) {
+        setValidationErrors(errors);
         setStatus({
           phase: "error",
-          message: "不支持的文件格式，请上传 JPG 或 PNG 图片"
+          message: `文件验证失败: ${errors.map(e => e.message).join(", ")}`
         });
         return;
       }
-      // 检查文件大小
-      const uploadSizeError = getUploadSizeError(file);
-      if (uploadSizeError) {
-        setSelectedFile(null);
-        setStatus({
-          phase: "error",
-          message: uploadSizeError
-        });
-        return;
-      }
+      
+      setValidationErrors([]);
+      setLastError(null);
+      setRetryCount(0);
       setSelectedFile(file);
       setStatus(initialState);
     }
@@ -431,6 +442,50 @@ export function HomeShell() {
   function handleClearFile() {
     setSelectedFile(null);
     setStatus(initialState);
+    setValidationErrors([]);
+    setLastError(null);
+    setRetryCount(0);
+  }
+
+  // File validation helper
+  function validateDroppedFile(file: File): ValidationError[] {
+    const errors: ValidationError[] = [];
+    
+    // Check file type
+    const validTypes = ["image/jpeg", "image/jpg", "image/png"];
+    if (!validTypes.includes(file.type)) {
+      errors.push({
+        type: "type",
+        message: `${file.name} 不是支持的格式 (JPG, JPEG, PNG)`,
+        fileName: file.name
+      });
+    }
+    
+    // Check file size
+    const uploadSizeError = getUploadSizeError(file);
+    if (uploadSizeError) {
+      errors.push({
+        type: "size",
+        message: uploadSizeError,
+        fileName: file.name
+      });
+    }
+    
+    return errors;
+  }
+
+  // Retry handler
+  async function handleRetry() {
+    if (!selectedFile || retryCount >= MAX_RETRIES) return;
+    
+    setRetryCount(prev => prev + 1);
+    setLastError(null);
+    
+    const syntheticEvent = {
+      preventDefault() { }
+    } as React.FormEvent<HTMLFormElement>;
+    
+    await handleSubmit(syntheticEvent);
   }
 
   function getStatusSuggestion() {
@@ -614,6 +669,14 @@ export function HomeShell() {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "识别失败，请检查服务状态后重试。";
+      
+      // Classify and store error for retry
+      const errorType = classifyError(error);
+      setLastError({
+        type: errorType,
+        message,
+        timestamp: Date.now()
+      });
 
       setStatus({
         phase: "error",
@@ -746,32 +809,51 @@ export function HomeShell() {
           </button>
         </div>
 
-        <nav className="flex-1 py-6 px-3 flex flex-col gap-2">
+        <nav className="flex-1 py-6 px-3 flex flex-col gap-1">
           <button
             type="button"
-            className={`flex items-center gap-4 px-3 py-2.5 rounded-lg transition-colors ${activeNav === "Home"
-              ? "bg-white/[0.04] text-white font-medium shadow-[inset_2px_0_0_0_#fff]"
-              : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.02]"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${activeNav === "Home"
+              ? "bg-white/[0.06] text-white font-medium shadow-[inset_2px_0_0_0_#fff]"
+              : "text-white/50 hover:text-white hover:bg-white/[0.03]"
               }`}
             onClick={() => setActiveNav("Home")}
           >
-            <div className="shrink-0 h-5 w-5 bg-current opacity-70 mask-icon" />
+            <svg 
+              className={`shrink-0 w-5 h-5 transition-colors ${activeNav === "Home" ? "text-white" : "text-white/40"}`} 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
             <span className="hidden lg:block text-[11px] uppercase tracking-widest">主页</span>
           </button>
 
           <button
             type="button"
-            className={`flex items-center gap-4 px-3 py-2.5 rounded-lg transition-colors ${activeNav === "Scans"
-              ? "bg-white/[0.04] text-white font-medium shadow-[inset_2px_0_0_0_#fff]"
-              : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.02]"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${activeNav === "Scans"
+              ? "bg-white/[0.06] text-white font-medium shadow-[inset_2px_0_0_0_#fff]"
+              : "text-white/50 hover:text-white hover:bg-white/[0.03]"
               }`}
             onClick={() => {
               setActiveNav("Scans");
               void loadHistory();
             }}
           >
-            <div className="shrink-0 h-5 w-5 bg-current opacity-70 mask-icon" />
+            <svg 
+              className={`shrink-0 w-5 h-5 transition-colors ${activeNav === "Scans" ? "text-white" : "text-white/40"}`} 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             <span className="hidden lg:block text-[11px] uppercase tracking-widest">最近记录</span>
+            {historyItems.length > 0 && (
+              <span className="hidden lg:flex ml-auto w-5 h-5 rounded-full bg-white/10 items-center justify-center text-[10px] font-medium text-white/70">
+                {historyItems.length > 9 ? "9+" : historyItems.length}
+              </span>
+            )}
           </button>
         </nav>
       </aside>
@@ -830,117 +912,166 @@ export function HomeShell() {
               }}
             />
           ) : !result ? (
-            <div className="h-full flex flex-col items-center justify-center">
-              <div className="w-full max-w-2xl relative z-10">
-                <div className="rounded-[24px] border border-white/[0.04] bg-[#030303] p-8 shadow-[0_0_60px_rgba(66,133,244,0.03)] backdrop-blur-3xl">
-                  <div className="text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40 mb-3">
-                      工作台
-                    </p>
-                    <h2 className="text-3xl font-light tracking-[0.05em] uppercase text-white mb-4">
-                      开始新的分析任务
-                    </h2>
-                    <p className="text-slate-400 text-sm max-w-xl mx-auto font-light">
-                      点击左侧“新建分析”上传照片并弹出分析面板，或进入“最近记录”继续查看已经完成的分析结果。
-                    </p>
-                  </div>
+            <div className="h-full overflow-y-auto p-6">
+              <div className="max-w-5xl mx-auto space-y-6">
+                {/* Header */}
+                <div className="text-center py-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40 mb-3">
+                    工作台
+                  </p>
+                  <h2 className="text-3xl font-light tracking-[0.05em] text-white mb-3">
+                    开始新的分析任务
+                  </h2>
+                  <p className="text-slate-400 text-sm max-w-xl mx-auto font-light">
+                    上传桥梁巡检图像，AI 将自动识别裂缝、剥落等病害并生成检测报告。
+                  </p>
+                </div>
 
-                  <div className="mt-12 grid gap-6 sm:grid-cols-2">
-                    <button
-                      className="group rounded-2xl border border-white/10 bg-white/5 p-6 text-left transition-all hover:bg-white/10 hover:border-white/20"
-                      type="button"
-                      onClick={handleResetToUploader}
-                    >
-                      <div className="mb-4 h-10 w-10 flex items-center justify-center rounded-full bg-white/10 text-white group-hover:scale-110 transition-transform">
+                {/* Stats Overview */}
+                <DashboardStats historyItems={historyItems} />
+
+                {/* Quick Actions */}
+                <QuickActions
+                  actions={[
+                    {
+                      id: "upload",
+                      label: "单图分析",
+                      description: "上传单张图片",
+                      icon: (
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
                         </svg>
-                      </div>
-                      <h3 className="text-lg tracking-wider uppercase font-medium text-white">上传分析</h3>
-                      <p className="mt-2 text-xs text-slate-400 leading-relaxed font-light">
-                        打开上传面板，选择巡检图片并调整模型版本与置信度阈值。
-                      </p>
-                    </button>
-
-                    <button
-                      className="group rounded-2xl border border-white/10 bg-white/5 p-6 text-left transition-all hover:bg-white/10 hover:border-white/20"
-                      type="button"
-                      onClick={() => {
+                      ),
+                      onClick: handleResetToUploader,
+                      accentColor: "#38bdf8"
+                    },
+                    {
+                      id: "batch",
+                      label: "批量分析",
+                      description: "同时上传多张",
+                      icon: (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                      ),
+                      onClick: () => {
+                        setStatus({
+                          phase: "error",
+                          message: "批量分析功能即将上线，敬请期待"
+                        });
+                      },
+                      accentColor: "#a78bfa",
+                      disabled: true
+                    },
+                    {
+                      id: "history",
+                      label: "历史档案",
+                      description: "查看分析记录",
+                      icon: (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ),
+                      onClick: () => {
                         setActiveNav("Scans");
                         void loadHistory();
-                      }}
-                    >
-                      <div className="mb-4 h-10 w-10 flex items-center justify-center rounded-full bg-white/10 text-white group-hover:scale-110 transition-transform">
+                      },
+                      accentColor: "#f472b6"
+                    },
+                    {
+                      id: "export",
+                      label: "导出报告",
+                      description: "批量导出结果",
+                      icon: (
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                      ),
+                      onClick: () => {
+                        if (historyItems.length === 0) {
+                          setStatus({
+                            phase: "error",
+                            message: "暂无历史记录可导出"
+                          });
+                        } else {
+                          setActiveNav("Scans");
+                          void loadHistory();
+                        }
+                      },
+                      accentColor: "#34d399",
+                      disabled: historyItems.length === 0
+                    }
+                  ]}
+                />
+
+                {/* Main Actions */}
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <button
+                    className="group rounded-[20px] border border-white/[0.06] bg-[#030303] p-6 text-left transition-all hover:bg-white/[0.03] hover:border-white/[0.12]"
+                    type="button"
+                    onClick={handleResetToUploader}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform">
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg tracking-wide font-medium text-white">上传分析</h3>
+                        <p className="mt-1 text-xs text-white/40 leading-relaxed">
+                          打开上传面板，选择巡检图片并调整模型版本与置信度阈值。
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    className="group rounded-[20px] border border-white/[0.06] bg-[#030303] p-6 text-left transition-all hover:bg-white/[0.03] hover:border-white/[0.12]"
+                    type="button"
+                    onClick={() => {
+                      setActiveNav("Scans");
+                      void loadHistory();
+                    }}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 group-hover:scale-110 transition-transform">
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                         </svg>
                       </div>
-                      <h3 className="text-lg tracking-wider uppercase font-medium text-white">历史档案</h3>
-                      <p className="mt-2 text-xs text-slate-400 leading-relaxed font-light">
-                        进入沉浸式画廊，回看最近的分析记录与推理结果。
-                      </p>
-                    </button>
-                  </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg tracking-wide font-medium text-white">历史档案</h3>
+                        <p className="mt-1 text-xs text-white/40 leading-relaxed">
+                          进入沉浸式画廊，回看最近的分析记录与推理结果。
+                        </p>
+                      </div>
+                    </div>
+                  </button>
                 </div>
 
-                <div className="mt-6 grid gap-4 lg:grid-cols-[1.5fr_1fr]">
-                  <div className="rounded-[24px] border border-white/[0.04] bg-[#030303] p-6 shadow-[0_0_60px_rgba(160,110,225,0.03)] backdrop-blur-3xl">
-                    <div className="flex items-center justify-between mb-4">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/50">
-                        最近记录
-                      </p>
-                      <button
-                        className="text-[10px] uppercase tracking-widest text-white/50 hover:text-white transition-colors"
-                        type="button"
-                        onClick={() => {
-                          setActiveNav("Scans");
-                          void loadHistory();
-                        }}
-                      >
-                        查看全部
-                      </button>
-                    </div>
+                {/* Recent Scans & System Suggestion */}
+                <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
+                  <RecentScans
+                    items={historyItems}
+                    maxItems={5}
+                    onSelect={(imageId) => void handleSelectHistory(imageId)}
+                    onViewAll={() => {
+                      setActiveNav("Scans");
+                      void loadHistory();
+                    }}
+                  />
 
-                    <div className="space-y-2">
-                      {historyItems.length > 0 ? (
-                        historyItems.slice(0, 3).map((item) => (
-                          <button
-                            key={item.image_id}
-                            className="flex w-full items-center justify-between rounded-lg border border-transparent hover:border-white/10 bg-transparent hover:bg-white/5 px-3 py-2 text-left transition-all"
-                            type="button"
-                            onClick={() => {
-                              void handleSelectHistory(item.image_id);
-                            }}
-                          >
-                            <div className="min-w-0 flex items-center gap-3">
-                              <span className="w-1.5 h-1.5 rounded-full bg-sky-500" />
-                              <p className="truncate text-sm tracking-wide text-white">
-                                {item.image_id}
-                              </p>
-                            </div>
-                            <span className="text-xs font-mono text-white/40">
-                              {item.inference_ms}ms
-                            </span>
-                          </button>
-                        ))
-                      ) : (
-                        <div className="py-4 text-center text-xs text-white/30 font-light">
-                          暂无最近记录。
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="rounded-[24px] border border-white/[0.04] bg-[#030303] p-6 shadow-[0_0_60px_rgba(66,133,244,0.03)] backdrop-blur-3xl flex flex-col justify-center">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/50">
+                  <div className="rounded-[20px] border border-white/[0.04] bg-[#030303] p-6 shadow-[0_0_40px_rgba(0,0,0,0.3)] backdrop-blur-xl flex flex-col justify-center">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
                       系统建议
                     </p>
-                    <p className="mt-3 text-xs leading-relaxed text-slate-300 font-light">
+                    <p className="mt-3 text-sm leading-relaxed text-white/70">
                       {statusSuggestion.body}
                     </p>
                     <div className="mt-5 flex gap-3">
                       <button
-                        className="rounded border border-white/20 bg-white/10 px-4 py-2 text-[10px] uppercase tracking-widest font-bold text-white transition-colors hover:bg-white/20 w-fit"
+                        className="rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-white/20 w-fit"
                         type="button"
                         onClick={statusSuggestion.primaryAction}
                       >
@@ -1115,18 +1246,28 @@ export function HomeShell() {
                   type="file"
                   onChange={(event) => {
                     const nextFile = event.target.files?.[0] ?? null;
-                    const uploadSizeError = nextFile ? getUploadSizeError(nextFile) : null;
-
-                    if (uploadSizeError) {
+                    
+                    if (!nextFile) {
+                      setSelectedFile(null);
+                      return;
+                    }
+                    
+                    // Validate file
+                    const errors = validateDroppedFile(nextFile);
+                    if (errors.length > 0) {
+                      setValidationErrors(errors);
                       setSelectedFile(null);
                       setStatus({
                         phase: "error",
-                        message: uploadSizeError
+                        message: `文件验证失败: ${errors.map(e => e.message).join(", ")}`
                       });
                       event.target.value = "";
                       return;
                     }
-
+                    
+                    setValidationErrors([]);
+                    setLastError(null);
+                    setRetryCount(0);
                     setSelectedFile(nextFile);
                     setStatus(initialState);
                   }}
@@ -1316,6 +1457,33 @@ export function HomeShell() {
                   />
                 </label>
               </div>
+
+              {/* Validation errors */}
+              {validationErrors.length > 0 && (
+                <div className="mt-4">
+                  <ValidationErrorList 
+                    errors={validationErrors}
+                    onDismiss={() => setValidationErrors([])}
+                  />
+                </div>
+              )}
+
+              {/* Error message with retry */}
+              {status.phase === "error" && lastError && (
+                <div className="mt-4">
+                  <ErrorMessage
+                    type={lastError.type}
+                    message={lastError.message}
+                    onRetry={retryCount < MAX_RETRIES ? handleRetry : undefined}
+                    onDismiss={() => {
+                      setLastError(null);
+                      setStatus(initialState);
+                    }}
+                    retryCount={retryCount}
+                    maxRetries={MAX_RETRIES}
+                  />
+                </div>
+              )}
 
               <div className="mt-4">
                 <StatusCard 
