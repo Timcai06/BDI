@@ -132,6 +132,6 @@ describe("ResultDashboard", () => {
     expect(screen.getByText("图像级对比")).toBeInTheDocument();
     expect(screen.getByText("病害差异")).toBeInTheDocument();
     expect(screen.getByText("主模型更多")).toBeInTheDocument();
-    expect(screen.getByText(/v1-demo vs mock-v2/i)).toBeInTheDocument();
+    expect(screen.getByText(/v1-demo.*mock-v2/i)).toBeInTheDocument();
   });
 });

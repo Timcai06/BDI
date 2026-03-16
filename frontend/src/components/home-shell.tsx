@@ -12,7 +12,6 @@ import Link from "next/link";
 import { classifyError, ErrorMessage, type ErrorType } from "@/components/error-message";
 import { FileValidator, ValidationErrorList, type ValidationError } from "@/components/file-validator";
 import { HistoryPanel } from "@/components/history";
-import { QuickActions } from "@/components/quick-actions";
 import { RecentScans } from "@/components/recent-scans";
 import { ResultDashboard } from "@/components/result-dashboard";
 import { ScanAnimation } from "@/components/scan-animation";
@@ -491,22 +490,22 @@ export function HomeShell() {
   function getStatusSuggestion() {
     if (status.phase === "error") {
       return {
-        title: "恢复建议",
-        body: "你可以检查服务状态后重试，或切到历史记录继续回看已完成的分析。",
-        primaryLabel: "查看历史",
+        title: "先回到可完成的路径",
+        body: "当前流程中断了。你可以先查看历史结果确认系统输出，或重新选择一张照片开始新的分析。",
+        primaryLabel: "查看历史记录",
         primaryAction: () => {
           setActiveNav("Scans");
           void loadHistory();
         },
-        secondaryLabel: "重新上传",
+        secondaryLabel: "开始新分析",
         secondaryAction: handleResetToUploader
       };
     }
 
     if (status.phase === "success" && result?.detections.length === 0) {
       return {
-        title: "结果为空",
-        body: "当前图片未检出病害，建议降低阈值或重新分析同一张图片。",
+        title: "没有检出病害时的下一步",
+        body: "这张图片当前没有识别到病害。你可以直接重新分析，或更换一张更清晰的巡检照片。",
         primaryLabel: "重新分析",
         primaryAction: () => {
           void handleRerunCurrentImage();
@@ -516,22 +515,43 @@ export function HomeShell() {
       };
     }
 
+    if (result) {
+      return {
+        title: "结果已生成",
+        body: "这次识别已经完成。现在最自然的下一步是查看历史记录做对比，或继续上传下一张照片。",
+        primaryLabel: "查看历史记录",
+        primaryAction: () => {
+          setActiveNav("Scans");
+          void loadHistory();
+        },
+        secondaryLabel: "继续分析下一张",
+        secondaryAction: handleResetToUploader
+      };
+    }
+
     return {
-      title: "下一步建议",
+      title: "第一次使用建议",
       body:
         historyItems.length > 0
-          ? `当前已有 ${historyItems.length} 条历史记录，可随时切回查看。`
-          : "上传第一张巡检图后，系统会自动保存可回看的分析记录。",
-      primaryLabel: historyItems.length > 0 ? "查看历史" : "开始上传",
+          ? `你已经有 ${historyItems.length} 条历史记录。建议先开始一次新分析，结果会继续自动沉淀到历史里。`
+          : "先上传一张桥梁巡检照片完成第一次识别，系统会自动保存结果，方便后续复看和导出。",
+      primaryLabel: "开始分析",
       primaryAction:
+        historyItems.length > 0
+          ? handleResetToUploader
+          : handleResetToUploader,
+      secondaryLabel: historyItems.length > 0 ? "查看历史记录" : "了解使用流程",
+      secondaryAction:
         historyItems.length > 0
           ? () => {
             setActiveNav("Scans");
             void loadHistory();
           }
-          : handleResetToUploader,
-      secondaryLabel: "留在当前页",
-      secondaryAction: () => { }
+          : () => {
+              document
+                .querySelector('[data-home-section="workflow"]')
+                ?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
     };
   }
 
@@ -805,7 +825,7 @@ export function HomeShell() {
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-sm font-bold text-white">
               +
             </span>
-            <span className="hidden text-sm uppercase tracking-widest font-medium lg:block">新建分析</span>
+            <span className="hidden text-sm uppercase tracking-widest font-medium lg:block">开始分析</span>
           </button>
         </div>
 
@@ -862,24 +882,11 @@ export function HomeShell() {
       <section className="flex-1 flex flex-col min-w-0 bg-transparent relative z-10">
         <header className="h-16 shrink-0 flex items-center justify-between px-6 border-b border-white/5 bg-transparent backdrop-blur-[100px]">
           <h1 className="text-lg font-medium text-white uppercase tracking-[0.1em]">
-            {activeNav === "Scans"
-              ? "历史分析档案"
-              : result
-                ? result.image_id
-                : "桥梁病害识别工作台"}
+            {activeNav === "Scans" ? "历史记录" : result ? result.image_id : "桥梁病害识别工作台"}
           </h1>
-          <div className="flex items-center gap-4">
-            <button
-              className="rounded-lg border border-white/20 bg-white/5 px-4 py-2 text-[10px] uppercase font-bold tracking-widest text-white transition-colors hover:bg-white/10"
-              type="button"
-              onClick={handleResetToUploader}
-            >
-              上传照片
-            </button>
-            <span className="px-2.5 py-1 rounded bg-white/10 backdrop-blur border border-white/20 text-[10px] uppercase font-mono tracking-widest text-slate-300">
-              Phase 3
-            </span>
-          </div>
+          <span className="px-2.5 py-1 rounded bg-white/10 backdrop-blur border border-white/20 text-[10px] uppercase font-mono tracking-widest text-slate-300">
+            Phase 3
+          </span>
         </header>
 
         <div className="flex-1 overflow-y-auto p-6 relative" style={{ scrollbarGutter: 'stable' }}>
@@ -920,89 +927,12 @@ export function HomeShell() {
                     工作台
                   </p>
                   <h2 className="text-3xl font-light tracking-[0.05em] text-white mb-3">
-                    开始新的分析任务
+                    桥梁病害识别工作台
                   </h2>
                   <p className="text-slate-400 text-sm max-w-xl mx-auto font-light">
-                    上传桥梁巡检图像，AI 将自动识别裂缝、剥落等病害并生成检测报告。
+                    上传巡检照片，自动识别病害类型，生成可查看、可对比、可导出的分析结果。
                   </p>
                 </div>
-
-                {/* Stats Overview */}
-                <DashboardStats historyItems={historyItems} />
-
-                {/* Quick Actions */}
-                <QuickActions
-                  actions={[
-                    {
-                      id: "upload",
-                      label: "单图分析",
-                      description: "上传单张图片",
-                      icon: (
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-                        </svg>
-                      ),
-                      onClick: handleResetToUploader,
-                      accentColor: "#38bdf8"
-                    },
-                    {
-                      id: "batch",
-                      label: "批量分析",
-                      description: "同时上传多张",
-                      icon: (
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                        </svg>
-                      ),
-                      onClick: () => {
-                        setStatus({
-                          phase: "error",
-                          message: "批量分析功能即将上线，敬请期待"
-                        });
-                      },
-                      accentColor: "#a78bfa",
-                      disabled: true
-                    },
-                    {
-                      id: "history",
-                      label: "历史档案",
-                      description: "查看分析记录",
-                      icon: (
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      ),
-                      onClick: () => {
-                        setActiveNav("Scans");
-                        void loadHistory();
-                      },
-                      accentColor: "#f472b6"
-                    },
-                    {
-                      id: "export",
-                      label: "导出报告",
-                      description: "批量导出结果",
-                      icon: (
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                      ),
-                      onClick: () => {
-                        if (historyItems.length === 0) {
-                          setStatus({
-                            phase: "error",
-                            message: "暂无历史记录可导出"
-                          });
-                        } else {
-                          setActiveNav("Scans");
-                          void loadHistory();
-                        }
-                      },
-                      accentColor: "#34d399",
-                      disabled: historyItems.length === 0
-                    }
-                  ]}
-                />
 
                 {/* Main Actions */}
                 <div className="grid gap-6 sm:grid-cols-2">
@@ -1018,9 +948,9 @@ export function HomeShell() {
                         </svg>
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-lg tracking-wide font-medium text-white">上传分析</h3>
+                        <h3 className="text-lg tracking-wide font-medium text-white">开始分析</h3>
                         <p className="mt-1 text-xs text-white/40 leading-relaxed">
-                          打开上传面板，选择巡检图片并调整模型版本与置信度阈值。
+                          上传一张桥梁巡检照片，系统将自动识别病害并生成结果。
                         </p>
                       </div>
                     </div>
@@ -1041,30 +971,91 @@ export function HomeShell() {
                         </svg>
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-lg tracking-wide font-medium text-white">历史档案</h3>
+                        <h3 className="text-lg tracking-wide font-medium text-white">查看历史记录</h3>
                         <p className="mt-1 text-xs text-white/40 leading-relaxed">
-                          进入沉浸式画廊，回看最近的分析记录与推理结果。
+                          回看最近分析结果，继续比对、筛选或导出。
                         </p>
                       </div>
                     </div>
                   </button>
                 </div>
 
+                <div
+                  className="rounded-[20px] border border-white/[0.04] bg-[#030303] p-6 shadow-[0_0_40px_rgba(0,0,0,0.3)] backdrop-blur-xl"
+                  data-home-section="workflow"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
+                        使用流程
+                      </p>
+                      <h3 className="mt-2 text-xl font-light text-white">三步完成一次识别</h3>
+                    </div>
+                    <button
+                      className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-white/10"
+                      type="button"
+                      onClick={handleResetToUploader}
+                    >
+                      开始分析
+                    </button>
+                  </div>
+                  <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                    {[
+                      {
+                        step: "01",
+                        title: "上传照片",
+                        description: "选择一张桥梁巡检照片，系统会先完成文件校验。"
+                      },
+                      {
+                        step: "02",
+                        title: "AI 自动识别病害",
+                        description: "系统调用模型识别裂缝、剥落等病害，并输出叠加结果。"
+                      },
+                      {
+                        step: "03",
+                        title: "查看结果并导出",
+                        description: "在结果页查看病害详情，也可以回到历史记录继续复查。"
+                      }
+                    ].map((item) => (
+                      <div
+                        key={item.step}
+                        className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5"
+                      >
+                        <p className="text-[11px] font-mono tracking-[0.24em] text-sky-300/80">{item.step}</p>
+                        <h4 className="mt-3 text-base font-medium text-white">{item.title}</h4>
+                        <p className="mt-2 text-sm leading-relaxed text-white/50">{item.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Recent Scans & System Suggestion */}
                 <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
-                  <RecentScans
-                    items={historyItems}
-                    maxItems={5}
-                    onSelect={(imageId) => void handleSelectHistory(imageId)}
-                    onViewAll={() => {
-                      setActiveNav("Scans");
-                      void loadHistory();
-                    }}
-                  />
+                  <div className="space-y-4">
+                    <div className="px-1">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
+                        最近分析
+                      </p>
+                      <h3 className="mt-2 text-xl font-light text-white">快速回看最近结果</h3>
+                    </div>
+                    <RecentScans
+                      items={historyItems}
+                      maxItems={5}
+                      onSelect={(imageId) => void handleSelectHistory(imageId)}
+                      onViewAll={() => {
+                        setActiveNav("Scans");
+                        void loadHistory();
+                      }}
+                    />
+                    <DashboardStats historyItems={historyItems} />
+                  </div>
 
                   <div className="rounded-[20px] border border-white/[0.04] bg-[#030303] p-6 shadow-[0_0_40px_rgba(0,0,0,0.3)] backdrop-blur-xl flex flex-col justify-center">
                     <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
-                      系统建议
+                      {statusSuggestion.title}
+                    </p>
+                    <p className="mt-3 text-lg font-light text-white">
+                      推荐下一步
                     </p>
                     <p className="mt-3 text-sm leading-relaxed text-white/70">
                       {statusSuggestion.body}
@@ -1076,6 +1067,13 @@ export function HomeShell() {
                         onClick={statusSuggestion.primaryAction}
                       >
                         {statusSuggestion.primaryLabel}
+                      </button>
+                      <button
+                        className="rounded-lg border border-white/10 bg-transparent px-4 py-2 text-xs font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white w-fit"
+                        type="button"
+                        onClick={statusSuggestion.secondaryAction}
+                      >
+                        {statusSuggestion.secondaryLabel}
                       </button>
                     </div>
                   </div>
@@ -1210,10 +1208,10 @@ export function HomeShell() {
                   分析面板
                 </p>
                 <h2 className="mt-2 text-2xl sm:text-3xl font-light tracking-[0.05em] uppercase text-white">
-                  执行新视觉分析
+                  开始一次新分析
                 </h2>
                 <p className="mt-3 text-sm text-slate-400 font-light">
-                  请选择目标图像，并确认使用的模型版本后启动推理。
+                  上传一张桥梁巡检照片，系统将自动完成识别并生成分析结果。
                 </p>
               </div>
               <button
@@ -1226,6 +1224,9 @@ export function HomeShell() {
             </div>
 
             <form className="mt-8" onSubmit={handleSubmit}>
+              <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">
+                1 选择照片
+              </p>
               <label
                 className={`relative flex min-h-[200px] sm:min-h-[260px] cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-all duration-300 overflow-hidden ${
                   isDragging
@@ -1379,6 +1380,13 @@ export function HomeShell() {
                 )}
               </label>
 
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">
+                  2 分析设置
+                </p>
+                <p className="text-xs text-white/35">高级参数已预置默认值，首次使用可直接开始分析。</p>
+              </div>
+
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 <label className="rounded-xl border border-white/5 bg-white/[0.02] p-4 block">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">
@@ -1506,7 +1514,7 @@ export function HomeShell() {
                   title={!selectedFile ? "请先选择一张待分析图片" : undefined}
                   type="submit"
                 >
-                  {status.phase === "idle" || status.phase === "error" ? "开始执行 AI 识别" : "推理中..."}
+                  {status.phase === "idle" || status.phase === "error" ? "3 开始分析" : "分析中..."}
                 </button>
                 <button
                   className="rounded-xl border border-white/10 bg-white/5 px-6 py-3.5 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/10"

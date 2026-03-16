@@ -121,10 +121,10 @@ export function HistoryPanel({
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-500">历史记录</p>
           <h2 className="mt-2 text-3xl font-light tracking-tight text-white uppercase" style={{ letterSpacing: '0.05em' }}>
-            历史识别结果
+            历史记录
           </h2>
           <p className="mt-2 text-sm text-slate-400">
-            复用本地结果文件回看最近的检测记录。
+            查看、筛选并重新打开过去的分析结果。
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -136,11 +136,11 @@ export function HistoryPanel({
             刷新列表
           </button>
           <button
-            className="rounded-lg border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-[11px] uppercase tracking-wider font-semibold text-sky-300 transition-colors hover:bg-sky-500/20"
+            className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-[11px] uppercase tracking-wider font-semibold text-slate-200 transition-colors hover:bg-white/10"
             type="button"
             onClick={onOpenUploader}
           >
-            新建分析
+            开始新分析
           </button>
         </div>
       </div>
