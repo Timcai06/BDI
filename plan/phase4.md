@@ -32,8 +32,13 @@
 
 - 接入第二个真实模型版本
 - 验证同类模型换权重接入流程
-- 推进 `sliced` 推理与 batch 能力
-- 增强模型可用性提示与更细粒度差异表达
+
+已完成验收：
+
+- `inference_mode` 参数 (direct/sliced) 已支持
+- `supports_sliced_inference` 字段已实现
+- 模型可用性 (`is_available`) 检查已实现
+- `sliced` 推理模式预留接口已完成
 
 ## 主要任务
 

@@ -26,20 +26,22 @@ if [ ! -x "$BACKEND_ENV/bin/$BACKEND_PYTHON" ]; then
   exit 1
 fi
 
-source "$BACKEND_ENV/bin/activate"
-"$BACKEND_PYTHON" -m uvicorn app.main:app --reload > /tmp/bdi-backend.log 2>&1 &
-BACKEND_PID=$!
-
-cleanup() {
-  if kill -0 "$BACKEND_PID" >/dev/null 2>&1; then
-    kill "$BACKEND_PID" >/dev/null 2>&1 || true
-  fi
+open_backend_window() {
+  local backend_dir_escaped backend_env_escaped backend_python_escaped
+  backend_dir_escaped="${ROOT_DIR//\"/\\\"}/backend"
+  backend_env_escaped="${BACKEND_ENV//\"/\\\"}"
+  backend_python_escaped="${BACKEND_PYTHON//\"/\\\"}"
+  osascript >/dev/null 2>&1 <<EOF || true
+tell application "Terminal"
+  activate
+  do script "printf '\\\033]0;BDI Backend ($MODE)\\\007'; clear; echo 'BDI Backend ($MODE mode)'; echo 'Project: $backend_dir_escaped'; echo 'Press Ctrl+C in this window to stop the backend.'; echo; cd \"$backend_dir_escaped\"; source \"$backend_env_escaped/bin/activate\"; $backend_python_escaped -m uvicorn app.main:app --reload"
+end tell
+EOF
 }
 
-trap cleanup EXIT INT TERM
+open_backend_window
 
-echo "Backend started in $MODE mode (pid: $BACKEND_PID)"
-echo "Backend log: /tmp/bdi-backend.log"
+echo "Backend will start in a new Terminal window ($MODE mode)."
 echo "Frontend starting..."
 echo
 

@@ -68,6 +68,10 @@
 - 已优化卡片布局（渐变遮罩、悬停交互、病害标签展示）
 - 已新增批量操作模式（选择、删除、导出JSON）
 - 已新增分页支持（每页12条记录）
+- 已为 `/predict` 增加 `inference_mode` 参数（direct/sliced 模式）
+- 已为模型规格增加 `supports_sliced_inference` 字段
+- 已实现模型可用性检查 (`is_available`)
+- 已实现 `sliced` 推理模式预留接口
 
 ## 当前重点
 
