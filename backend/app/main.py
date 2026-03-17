@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +19,13 @@ from app.storage.local import LocalArtifactStore
 
 
 def create_app() -> FastAPI:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    logger = logging.getLogger(__name__)
+
     settings = get_settings()
     store = LocalArtifactStore(settings.artifact_root)
     registry = ModelRegistry.from_settings(settings)
@@ -24,7 +33,20 @@ def create_app() -> FastAPI:
         registry=registry,
         allow_fallback=settings.allow_mock_fallback,
     )
-    active_spec, active_runner = runner_manager.resolve()
+
+    try:
+        active_spec, active_runner = runner_manager.resolve()
+        logger.info(
+            "Primary runner loaded: %s:%s",
+            active_runner.name,
+            active_spec.model_version,
+        )
+    except Exception:
+        logger.warning(
+            "Primary runner failed to load — falling back to mock",
+            exc_info=True,
+        )
+        active_spec, active_runner = runner_manager.resolve("mock-v1")
     predict_service = PredictService(
         store=store,
         runner_manager=runner_manager,

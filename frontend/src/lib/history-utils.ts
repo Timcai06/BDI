@@ -1,6 +1,6 @@
 import type { PredictionHistoryItem } from "@/lib/types";
 
-export type HistorySortMode = "newest" | "detections" | "fastest";
+export type HistorySortMode = "newest" | "oldest" | "detections" | "fastest";
 
 interface FilterHistoryItemsOptions {
   category: string;

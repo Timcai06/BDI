@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import logging
 from pathlib import Path
 
 from fastapi import UploadFile, status
@@ -8,6 +10,8 @@ from app.adapters.manager import RunnerManager
 from app.core.errors import AppError
 from app.models.schemas import ArtifactLinks, Detection, PredictOptions, PredictResponse
 from app.storage.local import LocalArtifactStore
+
+logger = logging.getLogger(__name__)
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 ALLOWED_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
@@ -62,7 +66,10 @@ class PredictService:
             max_upload_size_mb = self.max_upload_size_bytes / (1024 * 1024)
             raise AppError(
                 code="FILE_TOO_LARGE",
-                message=f"Uploaded image exceeds the maximum allowed size of {max_upload_size_mb:g}MB.",
+                message=(
+                    f"Uploaded image exceeds the maximum allowed size"
+                    f" of {max_upload_size_mb:g}MB."
+                ),
                 status_code=status.HTTP_400_BAD_REQUEST,
                 details={"max_upload_size_bytes": self.max_upload_size_bytes},
             )
@@ -73,6 +80,7 @@ class PredictService:
         try:
             model_spec, runner = self.runner_manager.resolve(options.model_version)
         except KeyError as exc:
+            logger.warning("Unknown model version requested: %s", options.model_version)
             raise AppError(
                 code="UNKNOWN_MODEL_VERSION",
                 message="Requested model version is not registered.",
@@ -80,6 +88,7 @@ class PredictService:
                 details={"model_version": options.model_version},
             ) from exc
         except RuntimeError as exc:
+            logger.warning("Model unavailable: %s – %s", options.model_version, exc)
             raise AppError(
                 code="MODEL_UNAVAILABLE",
                 message=str(exc),
@@ -89,10 +98,28 @@ class PredictService:
 
         normalized_options = options.model_copy(update={"model_version": model_spec.model_version})
 
-        raw_prediction = runner.predict(
-            image_bytes=content,
-            image_name=file.filename,
-            options=normalized_options,
+        logger.info(
+            "Starting inference: image=%s model=%s:%s",
+            file.filename,
+            model_spec.model_name,
+            model_spec.model_version,
+        )
+
+        loop = asyncio.get_event_loop()
+        raw_prediction = await loop.run_in_executor(
+            None,
+            lambda: runner.predict(
+                image_bytes=content,
+                image_name=file.filename,
+                options=normalized_options,
+            ),
+        )
+
+        logger.info(
+            "Inference complete: image=%s elapsed=%dms detections=%d",
+            file.filename,
+            raw_prediction.inference_ms,
+            len(raw_prediction.detections),
         )
 
         response = PredictResponse(

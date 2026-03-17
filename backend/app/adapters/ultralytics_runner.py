@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import logging
 import time
 from dataclasses import dataclass
 
@@ -15,6 +16,8 @@ from app.models.schemas import (
     RawDetection,
     RawPrediction,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -37,6 +40,12 @@ class UltralyticsRunner:
             raise RuntimeError("Ultralytics runner requires a configured weights path.")
 
         model = YOLO(str(spec.weights_path))
+        logger.info(
+            "Ultralytics model loaded: weights=%s device=%s imgsz=%d",
+            spec.weights_path,
+            spec.device,
+            spec.imgsz,
+        )
         return cls(
             model_name=spec.model_name,
             model_version=spec.model_version,

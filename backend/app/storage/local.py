@@ -32,12 +32,16 @@ class LocalArtifactStore:
 
     def save_json(self, *, image_id: str, payload: dict) -> str:
         destination = self.results_dir / f"{image_id}.json"
-        destination.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp = destination.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.rename(destination)
         return str(destination)
 
     def save_overlay(self, *, image_id: str, content: bytes) -> str:
         destination = self.overlays_dir / f"{image_id}.png"
-        destination.write_bytes(content)
+        tmp = destination.with_suffix(".png.tmp")
+        tmp.write_bytes(content)
+        tmp.rename(destination)
         return str(destination)
 
     def result_path(self, image_id: str) -> Path:

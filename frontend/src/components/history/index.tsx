@@ -175,7 +175,7 @@ export function HistoryPanel({
     onSortModeChange(value);
   }, [onSortModeChange]);
 
-  const hasFilters = searchQuery || categoryFilter !== "全部";
+  const hasFilters = !!searchQuery || categoryFilter !== "全部";
 
   return (
     <div className="h-full flex flex-col">

@@ -13,6 +13,45 @@ import type {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 
+// ---------------------------------------------------------------------------
+// Timeout-aware fetch wrapper
+// ---------------------------------------------------------------------------
+
+const PREDICT_TIMEOUT_MS = 120_000; // 推理请求最长 120 秒
+const DEFAULT_TIMEOUT_MS = 15_000;  // 普通读写请求 15 秒
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init?: RequestInit & { timeoutMs?: number }
+): Promise<Response> {
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, ...fetchInit } = init ?? {};
+
+  const controller = new AbortController();
+  const existing = fetchInit.signal;
+
+  // If the caller already provided an AbortSignal, respect it.
+  if (existing) {
+    existing.addEventListener("abort", () => controller.abort(existing.reason));
+  }
+
+  const timer = setTimeout(() => controller.abort("请求超时"), timeoutMs);
+
+  try {
+    return await fetch(input, { ...fetchInit, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("请求超时，请检查网络连接或稍后重试。");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 function cloneDemoResult(file: File, options: PredictOptions): PredictionResult {
   const modelVersion = options.modelVersion ?? demoResult.model_version;
   const base = buildDemoResultForModelVersion(modelVersion);
@@ -44,6 +83,10 @@ function getErrorMessage(payload: unknown, fallback: string): string {
   return fallback;
 }
 
+// ---------------------------------------------------------------------------
+// API client functions
+// ---------------------------------------------------------------------------
+
 export async function predictImage(
   file: File,
   options: PredictOptions
@@ -61,9 +104,10 @@ export async function predictImage(
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/predict`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/predict`, {
       method: "POST",
-      body: formData
+      body: formData,
+      timeoutMs: PREDICT_TIMEOUT_MS
     });
 
     if (!response.ok) {
@@ -86,7 +130,7 @@ export async function listModels(): Promise<ModelCatalogResponse> {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/models`);
+    const response = await fetchWithTimeout(`${API_BASE_URL}/models`);
 
     if (!response.ok) {
       const payload = (await response.json()) as ApiError;
@@ -123,7 +167,7 @@ export async function listResults(): Promise<PredictionHistoryResponse> {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/results`);
+    const response = await fetchWithTimeout(`${API_BASE_URL}/results`);
 
     if (!response.ok) {
       const payload = (await response.json()) as ApiError;
@@ -145,7 +189,7 @@ export async function getResult(imageId: string): Promise<PredictionResult> {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/results/${imageId}`);
+    const response = await fetchWithTimeout(`${API_BASE_URL}/results/${imageId}`);
 
     if (!response.ok) {
       const payload = (await response.json()) as ApiError;
@@ -167,7 +211,7 @@ export async function deleteResult(imageId: string): Promise<void> {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/results/${imageId}`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/results/${imageId}`, {
       method: "DELETE"
     });
 
@@ -206,7 +250,7 @@ export async function getResultImageFile(imageId: string): Promise<File> {
     throw new Error("当前环境无法读取历史原图。");
   }
 
-  const response = await fetch(imageUrl);
+  const response = await fetchWithTimeout(imageUrl);
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as ApiError | null;
     throw new Error(getErrorMessage(payload, "历史原图加载失败。"));
