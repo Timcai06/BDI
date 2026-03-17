@@ -152,7 +152,7 @@ export function ResultDashboard({
 }: ResultDashboardProps) {
   const frameRef = useRef<HTMLDivElement>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
-  const detectionItemRefs = useRef<Record<string, HTMLArticleElement | null>>({});
+  const detectionItemRefs = useRef<Record<string, HTMLElement | null>>({});
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const filteredDetections = filterDetections(

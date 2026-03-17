@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
 
 from app.adapters.base import ModelRunner
 from app.adapters.factory import load_runner_for_spec
@@ -16,15 +16,34 @@ class RunnerManager:
     ) -> None:
         self.registry = registry
         self.allow_fallback = allow_fallback
-        self._runner_cache: Dict[str, ModelRunner] = {}
+        self._runners: Dict[str, ModelRunner] = {}
 
-    def resolve(
-        self, model_version: Optional[str] = None
-    ) -> Tuple[ModelSpec, ModelRunner]:
-        spec = self._resolve_spec(model_version)
-        if spec.model_version not in self._runner_cache:
-            self._runner_cache[spec.model_version] = load_runner_for_spec(spec)
-        return spec, self._runner_cache[spec.model_version]
+    def resolve(self, version: str | None = None) -> tuple[ModelSpec, ModelRunner]:
+        spec = self.registry.resolve_active(
+            version,
+            allow_fallback=self.allow_fallback,
+        )
+
+        if spec.model_version in self._runners:
+            return spec, self._runners[spec.model_version]
+
+        # Evict old runners if needed (basic policy: only keep 1 active runner to save memory)
+        for old_version, runner in list(self._runners.items()):
+            if old_version != spec.model_version:
+                try:
+                    runner.close()
+                except Exception:
+                    pass
+                del self._runners[old_version]
+
+        runner = load_runner_for_spec(spec)
+        try:
+            runner.warmup()
+        except Exception:
+            pass
+            
+        self._runners[spec.model_version] = runner
+        return spec, runner
 
     def _resolve_spec(self, model_version: Optional[str]) -> ModelSpec:
         if model_version is None:

@@ -46,19 +46,32 @@ class ModelRegistry(BaseModel):
     def list_specs(self) -> List[ModelSpec]:
         return list(self.specs.values())
 
-    def resolve_active(self, *, allow_fallback: bool) -> ModelSpec:
-        active_spec = self.get_active()
-        if active_spec.is_available:
-            return active_spec
+    def resolve_active(
+        self,
+        model_version: Optional[str] = None,
+        *,
+        allow_fallback: bool,
+    ) -> ModelSpec:
+        try:
+            target_spec = (
+                self.get(model_version) if model_version else self.get_active()
+            )
+            if target_spec.is_available:
+                return target_spec
+        except KeyError:
+            # If a specific version was requested but not found, don't fallback
+            if model_version or not allow_fallback:
+                raise
 
         if allow_fallback:
             for spec in self.specs.values():
                 if spec.runner_kind == "mock" and spec.is_available:
                     return spec
 
+        requested = model_version or self.active_version
         raise RuntimeError(
-            "Active model version "
-            f"'{self.active_version}' is unavailable and no fallback runner is enabled."
+            f"Requested model version '{requested}' is unavailable "
+            "and no fallback runner is enabled."
         )
 
     @classmethod

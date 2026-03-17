@@ -75,6 +75,8 @@ export interface PredictionHistoryItem {
 
 export interface PredictionHistoryResponse {
   items: PredictionHistoryItem[];
+  total: number;
+  offset: number;
 }
 
 export interface ModelCatalogItem {

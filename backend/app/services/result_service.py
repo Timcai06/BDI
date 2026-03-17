@@ -18,13 +18,13 @@ class ResultService:
     def __init__(self, *, store: LocalArtifactStore) -> None:
         self.store = store
 
-    def list_results(self, *, limit: int = 20) -> ResultListResponse:
-        payloads = self.store.list_results(limit=limit)
+    def list_results(self, *, limit: int = 20, offset: int = 0) -> ResultListResponse:
+        payloads, total = self.store.list_results(limit=limit, offset=offset)
         items = [
             self._build_summary(PredictResponse.model_validate(payload))
             for payload in payloads
         ]
-        return ResultListResponse(items=items)
+        return ResultListResponse(items=items, total=total, offset=offset)
 
     def get_result(self, *, image_id: str) -> PredictResponse:
         payload = self.store.load_result(image_id=image_id)

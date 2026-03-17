@@ -49,6 +49,35 @@ async function fetchWithTimeout(
 }
 
 // ---------------------------------------------------------------------------
+// Simple In-memory Cache for GET requests
+// ---------------------------------------------------------------------------
+
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+const MEMORY_CACHE = new Map<string, CacheEntry<any>>();
+const DEFAULT_TTL_MS = 30_000; // 30秒缓存
+
+async function cachedFetch<T>(
+  key: string,
+  fetcher: () => Promise<T>,
+  ttlMs: number = DEFAULT_TTL_MS
+): Promise<T> {
+  const cached = MEMORY_CACHE.get(key);
+  const now = Date.now();
+
+  if (cached && (now - cached.timestamp < ttlMs)) {
+    return cached.data;
+  }
+
+  const data = await fetcher();
+  MEMORY_CACHE.set(key, { data, timestamp: now });
+  return data;
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -115,6 +144,9 @@ export async function predictImage(
       throw new Error(getErrorMessage(payload, "识别失败，请稍后重试。"));
     }
 
+    // Invalidate list results on new prediction
+    MEMORY_CACHE.delete(`${API_BASE_URL}/results`);
+
     return (await response.json()) as PredictionResult;
   } catch (error) {
     if (error instanceof Error) {
@@ -129,7 +161,8 @@ export async function listModels(): Promise<ModelCatalogResponse> {
     return demoModelCatalog;
   }
 
-  try {
+  const cacheKey = `${API_BASE_URL}/models`;
+  return cachedFetch(cacheKey, async () => {
     const response = await fetchWithTimeout(`${API_BASE_URL}/models`);
 
     if (!response.ok) {
@@ -138,15 +171,10 @@ export async function listModels(): Promise<ModelCatalogResponse> {
     }
 
     return (await response.json()) as ModelCatalogResponse;
-  } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error("无法加载模型列表。");
-  }
+  });
 }
 
-export async function listResults(): Promise<PredictionHistoryResponse> {
+export async function listResults(offset: number = 0, limit: number = 20): Promise<PredictionHistoryResponse> {
   if (!API_BASE_URL) {
     return {
       items: [
@@ -162,12 +190,15 @@ export async function listResults(): Promise<PredictionHistoryResponse> {
           categories: [...new Set(demoResult.detections.map((item) => item.category))],
           artifacts: demoResult.artifacts
         }
-      ]
+      ],
+      total: 1,
+      offset: 0
     };
   }
 
-  try {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/results`);
+  const cacheKey = `${API_BASE_URL}/results?offset=${offset}&limit=${limit}`;
+  return cachedFetch(cacheKey, async () => {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/results?offset=${offset}&limit=${limit}`);
 
     if (!response.ok) {
       const payload = (await response.json()) as ApiError;
@@ -175,12 +206,7 @@ export async function listResults(): Promise<PredictionHistoryResponse> {
     }
 
     return (await response.json()) as PredictionHistoryResponse;
-  } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error("无法加载历史结果。");
-  }
+  });
 }
 
 export async function getResult(imageId: string): Promise<PredictionResult> {
@@ -188,7 +214,8 @@ export async function getResult(imageId: string): Promise<PredictionResult> {
     return demoResult;
   }
 
-  try {
+  const cacheKey = `${API_BASE_URL}/results/${imageId}`;
+  return cachedFetch(cacheKey, async () => {
     const response = await fetchWithTimeout(`${API_BASE_URL}/results/${imageId}`);
 
     if (!response.ok) {
@@ -197,12 +224,7 @@ export async function getResult(imageId: string): Promise<PredictionResult> {
     }
 
     return (await response.json()) as PredictionResult;
-  } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error("无法加载结果详情。");
-  }
+  });
 }
 
 export async function deleteResult(imageId: string): Promise<void> {
@@ -218,6 +240,15 @@ export async function deleteResult(imageId: string): Promise<void> {
     if (!response.ok) {
       const payload = (await response.json()) as ApiError;
       throw new Error(getErrorMessage(payload, "删除记录失败。"));
+    }
+
+    // Invalidate caches
+    MEMORY_CACHE.delete(`${API_BASE_URL}/results/${imageId}`);
+    // Clear all results list caches to be safe
+    for (const key of MEMORY_CACHE.keys()) {
+      if (key.includes(`${API_BASE_URL}/results?`)) {
+        MEMORY_CACHE.delete(key);
+      }
     }
   } catch (error) {
     if (error instanceof Error) {

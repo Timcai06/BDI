@@ -44,7 +44,12 @@ const nextConfig = {
             key: 'Referrer-Policy',
             value: 'origin-when-cross-origin',
           },
-          // 性能优化头部
+        ],
+      },
+      {
+        // 静态资源：长效缓存
+        source: '/_next/static/:path*',
+        headers: [
           {
             key: 'Cache-Control',
             value: 'public, max-age=31536000, immutable',
@@ -52,7 +57,17 @@ const nextConfig = {
         ],
       },
       {
-        // 动态页面的缓存策略
+        // 动态页面与 API：不缓存或短缓存
+        source: '/((?!_next/static|favicon.ico).*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate',
+          },
+        ],
+      },
+      {
+        // 首页特殊处理
         source: '/',
         headers: [
           {

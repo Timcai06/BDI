@@ -48,7 +48,7 @@ def test_predict_saves_overlay_when_requested() -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["artifacts"]["overlay_path"].endswith(".png")
+    assert payload["artifacts"]["overlay_path"].endswith(".webp")
 
 
 def test_predict_rejects_unsupported_extension() -> None:

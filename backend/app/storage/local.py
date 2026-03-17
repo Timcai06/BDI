@@ -38,8 +38,8 @@ class LocalArtifactStore:
         return str(destination)
 
     def save_overlay(self, *, image_id: str, content: bytes) -> str:
-        destination = self.overlays_dir / f"{image_id}.png"
-        tmp = destination.with_suffix(".png.tmp")
+        destination = self.overlays_dir / f"{image_id}.webp"
+        tmp = destination.with_suffix(".webp.tmp")
         tmp.write_bytes(content)
         tmp.rename(destination)
         return str(destination)
@@ -48,7 +48,7 @@ class LocalArtifactStore:
         return self.results_dir / f"{image_id}.json"
 
     def overlay_path(self, image_id: str) -> Path:
-        return self.overlays_dir / f"{image_id}.png"
+        return self.overlays_dir / f"{image_id}.webp"
 
     def load_result(self, *, image_id: str) -> Optional[Dict[str, Any]]:
         destination = self.result_path(image_id)
@@ -56,16 +56,26 @@ class LocalArtifactStore:
             return None
         return json.loads(destination.read_text(encoding="utf-8"))
 
-    def list_results(self, *, limit: int = 20) -> List[Dict[str, Any]]:
+    def list_results(self, *, limit: int = 20, offset: int = 0) -> tuple[List[Dict[str, Any]], int]:
+        files = sorted(
+            self.results_dir.glob("*.json"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        total = len(files)
+        
         results: List[Dict[str, Any]] = []
-        files = sorted(self.results_dir.glob("*.json"), reverse=True)
-        for file_path in files:
-            payload = json.loads(file_path.read_text(encoding="utf-8"))
-            results.append(payload)
-            if len(results) >= limit:
-                break
-        results.sort(key=lambda item: item.get("created_at", ""), reverse=True)
-        return results
+        # Slice files first before reading
+        paged_files = files[offset : offset + limit]
+        
+        for file_path in paged_files:
+            try:
+                payload = json.loads(file_path.read_text(encoding="utf-8"))
+                results.append(payload)
+            except Exception:
+                continue
+                
+        return results, total
 
     def delete_result_artifacts(self, *, image_id: str) -> None:
         for path in (

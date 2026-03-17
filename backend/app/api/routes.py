@@ -20,7 +20,21 @@ router = APIRouter()
 
 @router.get("/health", response_model=HealthResponse)
 async def health(request: Request) -> HealthResponse:
-    return request.app.state.health_payload
+    predict_service = request.app.state.predict_service
+    spec, runner = predict_service.runner_manager.resolve()
+    
+    details = {}
+    if hasattr(runner, "health_check"):
+        details = runner.health_check()
+
+    return HealthResponse(
+        service=request.app.state.health_payload.service,
+        version=request.app.state.health_payload.version,
+        ready=runner.ready,
+        active_runner=f"{runner.name}:{spec.model_version}",
+        storage_root=request.app.state.health_payload.storage_root,
+        details=details,
+    )
 
 
 @router.get("/models", response_model=ModelCatalogResponse)
@@ -67,8 +81,9 @@ async def predict(
 async def list_results(
     request: Request,
     limit: int = 20,
+    offset: int = 0,
 ) -> ResultListResponse:
-    return request.app.state.result_service.list_results(limit=limit)
+    return request.app.state.result_service.list_results(limit=limit, offset=offset)
 
 
 @router.get("/results/{image_id}", response_model=PredictResponse)
@@ -79,7 +94,7 @@ async def get_result(request: Request, image_id: str) -> PredictResponse:
 @router.get("/results/{image_id}/overlay")
 async def get_result_overlay(request: Request, image_id: str) -> FileResponse:
     overlay_path = request.app.state.result_service.get_overlay_path(image_id=image_id)
-    return FileResponse(overlay_path, media_type="image/png", filename=overlay_path.name)
+    return FileResponse(overlay_path, media_type="image/webp", filename=overlay_path.name)
 
 
 @router.get("/results/{image_id}/image")

@@ -32,7 +32,12 @@ def test_list_results_returns_recent_saved_predictions(tmp_path: Path, monkeypat
 
     assert response.status_code == 200
     payload = response.json()
+    assert "items" in payload
+    assert "total" in payload
+    assert "offset" in payload
     assert len(payload["items"]) == 2
+    assert payload["total"] == 2
+    assert payload["offset"] == 0
     assert payload["items"][0]["image_id"] == second.json()["image_id"]
     assert payload["items"][0]["detection_count"] == len(second.json()["detections"])
     assert payload["items"][0]["categories"]
@@ -98,7 +103,7 @@ def test_get_result_overlay_returns_png_file(tmp_path: Path, monkeypatch) -> Non
     response = client.get(f"/results/{image_id}/overlay")
 
     assert response.status_code == 200
-    assert response.headers["content-type"] == "image/png"
+    assert response.headers["content-type"] == "image/webp"
     assert response.content
 
 

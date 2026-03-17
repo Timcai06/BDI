@@ -75,6 +75,8 @@ class ResultSummary(BaseModel):
 
 class ResultListResponse(BaseModel):
     items: list[ResultSummary]
+    total: int
+    offset: int
 
 
 class DeleteResultResponse(BaseModel):
@@ -83,12 +85,12 @@ class DeleteResultResponse(BaseModel):
 
 
 class HealthResponse(BaseModel):
-    status: Literal["ok"] = "ok"
     service: str
     version: str
     ready: bool
     active_runner: str
     storage_root: str
+    details: Optional[dict] = None
 
 
 class ModelCatalogItem(BaseModel):

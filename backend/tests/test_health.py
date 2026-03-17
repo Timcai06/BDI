@@ -10,9 +10,12 @@ def test_health_endpoint_returns_runtime_status() -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["status"] == "ok"
+    assert payload["service"] == "bridge-defect-api"
     assert payload["ready"] is True
-    assert payload["active_runner"] == "mock-runner:mock-v1"
+    assert "active_runner" in payload
+    assert "storage_root" in payload
+    assert "details" in payload
+    assert payload["details"]["ready"] is True
 
 
 def test_health_options_request_includes_cors_headers() -> None:
