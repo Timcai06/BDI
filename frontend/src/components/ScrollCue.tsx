@@ -1,5 +1,7 @@
 "use client";
 
+import { motion } from "framer-motion";
+
 interface ScrollCueProps {
   href: string;
   label: string;
@@ -12,33 +14,35 @@ export function ScrollCue({
   href,
   label,
   caption = "Scroll",
-  align = "center",
+  align = "right",
   className = ""
 }: ScrollCueProps) {
-  const alignmentClass =
-    align === "right"
-      ? "absolute right-5 top-1/2 z-20 -translate-y-1/2 sm:right-8"
-      : "mx-auto mt-10";
-
   return (
     <a
       href={href}
-      className={`group flex items-center gap-3 rounded-full border border-white/10 bg-[#07111a]/60 px-3 py-3 backdrop-blur-xl transition-all duration-300 hover:border-[#7bb8ff]/30 hover:bg-[#0a1520]/80 ${alignmentClass} ${className}`}
+      className={`fixed right-6 top-[60%] z-40 hidden flex-col items-center gap-6 md:flex transition-all duration-300 hover:opacity-100 opacity-60 ${className}`}
     >
-      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.03]">
-        <svg
-          className="h-4 w-4 text-white/70 transition-transform duration-300 group-hover:translate-y-0.5"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m0 0l-6-6m6 6l6-6" />
-        </svg>
+      {/* Vertical Label */}
+      <div className="flex flex-col items-center gap-3">
+        <span className="text-[10px] whitespace-nowrap uppercase tracking-[0.5em] text-white/40 [writing-mode:vertical-lr] rotate-180">
+          {caption} — {label}
+        </span>
       </div>
-      <div className={align === "right" ? "text-right" : "text-left"}>
-        <p className="text-[10px] uppercase tracking-[0.28em] text-white/30">{caption}</p>
-        <p className="mt-1 text-xs uppercase tracking-[0.22em] text-white/70">{label}</p>
+
+      {/* Vertical Line Indicator */}
+      <div className="relative h-24 w-[1px] bg-gradient-to-b from-white/20 via-white/10 to-transparent">
+        <motion.div
+          className="absolute top-0 left-1/2 h-8 w-[2px] -translate-x-1/2 bg-[#63e6ff] shadow-[0_0_8px_rgba(99,230,255,0.6)]"
+          animate={{
+            y: [0, 64, 0],
+            opacity: [0.4, 1, 0.4]
+          }}
+          transition={{
+            duration: 2.2,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
       </div>
     </a>
   );

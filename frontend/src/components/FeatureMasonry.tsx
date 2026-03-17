@@ -104,8 +104,20 @@ export function FeatureMasonry() {
         {features.map((feature, idx) => (
           <StaggerItem key={idx} className={feature.className}>
             <motion.div className="h-full" style={{ willChange: "transform" }}>
-              <GlowingCard className="h-full">
-                <div className="flex flex-col h-full justify-between">
+              <GlowingCard 
+                className="h-full" 
+                variant={feature.tone === "primary" ? "premium" : "standard"}
+              >
+                <div className="flex flex-col h-full">
+                  {/* Subtle Scanning Line for Primary */}
+                  {feature.tone === "primary" && (
+                    <motion.div 
+                      className="absolute inset-x-0 h-[1px] bg-[#63e6ff]/30 shadow-[0_0_8px_rgba(99,230,255,0.4)] z-0"
+                      animate={{ top: ["0%", "100%", "0%"] }}
+                      transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+                    />
+                  )}
+
                   <motion.div
                     className={`mb-6 flex h-12 w-12 items-center justify-center rounded-2xl border ${
                       feature.tone === "primary"
@@ -116,28 +128,62 @@ export function FeatureMasonry() {
                     {feature.icon}
                   </motion.div>
                   
-                  <div className="mt-auto">
+                  <div className="mt-auto relative z-10">
                     <h3 className="mb-1 text-2xl font-light tracking-wide text-white">
                       {feature.title}
                     </h3>
-                    <p className="mb-4 text-xs font-mono uppercase tracking-widest text-white/40">
+                    <p className="mb-4 text-xs font-mono uppercase tracking-widest text-[#63e6ff]/60">
                       {feature.subtitle}
                     </p>
                     <p className="text-sm font-light leading-relaxed text-slate-400">
                       {feature.description}
                     </p>
+                    
+                    {/* Visual Data Elements */}
                     {feature.tone === "primary" ? (
-                      <div className="mt-8 grid grid-cols-2 gap-3 text-xs text-white/55">
-                        <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3">
-                          <p className="uppercase tracking-[0.24em] text-white/30">Input</p>
-                          <p className="mt-2 text-sm text-white">Image Upload</p>
+                      <div className="mt-8 space-y-3">
+                        <div className="grid grid-cols-2 gap-3 text-xs text-white/55">
+                          <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 overflow-hidden relative group/item">
+                            <p className="uppercase tracking-[0.24em] text-white/30 text-[9px]">Input Stream</p>
+                            <p className="mt-2 text-sm text-white">4K Imaging</p>
+                            <motion.div 
+                              className="absolute bottom-0 left-0 h-[2px] bg-[#63e6ff]/50" 
+                              initial={{ width: 0 }}
+                              whileInView={{ width: "80%" }}
+                              transition={{ duration: 1, delay: 0.5 }}
+                            />
+                          </div>
+                          <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 overflow-hidden relative">
+                            <p className="uppercase tracking-[0.24em] text-white/30 text-[9px]">Processing</p>
+                            <p className="mt-2 text-sm text-[#63e6ff]">YOLOv8-Seg</p>
+                            <motion.div 
+                              className="absolute bottom-0 left-0 h-[2px] bg-[#63e6ff]/50" 
+                              initial={{ width: 0 }}
+                              whileInView={{ width: "65%" }}
+                              transition={{ duration: 1, delay: 0.7 }}
+                            />
+                          </div>
                         </div>
-                        <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3">
-                          <p className="uppercase tracking-[0.24em] text-white/30">Output</p>
-                          <p className="mt-2 text-sm text-white">Overlay + JSON</p>
+                        {/* Status bar */}
+                        <div className="flex items-center gap-2 px-1">
+                           <div className="h-1 flex-1 bg-white/5 rounded-full overflow-hidden">
+                              <motion.div 
+                                className="h-full bg-gradient-to-r from-[#4d8dff] to-[#63e6ff]" 
+                                initial={{ width: 0 }}
+                                whileInView={{ width: "92%" }}
+                                transition={{ duration: 1.5, delay: 0.8 }}
+                              />
+                           </div>
+                           <span className="text-[9px] font-mono text-white/30 tracking-tighter">92% ACCURACY</span>
                         </div>
                       </div>
-                    ) : null}
+                    ) : (
+                      <div className="mt-6 flex gap-1">
+                        {[1, 2, 3, 4].map(i => (
+                          <div key={i} className="h-1 w-4 rounded-full bg-white/10" />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </GlowingCard>
