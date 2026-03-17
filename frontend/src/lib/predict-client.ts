@@ -112,6 +112,18 @@ function getErrorMessage(payload: unknown, fallback: string): string {
   return fallback;
 }
 
+function invalidateResultListCaches() {
+  if (!API_BASE_URL) {
+    return;
+  }
+
+  for (const key of MEMORY_CACHE.keys()) {
+    if (key.startsWith(`${API_BASE_URL}/results?`)) {
+      MEMORY_CACHE.delete(key);
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // API client functions
 // ---------------------------------------------------------------------------
@@ -144,8 +156,8 @@ export async function predictImage(
       throw new Error(getErrorMessage(payload, "识别失败，请稍后重试。"));
     }
 
-    // Invalidate list results on new prediction
-    MEMORY_CACHE.delete(`${API_BASE_URL}/results`);
+    // Invalidate all paginated history list caches on new prediction.
+    invalidateResultListCaches();
 
     return (await response.json()) as PredictionResult;
   } catch (error) {
@@ -244,12 +256,7 @@ export async function deleteResult(imageId: string): Promise<void> {
 
     // Invalidate caches
     MEMORY_CACHE.delete(`${API_BASE_URL}/results/${imageId}`);
-    // Clear all results list caches to be safe
-    for (const key of MEMORY_CACHE.keys()) {
-      if (key.includes(`${API_BASE_URL}/results?`)) {
-        MEMORY_CACHE.delete(key);
-      }
-    }
+    invalidateResultListCaches();
   } catch (error) {
     if (error instanceof Error) {
       throw error;
