@@ -2,6 +2,46 @@
 
 桥梁病害识别系统原型项目。
 
+## Quick Start
+
+日常开发现在只需要记这几条：
+
+一条命令同时启动前端和后端：
+
+```bash
+./scripts/dev.sh
+```
+
+如果要走 mock 后端：
+
+```bash
+./scripts/dev.sh mock
+```
+
+前端：
+
+```bash
+./scripts/dev-frontend.sh
+```
+
+后端 mock：
+
+```bash
+./scripts/dev-backend-mock.sh
+```
+
+后端真实模型：
+
+```bash
+./scripts/dev-backend-real.sh
+```
+
+检查本地环境是否准备好：
+
+```bash
+./scripts/dev-check.sh
+```
+
 这个仓库当前已经从纯文档仓进入“文档 + 可运行原型并行”的阶段。
 
 你在这里能快速看清三件事：
