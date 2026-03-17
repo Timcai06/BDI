@@ -122,6 +122,21 @@ function getDetectionPriorityScore(detection: Detection): number {
   return detection.confidence * 1000 + areaScore + lengthScore;
 }
 
+function formatResultTimestamp(createdAt: string): string {
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) {
+    return "--:--:--";
+  }
+
+  return new Intl.DateTimeFormat("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    timeZone: "UTC"
+  }).format(date);
+}
+
 export function ResultDashboard({
   result,
   comparisonResult,
@@ -248,18 +263,29 @@ export function ResultDashboard({
     <div className="flex flex-col xl:flex-row gap-6 h-full">
       {/* 图像监控主界面区 */}
       <div className="flex-1 rounded-[1.5rem] border border-white/10 bg-[#1E293B]/70 shadow-2xl backdrop-blur-md overflow-hidden flex flex-col xl:col-span-2 min-h-[500px]">
-        <div className="h-14 border-b border-white/5 flex items-center justify-between px-6 bg-[#0B1120]/40 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse" />
-            <span className="text-xs font-mono text-slate-300">实时结果 / {result.image_id}</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <div className="flex rounded-md border border-white/10 bg-black/20 p-1">
+        <div className="border-b border-white/5 bg-[linear-gradient(180deg,rgba(11,17,32,0.82),rgba(11,17,32,0.58))] px-5 py-4 shrink-0">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-3">
+                <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse" />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+                  实时结果
+                </span>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <p className="text-lg font-medium tracking-[0.04em] text-white">识别结果</p>
+                <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.18em] text-white/45">
+                  {viewMode === "overlay" ? "Overlay" : "Image"}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex rounded-xl border border-white/8 bg-black/20 p-1">
               <button
                 aria-pressed={viewMode === "image"}
-                className={`h-7 rounded px-3 text-xs font-semibold transition-colors ${
+                className={`h-8 rounded-lg px-3 text-xs font-semibold transition-colors ${
                   viewMode === "image"
-                    ? "bg-white/10 text-white"
+                    ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                     : "text-slate-400 hover:bg-white/5"
                 }`}
                 type="button"
@@ -270,9 +296,9 @@ export function ResultDashboard({
               <button
                 aria-label="查看叠加图"
                 aria-pressed={viewMode === "overlay"}
-                className={`h-7 rounded px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                className={`h-8 rounded-lg px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                   viewMode === "overlay"
-                    ? "bg-white/10 text-white"
+                    ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                     : "text-slate-400 hover:bg-white/5"
                 }`}
                 disabled={overlayDisabled}
@@ -283,108 +309,138 @@ export function ResultDashboard({
                 查看叠加图
               </button>
             </div>
-            <div className="flex rounded-md border border-white/10 bg-black/20 p-1">
-              <button
-                className="h-7 rounded px-3 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10"
-                type="button"
-                onClick={onOpenHistory}
-              >
-                历史记录
-              </button>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="min-w-0 flex-1 rounded-2xl border border-white/8 bg-white/[0.025] px-4 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/35">
+                当前文件
+              </p>
+              <p className="mt-1 truncate text-sm text-white/72" title={result.image_id}>
+                {result.image_id}
+              </p>
             </div>
-            <div className="flex rounded-md border border-white/10 bg-black/20 p-1">
-              <button
-                className="h-7 rounded px-3 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10"
-                type="button"
-                onClick={onReset}
-              >
-                更换图片
-              </button>
-              <button
-                className="h-7 rounded px-3 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-                disabled={rerunDisabled}
-                title={rerunDisabled ? "历史记录无法直接重跑，请重新上传原图后再分析" : "使用当前本地图片重新分析"}
-                type="button"
-                onClick={onRerun}
-              >
-                重新分析
-              </button>
-            </div>
-            <div className="flex rounded-md border border-white/10 bg-black/20 p-1">
-              <button
-                aria-label="导出 JSON"
-                className="h-7 rounded px-3 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10"
-                type="button"
-                onClick={onExportJson}
-              >
-                导出 JSON
-              </button>
-              <button
-                aria-label="导出叠加图"
-                className="h-7 rounded px-3 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
-                disabled={overlayDisabled}
-                title={overlayDisabled ? "当前结果没有可导出的 overlay 文件" : "导出叠加图"}
-                type="button"
-                onClick={onExportOverlay}
-              >
-                导出叠加图
-              </button>
+
+            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+              <div className="flex rounded-xl border border-white/8 bg-black/20 p-1">
+                <button
+                  className="h-8 rounded-lg px-3 text-xs font-medium text-white/72 transition-colors hover:bg-white/8 hover:text-white"
+                  type="button"
+                  onClick={onOpenHistory}
+                >
+                  历史记录
+                </button>
+              </div>
+              <div className="flex rounded-xl border border-white/8 bg-black/20 p-1">
+                <button
+                  className="h-8 rounded-lg px-3 text-xs font-medium text-white/72 transition-colors hover:bg-white/8 hover:text-white"
+                  type="button"
+                  onClick={onReset}
+                >
+                  更换图片
+                </button>
+                <button
+                  className="h-8 rounded-lg border border-sky-400/20 bg-sky-400/[0.08] px-3 text-xs font-medium text-sky-100 transition-colors hover:bg-sky-400/[0.14] disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={rerunDisabled}
+                  title={rerunDisabled ? "历史记录无法直接重跑，请重新上传原图后再分析" : "使用当前本地图片重新分析"}
+                  type="button"
+                  onClick={onRerun}
+                >
+                  重新分析
+                </button>
+              </div>
+              <div className="flex rounded-xl border border-white/8 bg-black/20 p-1">
+                <button
+                  aria-label="导出 JSON"
+                  className="h-8 rounded-lg px-3 text-xs font-medium text-white/72 transition-colors hover:bg-white/8 hover:text-white"
+                  type="button"
+                  onClick={onExportJson}
+                >
+                  导出 JSON
+                </button>
+                <button
+                  aria-label="导出叠加图"
+                  className="h-8 rounded-lg px-3 text-xs font-medium text-white/72 transition-colors hover:bg-white/8 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={overlayDisabled}
+                  title={overlayDisabled ? "当前结果没有可导出的 overlay 文件" : "导出叠加图"}
+                  type="button"
+                  onClick={onExportOverlay}
+                >
+                  导出叠加图
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.03),transparent_70%),linear-gradient(180deg,#0B1120,#0F172A)] relative p-6 flex items-center justify-center overflow-auto">
-          {/* 画布主内容 - 带框图展示 */}
-          <div
-            ref={frameRef}
-            className="relative max-h-full max-w-full rounded-lg ring-1 ring-white/10 shadow-2xl inline-block bg-[#0B1120] pb-[56.25%] w-full"
-          >
-            {/* 实际图传底图或占位 SVG */}
-            {activePreviewUrl ? (
-              <AdaptiveImage
-                alt="Inspection"
-                className="rounded-lg object-contain opacity-90"
-                onLoad={handleImageLoad}
-                sizes="(min-width: 1280px) 70vw, 100vw"
-                src={activePreviewUrl}
-              />
-            ) : (
-              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] bg-repeat" />
-            )}
-            <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
-
-            <div className="absolute inset-0 z-10">
-              {prioritizedDetections.map((item) => {
-                const colorCls = getCategoryColor(item.category);
-                const isSelected = item.id === selectedDetectionId;
-                const overlayStyle = getDetectionOverlayStyle(
-                  item.bbox,
-                  imageSize,
-                  frameSize
-                );
-                return (
-                  <div
-                    key={item.id}
-                    className={`absolute rounded-sm group transition-all cursor-crosshair box-border hover:shadow-[0_0_15px_currentColor] ${isSelected ? "border-[3px] shadow-[0_0_18px_currentColor]" : "border-[1.5px] hover:border-[2.5px]"} ${colorCls}`}
-                    style={{
-                      ...overlayStyle,
-                      backgroundColor: "transparent"
-                    }}
-                    onClick={() => handleFocusDetection(item)}
-                  >
-                    <div className="absolute inset-0 bg-current opacity-10 group-hover:opacity-20 transition-opacity" />
-                    <span className="absolute -top-[21px] left-[-1.5px] px-1.5 py-0.5 text-[10px] font-mono font-bold bg-current text-[#0B1120] whitespace-nowrap opacity-80 group-hover:opacity-100 transition-opacity shadow-sm">
-                      {item.category.toUpperCase()} {(item.confidence * 100).toFixed(1)}%
-                    </span>
-                  </div>
-                );
-              })}
+        <div className="flex-1 bg-[radial-gradient(circle_at_center,rgba(56,189,248,0.03),transparent_70%),linear-gradient(180deg,#0B1120,#0F172A)] p-5 md:p-6 overflow-auto">
+          <div className="mx-auto flex h-full max-w-5xl flex-col rounded-[1.75rem] border border-white/8 bg-[#0B1120]/82 shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
+            <div className="flex items-center justify-between gap-3 border-b border-white/6 px-5 py-4">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/35">
+                  预览画面
+                </p>
+                <p className="mt-1 truncate text-sm text-white/72" title={result.image_id}>
+                  {result.image_id}
+                </p>
+              </div>
+              <span className="shrink-0 text-xs font-mono text-white/42">
+                {formatResultTimestamp(result.created_at)} UTC
+              </span>
             </div>
-          </div>
 
-          <div className="absolute bottom-4 left-6 right-6 flex justify-between text-[10px] font-mono text-slate-500 pointer-events-none">
-            <span>{viewMode === "overlay" ? "叠加图视图" : "原图视图"} / {filteredDetections.length} 个病害</span>
-            <span>{new Date().toISOString().split("T")[1].slice(0, 8)} UTC</span>
+            <div className="flex-1 px-5 py-5">
+              <div
+                ref={frameRef}
+                className="relative mx-auto aspect-[4/3] max-h-full w-full overflow-hidden rounded-[1.25rem] border border-white/8 bg-[#050b16] ring-1 ring-white/6 shadow-2xl"
+              >
+                {activePreviewUrl ? (
+                  <AdaptiveImage
+                    alt="Inspection"
+                    className="rounded-[1.25rem] object-contain opacity-90"
+                    onLoad={handleImageLoad}
+                    sizes="(min-width: 1280px) 70vw, 100vw"
+                    src={activePreviewUrl}
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wMykiLz48L3N2Zz4=')] bg-repeat" />
+                )}
+                <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
+
+                <div className="absolute inset-0 z-10">
+                  {prioritizedDetections.map((item) => {
+                    const colorCls = getCategoryColor(item.category);
+                    const isSelected = item.id === selectedDetectionId;
+                    const overlayStyle = getDetectionOverlayStyle(
+                      item.bbox,
+                      imageSize,
+                      frameSize
+                    );
+                    return (
+                      <div
+                        key={item.id}
+                        className={`absolute rounded-sm group transition-all cursor-crosshair box-border hover:shadow-[0_0_15px_currentColor] ${isSelected ? "border-[3px] shadow-[0_0_18px_currentColor]" : "border-[1.5px] hover:border-[2.5px]"} ${colorCls}`}
+                        style={{
+                          ...overlayStyle,
+                          backgroundColor: "transparent"
+                        }}
+                        onClick={() => handleFocusDetection(item)}
+                      >
+                        <div className="absolute inset-0 bg-current opacity-10 group-hover:opacity-20 transition-opacity" />
+                        <span className="absolute -top-[21px] left-[-1.5px] px-1.5 py-0.5 text-[10px] font-mono font-bold bg-current text-[#0B1120] whitespace-nowrap opacity-80 group-hover:opacity-100 transition-opacity shadow-sm">
+                          {item.category.toUpperCase()} {(item.confidence * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/6 px-5 py-4 text-[11px] font-mono text-slate-500">
+              <span>{viewMode === "overlay" ? "叠加图视图" : "原图视图"} / {filteredDetections.length} 个病害</span>
+              <span className="truncate text-right">{formatModelLabel(result)}</span>
+            </div>
           </div>
         </div>
 

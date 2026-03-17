@@ -27,8 +27,13 @@ class UltralyticsOutputAdapter:
                 result.masks.xy if result.masks is not None else [None] * len(xyxy_list)
             )
 
+            if not (
+                len(xyxy_list) == len(conf_list) == len(cls_list)
+            ):
+                raise RuntimeError("Ultralytics output is inconsistent: boxes/conf/classes length mismatch.")
+
             for index, (xyxy, confidence, cls_id) in enumerate(
-                zip(xyxy_list, conf_list, cls_list, strict=True)
+                zip(xyxy_list, conf_list, cls_list)
             ):
                 x1, y1, x2, y2 = xyxy
                 bbox = BoundingBox(

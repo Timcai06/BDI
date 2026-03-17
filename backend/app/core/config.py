@@ -4,6 +4,10 @@ from pathlib import Path
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
+from dotenv import load_dotenv
+
+
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 
 class ConfiguredModel(BaseModel):
