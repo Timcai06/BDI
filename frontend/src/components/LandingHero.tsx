@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { ScrollCue } from "./ScrollCue";
 
 // 动画配置
 const containerVariants = {
@@ -228,57 +229,12 @@ export function LandingHero() {
         </motion.div>
       </motion.div>
 
-      {/* Scroll Indicator - 固定在底部，与内容区完全分离 */}
       <motion.div
-        className="absolute right-5 top-1/2 z-20 flex -translate-y-1/2 flex-col items-center gap-3 rounded-full border border-white/10 bg-[#07111a]/60 px-3 py-4 backdrop-blur-xl sm:right-8"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1.2, duration: 0.8 }}
       >
-        <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-white/35 [writing-mode:vertical-rl]">
-          Scroll
-        </span>
-        
-        <div className="relative h-10 w-5">
-          <motion.svg
-            className="absolute h-5 w-5 text-white/55"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            animate={{ 
-              y: [0, 6, 0],
-              opacity: [0.5, 1, 0.5]
-            }}
-            transition={{ 
-              duration: 1.6, 
-              repeat: Infinity, 
-              ease: "easeInOut" 
-            }}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-          </motion.svg>
-          
-          <motion.svg
-            className="absolute top-2 h-5 w-5 text-white/25"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            animate={{ 
-              y: [0, 6, 0],
-              opacity: [0.25, 0.6, 0.25]
-            }}
-            transition={{ 
-              duration: 1.6, 
-              repeat: Infinity, 
-              ease: "easeInOut",
-              delay: 0.25
-            }}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-          </motion.svg>
-        </div>
+        <ScrollCue href="#technology" label="System Preview" caption="Explore" align="right" />
       </motion.div>
     </section>
   );

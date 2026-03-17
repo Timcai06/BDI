@@ -1,5 +1,6 @@
 import { LandingHero } from "@/components/LandingHero";
 import { FeatureMasonry } from "@/components/FeatureMasonry";
+import { ScrollCue } from "@/components/ScrollCue";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SpotlightEffect } from "@/lib/animations";
@@ -247,6 +248,8 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
+
+            <ScrollCue href="#features" label="Core Capabilities" caption="Next" className="max-w-fit" />
           </ScrollReveal>
         </div>
       </section>
@@ -388,11 +391,13 @@ export default function LandingPage() {
               </ScrollReveal>
             ))}
           </div>
+
+          <ScrollCue href="#launch" label="Launch Console" caption="Final" className="max-w-fit" />
         </section>
       </LazyLoad>
 
       {/* CTA Section */}
-      <section className="relative z-10 py-32 overflow-hidden">
+      <section id="launch" className="relative z-10 py-32 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-accent/5 to-transparent" />
         <div className="max-w-4xl mx-auto px-6 text-center relative">
           <ScrollReveal>
