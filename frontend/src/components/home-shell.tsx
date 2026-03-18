@@ -986,17 +986,6 @@ export function HomeShell() {
                       </div>
                     </div>
                   </button>
-
-                  <button
-                    className="w-fit rounded-lg border border-white/10 bg-transparent px-4 py-2 text-xs font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white"
-                    type="button"
-                    onClick={() => {
-                      setActiveNav("Scans");
-                      void loadHistory();
-                    }}
-                  >
-                    或先查看历史
-                  </button>
                 </div>
 
                 <div

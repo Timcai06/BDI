@@ -33,6 +33,7 @@ class Settings(BaseModel):
     model_weights_path: Optional[Path] = None
     model_device: str = "cpu"
     model_imgsz: int = 1280
+    pixels_per_mm: float = Field(default=10.0, description="Pixel to millimeter conversion factor")
     allow_mock_fallback: bool = True
     extra_models: list[ConfiguredModel] = Field(default_factory=list)
     cors_allow_origins: list[str] = Field(
@@ -50,15 +51,14 @@ def get_settings() -> Settings:
     extra_models_raw = os.getenv("BDI_EXTRA_MODELS")
     return Settings(
         artifact_root=Path(artifact_root) if artifact_root else Path("artifacts"),
-        max_upload_size_bytes=int(
-            os.getenv("BDI_MAX_UPLOAD_SIZE_BYTES", str(30 * 1024 * 1024))
-        ),
+        max_upload_size_bytes=int(os.getenv("BDI_MAX_UPLOAD_SIZE_BYTES", str(30 * 1024 * 1024))),
         model_name=os.getenv("BDI_MODEL_NAME", "yolov8-seg"),
         model_version=os.getenv("BDI_MODEL_VERSION", "v1"),
         model_backend=os.getenv("BDI_MODEL_BACKEND", "pytorch"),
         model_weights_path=Path(weights_path) if weights_path else None,
         model_device=os.getenv("BDI_MODEL_DEVICE", "cpu"),
         model_imgsz=int(os.getenv("BDI_MODEL_IMGSZ", "1280")),
+        pixels_per_mm=float(os.getenv("BDI_PIXELS_PER_MM", "10.0")),
         allow_mock_fallback=os.getenv("BDI_ALLOW_MOCK_FALLBACK", "true").lower()
         in {"1", "true", "yes", "on"},
         extra_models=[
@@ -74,11 +74,7 @@ def get_settings() -> Settings:
         ]
         if extra_models_raw
         else [],
-        cors_allow_origins=[
-            item.strip()
-            for item in cors_origins.split(",")
-            if item.strip()
-        ]
+        cors_allow_origins=[item.strip() for item in cors_origins.split(",") if item.strip()]
         if cors_origins
         else [
             "http://localhost:3000",

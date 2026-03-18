@@ -4,6 +4,7 @@ import io
 import logging
 import time
 from dataclasses import dataclass
+from typing import Optional
 
 from PIL import Image
 
@@ -23,16 +24,17 @@ class UltralyticsRunner:
     device: str
     imgsz: int
     model: object
-    adapter: UltralyticsOutputAdapter = None
+    pixels_per_mm: float = 10.0
+    adapter: Optional[UltralyticsOutputAdapter] = None
     name: str = "ultralytics-runner"
     ready: bool = True
 
     def __post_init__(self):
         if self.adapter is None:
-            self.adapter = UltralyticsOutputAdapter()
+            self.adapter = UltralyticsOutputAdapter(pixels_per_mm=self.pixels_per_mm)
 
     @classmethod
-    def from_model_spec(cls, spec: ModelSpec) -> "UltralyticsRunner":
+    def from_model_spec(cls, spec: ModelSpec, pixels_per_mm: float = 10.0) -> "UltralyticsRunner":
         from ultralytics import YOLO
 
         if spec.weights_path is None:
@@ -53,6 +55,7 @@ class UltralyticsRunner:
             device=spec.device,
             imgsz=spec.imgsz,
             model=model,
+            pixels_per_mm=pixels_per_mm,
         )
 
     def predict(
@@ -76,6 +79,7 @@ class UltralyticsRunner:
         elapsed_ms = int((time.time() - start_time) * 1000)
 
         result = results[0]
+        assert self.adapter is not None, "Adapter should be initialized"
         detections = self.adapter.adapt(result)
 
         overlay_bytes = None

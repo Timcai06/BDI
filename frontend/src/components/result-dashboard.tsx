@@ -63,6 +63,28 @@ function getCategoryColor(category: string) {
   return "border-emerald-400 bg-emerald-400/10 text-emerald-400";
 }
 
+function calculateTotalMetrics(result: PredictionResult) {
+  const totals = {
+    totalLength: 0,
+    totalArea: 0,
+    totalWidth: 0,
+    count: 0
+  };
+  for (const detection of result.detections) {
+    if (detection.metrics.length_mm) {
+      totals.totalLength += detection.metrics.length_mm;
+    }
+    if (detection.metrics.area_mm2) {
+      totals.totalArea += detection.metrics.area_mm2;
+    }
+    if (detection.metrics.width_mm) {
+      totals.totalWidth += detection.metrics.width_mm;
+    }
+    totals.count++;
+  }
+  return totals;
+}
+
 function getComparisonRecommendation(
   result: PredictionResult,
   comparisonResult: PredictionResult,
@@ -209,6 +231,8 @@ export function ResultDashboard({
           categoryDiffItems,
         )
       : null;
+  const mainMetrics = calculateTotalMetrics(result);
+  const comparisonMetrics = comparisonResult ? calculateTotalMetrics(comparisonResult) : null;
   const primaryActionLabel = rerunDisabled ? "新建分析" : "重新检测当前图片";
   const primaryActionTitle = rerunDisabled
     ? "选择新图片开始下一次检测"
@@ -734,6 +758,22 @@ export function ResultDashboard({
                         {result.inference_ms}ms
                       </span>
                     </div>
+                    {mainMetrics.totalLength > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">总长度</span>
+                        <span className="font-mono text-white">
+                          {(mainMetrics.totalLength / 10).toFixed(1)}cm
+                        </span>
+                      </div>
+                    )}
+                    {mainMetrics.totalArea > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500">总面积</span>
+                        <span className="font-mono text-white">
+                          {(mainMetrics.totalArea / 100).toFixed(1)}cm²
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -760,6 +800,22 @@ export function ResultDashboard({
                         {comparisonResult.inference_ms}ms
                       </span>
                     </div>
+                    {comparisonMetrics && comparisonMetrics.totalLength > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">总长度</span>
+                        <span className="font-mono text-white">
+                          {(comparisonMetrics.totalLength / 10).toFixed(1)}cm
+                        </span>
+                      </div>
+                    )}
+                    {comparisonMetrics && comparisonMetrics.totalArea > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">总面积</span>
+                        <span className="font-mono text-white">
+                          {(comparisonMetrics.totalArea / 100).toFixed(1)}cm²
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -791,14 +847,29 @@ export function ResultDashboard({
                           : `${comparisonResult.inference_ms - result.inference_ms}ms`}
                       </div>
                     </div>
-                    <div className="rounded-lg bg-black/20 px-3 py-3">
-                      <div className="text-xs text-slate-500">当前对比</div>
+                    {mainMetrics.totalLength > 0 && comparisonMetrics && comparisonMetrics.totalLength > 0 && (
+                      <div className="rounded-lg bg-black/20 px-3 py-3">
+                        <div className="text-xs text-slate-500">长度差值</div>
+                        <div className="mt-1 font-mono text-white">
+                          {(() => {
+                            const delta = comparisonMetrics.totalLength - mainMetrics.totalLength;
+                            return delta > 0 ? `+${(delta / 10).toFixed(1)}cm` : `${(delta / 10).toFixed(1)}cm`;
+                          })()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {mainMetrics.totalArea > 0 && comparisonMetrics && comparisonMetrics.totalArea > 0 && (
+                    <div className="mt-3 rounded-lg bg-black/20 px-3 py-3">
+                      <div className="text-xs text-slate-500">面积差值</div>
                       <div className="mt-1 font-mono text-white">
-                        {formatModelLabel(result)} vs{" "}
-                        {formatModelLabel(comparisonResult)}
+                        {(() => {
+                          const delta = comparisonMetrics.totalArea - mainMetrics.totalArea;
+                          return delta > 0 ? `+${(delta / 100).toFixed(1)}cm²` : `${(delta / 100).toFixed(1)}cm²`;
+                        })()}
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 <div className="sm:col-span-2 rounded-xl border border-white/5 bg-white/[0.02] p-4 text-sm text-slate-300">
@@ -922,6 +993,14 @@ export function ResultDashboard({
                             : "--"}
                         </span>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-500 w-10">Width</span>
+                        <span className="font-mono text-slate-300">
+                          {item.metrics.width_mm
+                            ? `${(item.metrics.width_mm / 10).toFixed(2)}cm`
+                            : "--"}
+                        </span>
+                      </div>
                       <div className="flex gap-2 col-span-2">
                         <span className="text-slate-500 w-10">Area</span>
                         <span className="font-mono text-slate-300">
@@ -974,6 +1053,14 @@ export function ResultDashboard({
                     <span className="font-mono text-xs text-slate-300">
                       {current.metrics.length_mm
                         ? `${(current.metrics.length_mm / 10).toFixed(1)} cm`
+                        : "--"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">宽度</span>
+                    <span className="font-mono text-xs text-slate-300">
+                      {current.metrics.width_mm
+                        ? `${(current.metrics.width_mm / 10).toFixed(2)} cm`
                         : "--"}
                     </span>
                   </div>

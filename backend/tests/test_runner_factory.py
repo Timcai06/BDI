@@ -42,7 +42,7 @@ def test_load_runner_uses_active_model_spec(
         name = "stub-runner"
         ready = True
 
-    def fake_load_runner_for_spec(spec):  # type: ignore[no-untyped-def]
+    def fake_load_runner_for_spec(spec, pixels_per_mm=10.0):  # type: ignore[no-untyped-def]
         captured["model_version"] = spec.model_version
         return StubRunner()
 
