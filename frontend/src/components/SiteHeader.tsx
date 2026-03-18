@@ -37,9 +37,10 @@ export function SiteHeader() {
   }, [lastScrollY]);
 
   const navItems = [
-    { href: "#features", label: "Features" },
     { href: "#technology", label: "Technology" },
-    { href: "/dashboard", label: "Console" },
+    { href: "#features", label: "Features" },
+    { href: "#workflow", label: "Workflow" },
+    { href: "#launch", label: "Get Started" },
   ];
 
   return (
