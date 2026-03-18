@@ -79,11 +79,11 @@ npm run dev
 
 ```mermaid
 graph LR
-    FE[前端 (Next.js)] --> BE[后端 (FastAPI)]
-    BE --> Model[YOLOv8‑seg]
+    FE["前端 (Next.js)"] --> BE["后端 (FastAPI)"]
+    BE --> Model["YOLOv8-seg"]
     Model --> BE
-    BE --> DB[(PostgreSQL)]
-    FE --> UI[React Components]
+    BE --> DB[("PostgreSQL")]
+    FE --> UI["React Components"]
 ```
 
 - **前端**：Next.js 16、TailwindCSS、React 18
