@@ -6,6 +6,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { SpotlightEffect } from "@/lib/animations";
 import { ScrollReveal, CountUp } from "@/lib/animations";
 import { LazyLoad } from "@/components/ui/LazyLoad";
+import { GlowingCard } from "@/components/ui/GlowingCard";
 import { UploadIcon, AiIcon, VerifyIcon, ReportIcon } from "@/components/icons/WorkflowIcons";
 
 // 统计数据
@@ -74,6 +75,7 @@ export default function LandingPage() {
       <SpotlightEffect />
       
       <SiteHeader />
+      <ScrollCue />
       
       {/* Background glow effects */}
       <div className="pointer-events-none absolute left-[-10%] top-[-20%] h-[50%] w-[50%] rounded-full bg-[#4285F4] opacity-[0.08] blur-[150px] animate-pulse-slow" />
@@ -227,29 +229,58 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 lg:grid-cols-3">
+            <div className="mt-8 grid gap-8 lg:grid-cols-3">
               {[
                 {
-                  title: "更冷的色彩主线",
-                  desc: "用深黑蓝、电光蓝和冰青建立未来感，把紫色降成远景气氛。"
+                  title: "高冷科技主调",
+                  subtitle: "Color Palette",
+                  desc: "用深黑蓝、电光蓝和冰青色确立现代智能判读工作台的未来质感。",
+                  icon: (
+                    <svg className="w-5 h-5 text-[#63e6ff]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  )
                 },
                 {
-                  title: "更系统化的面板结构",
-                  desc: "让结论、证据和输出排成真实工作流，而不是同权宣传卡片。"
+                  title: "系统化数据结构",
+                  subtitle: "System Interface",
+                  desc: "结论、证据与诊断可视化叠加构成真实工作流，摒弃无意义的同权展示。",
+                  icon: (
+                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                    </svg>
+                  )
                 },
                 {
-                  title: "更克制的动效密度",
-                  desc: "Hero 保持氛围感，内容层只做轻量进入动画，减少大面积留白和拖沓感。"
+                  title: "克制的动效密度",
+                  subtitle: "Motion Design",
+                  desc: "保障首屏氛围感，数据交互层则坚持轻量无感的出现，拒绝视觉拖沓。",
+                  icon: (
+                    <svg className="w-5 h-5 text-[#8fc5ff]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                    </svg>
+                  )
                 }
               ].map((item) => (
-                <div key={item.title} className="rounded-[22px] border border-white/10 bg-white/[0.03] px-5 py-4">
-                  <p className="text-base text-white">{item.title}</p>
-                  <p className="mt-2 text-sm leading-7 text-white/44">{item.desc}</p>
+                <div key={item.title} className="h-full">
+                  <GlowingCard className="h-full relative overflow-hidden group">
+                    <div className="flex flex-col h-full justify-between px-2 py-1">
+                      <div className="mb-6 flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.01))] transition-colors group-hover:border-white/20">
+                        {item.icon}
+                      </div>
+                      <div className="mt-auto">
+                        <h3 className="mb-1 text-[17px] font-light tracking-wide text-white">{item.title}</h3>
+                        <p className="mb-3 text-[10px] font-mono uppercase tracking-[0.2em] text-[#63e6ff]/50">{item.subtitle}</p>
+                        <p className="text-[13px] font-light leading-relaxed text-slate-400">{item.desc}</p>
+                      </div>
+                    </div>
+                  </GlowingCard>
                 </div>
               ))}
             </div>
 
-            <ScrollCue href="#features" label="Core Capabilities" caption="Next" className="max-w-fit" />
+
           </ScrollReveal>
         </div>
       </section>
@@ -392,7 +423,7 @@ export default function LandingPage() {
             ))}
           </div>
 
-          <ScrollCue href="#launch" label="Launch Console" caption="Final" className="max-w-fit" />
+
         </section>
       </LazyLoad>
 
