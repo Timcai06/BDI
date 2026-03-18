@@ -1,15 +1,6 @@
-# <img src="https://raw.githubusercontent.com/justin/BDI_clean_check/main/logo.svg" width="30" height="30" alt="logo"> **BDI‑Infra‑Scan** 🚀
+# 🌉 **BDI‑Infra‑Scan** 🚀
 
-![Build Status](https://img.shields.io/github/actions/workflow/status/justin/BDI_clean_check/ci.yml?branch=main&style=flat-square)
-![License](https://img.shields.io/github/license/justin/BDI_clean_check?style=flat-square)
-![Version](https://img.shields.io/npm/v/bdi?style=flat-square)
-![Stars](https://img.shields.io/github/stars/justin/BDI_clean_check?style=social)
-
----
-
-## 简介
-
-**BDI‑Infra‑Scan** 是面向无人机桥梁巡检的 AI 病害识别原型系统，提供 **图像上传 → 病害检测 → 结果可视化 → 结构化导出 → 历史回看** 的完整闭环。
+> 这是一个面向无人机桥梁巡检场景的 AI 识别系统原型。目标不是只跑通一个模型，而是把“图像输入 -> 病害识别 -> 结果展示 -> 结构化导出 -> 历史回看”做成一个可持续演进的产品原型。
 
 ---
 
@@ -39,9 +30,10 @@
 
 ## 演示
 
-![Demo GIF](https://raw.githubusercontent.com/justin/BDI_clean_check/main/docs/demo.gif)
-
+> 📺 **功能演示**：
 > 体验完整流程：上传图片 → 实时检测 → 结果对比 → 导出
+>
+> *(💡 建议后续在此处添加一张系统操作的动态 `.gif`，可以使用相对路径注入，例如：`![系统演示](./docs/demo.gif)`)*
 
 ---
 
