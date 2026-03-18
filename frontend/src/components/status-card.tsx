@@ -21,11 +21,50 @@ interface StatusCardProps {
   message: string;
   progress?: number; // 0-100
   uploadSpeed?: string; // e.g. "2.5 MB/s"
+  variant?: "default" | "compact";
 }
 
-export function StatusCard({ phase, message, progress, uploadSpeed }: StatusCardProps) {
+export function StatusCard({ 
+  phase, 
+  message, 
+  progress, 
+  uploadSpeed, 
+  variant = "default" 
+}: StatusCardProps) {
   const showProgress = phase === "uploading" || phase === "running";
   const progressPercent = Math.min(100, Math.max(0, progress ?? 0));
+
+  if (variant === "compact") {
+    return (
+      <div className={`flex flex-col gap-2 rounded-lg border border-white/5 bg-white/[0.01] p-3 transition-all duration-300 ${phaseStyleMap[phase]}`}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="relative flex h-2 w-2">
+              {phase !== "idle" && phase !== "error" && (
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-75" />
+              )}
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-current" />
+            </div>
+            <h3 className="text-[10px] font-bold uppercase tracking-widest opacity-80">{phaseLabelMap[phase]}</h3>
+          </div>
+          {showProgress && progress !== undefined && (
+            <span className="text-[10px] font-mono font-bold">{Math.round(progressPercent)}%</span>
+          )}
+        </div>
+        
+        {showProgress && (
+          <div className="h-1 w-full bg-black/40 rounded-full overflow-hidden">
+            <div 
+              className="h-full rounded-full bg-current transition-all duration-500 ease-out"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        )}
+        
+        <p className="text-[10px] leading-relaxed text-current/60 line-clamp-1 group-hover:line-clamp-none transition-all">{message}</p>
+      </div>
+    );
+  }
 
   return (
     <div className={`rounded-xl border p-4 transition-all duration-300 ${phaseStyleMap[phase]}`}>

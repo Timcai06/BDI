@@ -1090,86 +1090,39 @@ export function HomeShell() {
                 compareDisabled={
                   (!selectedFile && !canUseResultImageForCompare) || compareOptions.length === 0
                 }
+                status={status}
+                uploadProgress={uploadProgress}
+                onCategoryFilterChange={setCategoryFilter}
+                onMinConfidenceChange={setMinConfidence}
+                categories={categories}
               />
             </div>
           )}
         </div>
       </section>
 
-      {/* 右侧边栏 (状态机/统计) */}
-      <aside className="w-[360px] shrink-0 border-l border-white/5 bg-black flex flex-col z-10 relative shadow-[-20px_0_50px_rgba(0,0,0,0.8)]">
-        <div className="p-6 border-b border-white/5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/50 mb-2">系统状态</p>
-          <StatusCard 
-            phase={status.phase} 
-            message={status.message} 
-            progress={uploadProgress}
-          />
-        </div>
+      {/* 右侧边栏 (状态机/统计) - 仅在没有结果时显示 */}
+      {!result && (
+        <aside className="hidden xl:flex w-[360px] shrink-0 border-l border-white/5 bg-[#05080A]/80 backdrop-blur-xl flex-col z-10 relative shadow-[-20px_0_50px_rgba(0,0,0,0.8)] animate-in fade-in slide-in-from-right-4 duration-500">
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,210,255,0.03),transparent)] pointer-events-none" />
+          <div className="p-6 border-b border-white/5 relative">
+            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#00D2FF]/60 mb-2">系统状态</p>
+            <StatusCard 
+              phase={status.phase} 
+              message={status.message} 
+              progress={uploadProgress}
+            />
+          </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
-          {result && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/50 mb-3">展示筛选</p>
-                <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-white/60">病害类别</span>
-                    <select
-                      className="bg-black border border-white/10 rounded-md text-xs text-white/80 px-2 py-1 outline-none focus:border-white/30"
-                      value={categoryFilter}
-                      onChange={(event) => setCategoryFilter(event.target.value)}
-                    >
-                      {categories.map((category) => (
-                        <option key={category} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-white/60">最低置信度</span>
-                      <span className="text-xs font-mono text-white/80">{(minConfidence * 100).toFixed(0)}%</span>
-                    </div>
-                    <input
-                      className="w-full h-1 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full cursor-pointer"
-                      max="0.95"
-                      min="0"
-                      step="0.05"
-                      type="range"
-                      value={minConfidence}
-                      onChange={(event) => setMinConfidence(Number(event.target.value))}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-white/5 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMSIgY3k9IjEiIHI9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4wNSkiLz48L3N2Zz4=')] p-4">
-                <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/50 mb-2">推理诊断</p>
-                <div className="space-y-2 text-xs font-mono">
-                  <div className="flex justify-between border-b border-white/5 pb-2">
-                    <span className="text-white/50">耗时</span>
-                    <span className="text-white/90">{result.inference_ms}ms</span>
-                  </div>
-                  <div className="flex justify-between border-b border-white/5 pb-2">
-                    <span className="text-white/50">当前模型</span>
-                    <span className="text-white/70">{formatModelLabel(result)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-white/50">当前参数</span>
-                    <span className="text-white/70 flex gap-2">
-                      <span className="px-1 bg-white/5 text-white/50 rounded">conf:{confidence}</span>
-                      <span className="px-1 bg-white/5 text-white/50 rounded">iou:0.45</span>
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </aside>
+          <div className="flex-1 overflow-y-auto p-6 relative">
+             <div className="rounded-xl border border-white/5 bg-white/[0.02] p-6 text-center">
+                <p className="text-sm text-slate-400 font-light leading-relaxed">
+                  系统已准备就绪。上传图像后，此处将实时展示检测进度与硬件资源占用情况。
+                </p>
+             </div>
+          </div>
+        </aside>
+      )}
 
       {analysisModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 sm:p-6 backdrop-blur-md overflow-y-auto">
