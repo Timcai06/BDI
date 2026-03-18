@@ -11,11 +11,45 @@ export function formatConfidence(value: number): string {
 
 export function getDetectionSummary(result: PredictionResult): string {
   if (result.detections.length === 0) {
-    return "未检出病害，建议调整阈值或更换样例。";
+    return "系统未在当前阈值下识别到裂缝、剥落、锈蚀或泛碱等目标。建议结合图像质量与拍摄角度进一步复检。";
   }
 
   const categories = new Set(result.detections.map((item) => item.category));
-  return `检出 ${result.detections.length} 处病害，涉及 ${categories.size} 类病害。`;
+  return `系统已输出病害类别、置信度、掩膜与几何参数，涉及 ${categories.size} 类结构病害，可继续用于专家复核与报告生成。`;
+}
+
+export function getPrimaryFinding(result: PredictionResult): string {
+  if (result.detections.length === 0) {
+    return "当前暂未发现明确病害";
+  }
+
+  const categoryCounts = result.detections.reduce<Record<string, number>>((acc, item) => {
+    acc[item.category] = (acc[item.category] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const [topCategory, topCount] =
+    Object.entries(categoryCounts).sort((left, right) => right[1] - left[1])[0] ?? [];
+
+  if (!topCategory || !topCount) {
+    return `本次识别发现 ${result.detections.length} 处异常区域`;
+  }
+
+  const riskLevel = topCategory.includes("裂缝") || topCategory.includes("crack") || topCount >= 5 ? "中高" : "中低";
+
+  return `本次识别发现 ${result.detections.length} 处结构性损伤，主要涉及${topCategory}，综合风险评级：${riskLevel}`;
+}
+
+export function getResultNextStep(result: PredictionResult): string {
+  if (result.detections.length === 0) {
+    return "建议：降低召回阈值重试、切换其他模型版本进行比对，或放大原图查验微小细节。";
+  }
+
+  if (result.detections.length === 1) {
+    return "建议：查看病害详情（包含尺寸估算与置信度分布），确认定级后导出结构化记录。";
+  }
+
+  return "建议：优先排查高亮高风险病害项，多维度比对原图与掩膜判定后，导出评估结果与可视化物料。";
 }
 
 export interface DetectionCategoryDiffItem {

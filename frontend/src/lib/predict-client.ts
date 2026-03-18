@@ -69,7 +69,7 @@ async function cachedFetch<T>(
   const now = Date.now();
 
   if (cached && (now - cached.timestamp < ttlMs)) {
-    return cached.data;
+    return cached.data as T;
   }
 
   const data = await fetcher();

@@ -832,18 +832,19 @@ export function HomeShell() {
   }
 
   return (
-    <main className="flex h-screen w-full bg-black text-slate-200 overflow-hidden font-sans relative">
-      {/* 纯黑设计背景纹理层 */}
-      <div className="bg-grid" />
-      <div className="bg-noise" />
+    <main className="flex h-screen w-full bg-[#05080A] text-slate-200 overflow-hidden font-sans relative">
+      {/* 深黑蓝及电光蓝渐变层 */}
+      <div className="absolute inset-0 bg-[radial-gradient(120%_100%_at_50%_0%,rgba(0,210,255,0.08)_0%,rgba(5,8,10,1)_100%)] pointer-events-none z-0" />
+      <div className="bg-grid opacity-30 z-0 relative" />
+      <div className="bg-noise opacity-40 z-0 relative" />
 
-      <aside className="w-20 lg:w-64 shrink-0 border-r border-white/5 bg-transparent flex flex-col relative z-10">
+      <aside className="w-20 lg:w-64 shrink-0 border-r border-white/5 bg-transparent flex flex-col relative z-20">
         <div className="flex h-16 items-center justify-center lg:justify-start lg:px-6 border-b border-white/5">
           <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-80">
-            <div className="h-8 w-8 rounded-lg bg-[#050505] border border-white/10 flex items-center justify-center">
-              <span className="text-white font-bold font-mono">BDI</span>
+            <div className="h-8 w-8 rounded-lg bg-[#00D2FF]/10 border border-[#00D2FF]/20 flex items-center justify-center shadow-[0_0_15px_rgba(0,210,255,0.2)]">
+              <span className="text-[#00D2FF] font-black font-mono tracking-tighter">BDI</span>
             </div>
-            <span className="hidden lg:block font-semibold tracking-[0.2em] uppercase text-white">INFRA-SCAN</span>
+            <span className="hidden lg:block font-bold tracking-[0.25em] uppercase text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">INFRA-SCAN</span>
           </Link>
         </div>
 
