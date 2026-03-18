@@ -6,26 +6,26 @@
 
 - `overall-goals.md`
   - 项目整体目标与初步验收成果
-- `phase1.md`
+- `phase1/phase1.md`
   - 项目方向与文档基础阶段
 - `phase1/`
   - Phase 1 的执行说明与开工清单
-- `phase2.md`
+- `phase2/phase2.md`
   - MVP 系统骨架搭建阶段
 - `phase2/`
   - Phase 2 的执行说明与开工清单
-- `phase3.md`
+- `phase3/phase3.md`
   - 结果展示增强与稳定化阶段
 - `phase3/`
   - Phase 3 的执行说明与开工清单
-- `phase4.md`
+- `phase4/phase4.md`
   - 兼容优化模型与批量能力阶段
 - `phase4/`
-  - 兼容优化模型与批量能力阶段
-- `phase5.md`
+  - Phase 4 的执行说明与开工清单
+- `phase5/phase5.md`
   - 比赛展示优化与最终交付阶段
 - `phase5/`
-  - 比赛展示优化与最终交付阶段
+  - Phase 5 的执行说明与开工清单
 
 ## 使用方式
 
@@ -35,10 +35,9 @@
 - 阶段产出是否具备
 - 阶段验收标准是否满足
 
-## Phase 2 细化说明
+## 目录规则
 
-从 `Phase 2` 开始，根级阶段文件继续用于记录该阶段的目标、产出和验收标准。
-
+根级阶段文件继续用于记录该阶段的目标、产出和验收标准。
 如果某个阶段已经进入实际实施，则在同名子目录中补充：
 
 - 执行说明
@@ -50,8 +49,6 @@
 - `phase1/`
 - `phase2/`
 - `phase3/`
-- `phase4.md`
-- `phase5.md`
 - `phase4/`
 - `phase5/`
 

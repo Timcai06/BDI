@@ -36,8 +36,7 @@
 
 ## 文档同步
 
-- [x] `AGENTS/04-memory/09-progress.md` 已同步当前阶段进展
-- [x] `AGENTS/04-memory/10-lessons.md` 已同步阶段经验
+- [x] `AGENTS/04-memory/009-progress.md` 已同步当前阶段进展
+- [x] `AGENTS/04-memory/010-lessons.md` 已同步阶段经验
 - [x] `README.md` 已更新当前阶段概览
 - [ ] `plan/README.md` 已更新指向新的阶段目录
-
