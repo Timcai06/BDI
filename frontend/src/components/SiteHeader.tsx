@@ -125,7 +125,6 @@ export function SiteHeader() {
         ))}
       </motion.nav>
 
-      {/* CTA Button - 修复按钮样式，确保hover时文字颜色变化正确 */}
       <motion.div 
         className="pointer-events-auto"
         initial={{ opacity: 0, x: 20 }}
@@ -136,7 +135,7 @@ export function SiteHeader() {
           href="/dashboard"
           className="inline-flex h-9 items-center justify-center rounded-full border border-white/30 bg-white/10 px-5 text-[10px] font-bold tracking-widest uppercase text-white backdrop-blur-md transition-all duration-300 hover:bg-white hover:text-black hover:border-white"
         >
-          Enter
+          Login
         </Link>
       </motion.div>
     </motion.header>
