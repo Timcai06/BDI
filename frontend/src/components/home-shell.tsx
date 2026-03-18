@@ -558,6 +558,18 @@ export function HomeShell() {
   const statusSuggestion = getStatusSuggestion();
   const selectedModel =
     availableModels.find((model) => model.model_version === selectedModelVersion) ?? null;
+  const selectedModelSupportsMasks = selectedModel?.supports_masks ?? true;
+  const selectedModelSupportsSlicedInference =
+    selectedModel?.supports_sliced_inference ?? false;
+
+  useEffect(() => {
+    if (selectedModelSupportsMasks || !exportOverlay) {
+      return;
+    }
+
+    setExportOverlay(false);
+    pushActionNotice("模型能力提示", "当前模型不支持叠加图导出，已自动关闭该选项。", "error");
+  }, [selectedModelSupportsMasks, exportOverlay, pushActionNotice]);
 
   async function handleRerunCurrentImage() {
     if (!selectedFile) {
@@ -639,7 +651,7 @@ export function HomeShell() {
 
       const prediction = await predictImage(selectedFile, {
         confidence,
-        exportOverlay,
+        exportOverlay: exportOverlay && selectedModelSupportsMasks,
         modelVersion: selectedModelVersion
       });
 
@@ -770,7 +782,7 @@ export function HomeShell() {
         selectedFile ?? (await getResultImageFile(result.image_id));
       const nextComparison = await predictImage(sourceFile, {
         confidence,
-        exportOverlay,
+        exportOverlay: exportOverlay && selectedModelSupportsMasks,
         modelVersion: compareModelVersion
       });
       setComparisonResult(nextComparison);
@@ -1430,7 +1442,11 @@ export function HomeShell() {
                                   model_version: selectedModelVersion
                                 }
                               )
-                            } 执行推理。`
+                            } 执行推理。${
+                              selectedModelSupportsSlicedInference
+                                ? " 支持切片推理。"
+                                : " 当前仅支持 direct 推理。"
+                            }`
                             : "未读取到模型列表时，将回退到当前 active model。"}
                     </p>
                   </div>
@@ -1454,10 +1470,16 @@ export function HomeShell() {
                   </div>
                 </label>
 
-                <label className="rounded-xl border border-white/5 bg-white/[0.02] p-4 flex items-center justify-between cursor-pointer group hover:bg-white/[0.04] transition-colors">
+                <label className={`rounded-xl border border-white/5 bg-white/[0.02] p-4 flex items-center justify-between group transition-colors ${
+                  selectedModelSupportsMasks
+                    ? "cursor-pointer hover:bg-white/[0.04]"
+                    : "cursor-not-allowed opacity-60"
+                }`}>
                   <div>
                     <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 block mb-1">导出叠加图</span>
-                    <span className="text-xs text-white/30 font-light">同步生成基带画框图</span>
+                    <span className="text-xs text-white/30 font-light">
+                      {selectedModelSupportsMasks ? "同步生成基带画框图" : "当前模型不支持 mask/overlay 输出"}
+                    </span>
                   </div>
                   <div className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${exportOverlay ? "bg-white/80" : "bg-white/10"}`}>
                     <span className={`inline-block h-3 w-3 transform rounded-full bg-black transition-transform mt-1 ${exportOverlay ? "translate-x-5" : "translate-x-1"}`} />
@@ -1466,6 +1488,7 @@ export function HomeShell() {
                     type="checkbox"
                     className="hidden"
                     checked={exportOverlay}
+                    disabled={!selectedModelSupportsMasks}
                     onChange={() => setExportOverlay(!exportOverlay)}
                   />
                 </label>

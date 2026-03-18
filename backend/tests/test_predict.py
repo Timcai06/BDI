@@ -127,3 +127,82 @@ def test_predict_returns_model_runtime_error_when_runner_raises() -> None:
     assert response.status_code == 503
     payload = response.json()
     assert payload["error"]["code"] == "MODEL_RUNTIME_ERROR"
+
+
+def test_predict_returns_model_timeout_error_when_runner_times_out() -> None:
+    client = TestClient(create_app())
+
+    class TimeoutRunner:
+        def __init__(self) -> None:
+            self.name = "timeout-runner"
+            self.ready = False
+
+        def predict(self, **_) -> None:
+            raise TimeoutError("timeout")
+
+    registry = client.app.state.model_registry
+    spec = registry.get("mock-v1")
+    client.app.state.predict_service.runner_manager.resolve = lambda *_: (spec, TimeoutRunner())
+
+    response = client.post(
+        "/predict",
+        files={"file": ("bridge.jpg", b"fake-jpeg-data", "image/jpeg")},
+        data={"model_version": "mock-v1"},
+    )
+
+    assert response.status_code == 504
+    payload = response.json()
+    assert payload["error"]["code"] == "MODEL_TIMEOUT"
+
+
+def test_predict_returns_model_output_invalid_when_runner_output_is_bad() -> None:
+    client = TestClient(create_app())
+
+    class InvalidOutputRunner:
+        def __init__(self) -> None:
+            self.name = "invalid-output-runner"
+            self.ready = False
+
+        def predict(self, **_) -> None:
+            raise ValueError("invalid output")
+
+    registry = client.app.state.model_registry
+    spec = registry.get("mock-v1")
+    client.app.state.predict_service.runner_manager.resolve = lambda *_: (spec, InvalidOutputRunner())
+
+    response = client.post(
+        "/predict",
+        files={"file": ("bridge.jpg", b"fake-jpeg-data", "image/jpeg")},
+        data={"model_version": "mock-v1"},
+    )
+
+    assert response.status_code == 502
+    payload = response.json()
+    assert payload["error"]["code"] == "MODEL_OUTPUT_INVALID"
+
+
+def test_predict_rejects_overlay_for_model_without_mask_capability() -> None:
+    client = TestClient(create_app())
+
+    class DummyRunner:
+        def __init__(self) -> None:
+            self.name = "dummy-runner"
+            self.ready = True
+
+        def predict(self, **_):
+            raise AssertionError("predict should not be called when capability check fails")
+
+    spec = client.app.state.model_registry.get("mock-v1").model_copy(
+        update={"supports_masks": False}
+    )
+    client.app.state.predict_service.runner_manager.resolve = lambda *_: (spec, DummyRunner())
+
+    response = client.post(
+        "/predict",
+        files={"file": ("bridge.jpg", b"fake-jpeg-data", "image/jpeg")},
+        data={"model_version": "mock-v1", "return_overlay": "true"},
+    )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["error"]["code"] == "MODEL_CAPABILITY_UNSUPPORTED"

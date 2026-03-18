@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, File, Form, Request, UploadFile
@@ -24,14 +25,22 @@ def _refresh_runtime_state(request: Request):
 
     try:
         spec, runner = predict_service.runner_manager.resolve()
+        resolution = getattr(predict_service.runner_manager, "last_resolution", {})
         details = {}
         if hasattr(runner, "health_check"):
             details = runner.health_check()
 
+        changed = runtime_state.active_model_version != spec.model_version
         runtime_state.active_model_version = spec.model_version
         runtime_state.active_runner = f"{runner.name}:{spec.model_version}"
+        runtime_state.active_backend = spec.backend
         runtime_state.ready = runner.ready
         runtime_state.details = details
+        runtime_state.fallback_from = resolution.get("fallback_from")
+        runtime_state.last_load_ms = resolution.get("load_ms")
+        runtime_state.cache_hit = resolution.get("cache_hit")
+        if changed:
+            runtime_state.last_transition_at = datetime.now(timezone.utc).isoformat()
         runtime_state.last_error = None
     except Exception as exc:
         runtime_state.last_error = str(exc)
@@ -43,6 +52,11 @@ def _refresh_runtime_state(request: Request):
 async def health(request: Request) -> HealthResponse:
     runtime_state = _refresh_runtime_state(request)
     details = dict(runtime_state.details)
+    details["active_backend"] = runtime_state.active_backend
+    details["fallback_from"] = runtime_state.fallback_from
+    details["last_transition_at"] = runtime_state.last_transition_at
+    details["last_load_ms"] = runtime_state.last_load_ms
+    details["cache_hit"] = runtime_state.cache_hit
     if runtime_state.last_error:
         details["last_error"] = runtime_state.last_error
 

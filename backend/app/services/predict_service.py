@@ -17,6 +17,28 @@ ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 ALLOWED_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 
 
+def classify_runtime_error(exc: Exception) -> tuple[str, str, int]:
+    if isinstance(exc, TimeoutError):
+        return (
+            "MODEL_TIMEOUT",
+            "Model inference timed out. Please retry or use a lighter model.",
+            status.HTTP_504_GATEWAY_TIMEOUT,
+        )
+
+    if isinstance(exc, (ValueError, TypeError, KeyError, IndexError)):
+        return (
+            "MODEL_OUTPUT_INVALID",
+            "Model returned an unsupported output format.",
+            status.HTTP_502_BAD_GATEWAY,
+        )
+
+    return (
+        "MODEL_RUNTIME_ERROR",
+        "Model inference failed. Please retry or switch to another model version.",
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
+
+
 class PredictService:
     def __init__(
         self,
@@ -87,6 +109,14 @@ class PredictService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 details={"model_version": options.model_version},
             ) from exc
+        except (ImportError, ModuleNotFoundError) as exc:
+            logger.warning("Model load failed: %s", exc)
+            raise AppError(
+                code="MODEL_LOAD_FAILED",
+                message="Model dependencies are missing or failed to load.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                details={"model_version": options.model_version, "reason": str(exc)},
+            ) from exc
         except RuntimeError as exc:
             logger.warning("Model unavailable: %s – %s", options.model_version, exc)
             raise AppError(
@@ -95,6 +125,28 @@ class PredictService:
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 details={"model_version": options.model_version},
             ) from exc
+
+        if options.return_overlay and not model_spec.supports_masks:
+            raise AppError(
+                code="MODEL_CAPABILITY_UNSUPPORTED",
+                message="Selected model does not support overlay output.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                details={
+                    "model_version": model_spec.model_version,
+                    "capability": "supports_masks",
+                },
+            )
+
+        if options.inference_mode == "sliced" and not model_spec.supports_sliced_inference:
+            raise AppError(
+                code="MODEL_CAPABILITY_UNSUPPORTED",
+                message="Selected model does not support sliced inference mode.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                details={
+                    "model_version": model_spec.model_version,
+                    "capability": "supports_sliced_inference",
+                },
+            )
 
         normalized_options = options.model_copy(update={"model_version": model_spec.model_version})
 
@@ -116,6 +168,7 @@ class PredictService:
                 ),
             )
         except Exception as exc:
+            error_code, error_message, status_code = classify_runtime_error(exc)
             logger.exception(
                 "Inference runtime failure: image=%s model=%s:%s",
                 file.filename,
@@ -123,9 +176,9 @@ class PredictService:
                 model_spec.model_version,
             )
             raise AppError(
-                code="MODEL_RUNTIME_ERROR",
-                message="Model inference failed. Please retry or switch to another model version.",
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                code=error_code,
+                message=error_message,
+                status_code=status_code,
                 details={
                     "model_version": model_spec.model_version,
                     "model_name": model_spec.model_name,

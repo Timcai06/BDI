@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -83,6 +84,8 @@ def create_app() -> FastAPI:
         active_model_version=active_spec.model_version,
         active_runner=f"{active_runner.name}:{active_spec.model_version}",
         ready=active_runner.ready,
+        active_backend=active_spec.backend,
+        last_transition_at=datetime.now(timezone.utc).isoformat(),
     )
     app.state.health_payload = HealthResponse(
         service=settings.app_name,
