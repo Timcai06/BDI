@@ -63,6 +63,54 @@ def test_list_models_returns_registered_catalog(tmp_path: Path, monkeypatch) -> 
     assert any(item["model_version"] == "mock-v2" for item in payload["items"])
 
 
+def test_list_models_uses_runtime_active_version(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("BDI_ARTIFACT_ROOT", str(tmp_path / "artifacts"))
+    client = TestClient(create_app())
+
+    # Simulate stale state to ensure /models relies on runner_manager.resolve().
+    client.app.state.model_registry.active_version = "v1"
+
+    response = client.get("/models")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["active_version"] == "mock-v1"
+    assert payload["items"][0]["model_version"] == "mock-v1"
+    assert payload["items"][0]["is_active"] is True
+
+
+def test_health_and_models_share_same_runtime_active_version(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("BDI_ARTIFACT_ROOT", str(tmp_path / "artifacts"))
+    monkeypatch.setenv(
+        "BDI_EXTRA_MODELS",
+        '[{"model_version":"mock-v2","backend":"mock","runner_kind":"mock"}]',
+    )
+    client = TestClient(create_app())
+
+    class DummyRunner:
+        name = "mock-runner"
+        ready = True
+
+        @staticmethod
+        def health_check():
+            return {"marker": "ok"}
+
+    spec = client.app.state.model_registry.get("mock-v2")
+    client.app.state.predict_service.runner_manager.resolve = lambda *_: (spec, DummyRunner())
+
+    health_response = client.get("/health")
+    models_response = client.get("/models")
+
+    assert health_response.status_code == 200
+    assert models_response.status_code == 200
+    health_payload = health_response.json()
+    models_payload = models_response.json()
+    assert health_payload["active_runner"].endswith(":mock-v2")
+    assert models_payload["active_version"] == "mock-v2"
+    assert models_payload["items"][0]["model_version"] == "mock-v2"
+    assert models_payload["items"][0]["is_active"] is True
+
+
 def test_get_result_returns_saved_prediction_payload(tmp_path: Path, monkeypatch) -> None:
     client = create_test_client(tmp_path, monkeypatch)
 

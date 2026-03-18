@@ -12,6 +12,7 @@ from app.adapters.registry import ModelRegistry
 from app.api.routes import router
 from app.core.config import get_settings
 from app.core.errors import AppError, ErrorPayload, ErrorResponse, app_error_handler
+from app.core.runtime_state import RuntimeState
 from app.models.schemas import HealthResponse
 from app.services.predict_service import PredictService
 from app.services.result_service import ResultService
@@ -78,7 +79,11 @@ def create_app() -> FastAPI:
     app.state.predict_service = predict_service
     app.state.result_service = result_service
     app.state.model_registry = registry
-    app.state.active_model_version = active_spec.model_version
+    app.state.runtime_state = RuntimeState(
+        active_model_version=active_spec.model_version,
+        active_runner=f"{active_runner.name}:{active_spec.model_version}",
+        ready=active_runner.ready,
+    )
     app.state.health_payload = HealthResponse(
         service=settings.app_name,
         version=settings.app_version,

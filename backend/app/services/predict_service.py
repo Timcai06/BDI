@@ -106,14 +106,32 @@ class PredictService:
         )
 
         loop = asyncio.get_event_loop()
-        raw_prediction = await loop.run_in_executor(
-            None,
-            lambda: runner.predict(
-                image_bytes=content,
-                image_name=file.filename,
-                options=normalized_options,
-            ),
-        )
+        try:
+            raw_prediction = await loop.run_in_executor(
+                None,
+                lambda: runner.predict(
+                    image_bytes=content,
+                    image_name=file.filename,
+                    options=normalized_options,
+                ),
+            )
+        except Exception as exc:
+            logger.exception(
+                "Inference runtime failure: image=%s model=%s:%s",
+                file.filename,
+                model_spec.model_name,
+                model_spec.model_version,
+            )
+            raise AppError(
+                code="MODEL_RUNTIME_ERROR",
+                message="Model inference failed. Please retry or switch to another model version.",
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                details={
+                    "model_version": model_spec.model_version,
+                    "model_name": model_spec.model_name,
+                    "reason": str(exc),
+                },
+            ) from exc
 
         logger.info(
             "Inference complete: image=%s elapsed=%dms detections=%d",

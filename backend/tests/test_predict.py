@@ -101,3 +101,29 @@ def test_predict_accepts_25mb_png_by_default() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["image_id"]
+
+
+def test_predict_returns_model_runtime_error_when_runner_raises() -> None:
+    client = TestClient(create_app())
+
+    class BrokenRunner:
+        def __init__(self) -> None:
+            self.name = "broken-runner"
+            self.ready = False
+
+        def predict(self, **_) -> None:
+            raise RuntimeError("runner boom")
+
+    registry = client.app.state.model_registry
+    spec = registry.get("mock-v1")
+    client.app.state.predict_service.runner_manager.resolve = lambda *_: (spec, BrokenRunner())
+
+    response = client.post(
+        "/predict",
+        files={"file": ("bridge.jpg", b"fake-jpeg-data", "image/jpeg")},
+        data={"model_version": "mock-v1"},
+    )
+
+    assert response.status_code == 503
+    payload = response.json()
+    assert payload["error"]["code"] == "MODEL_RUNTIME_ERROR"

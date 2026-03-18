@@ -18,20 +18,39 @@ from app.models.schemas import (
 router = APIRouter()
 
 
+def _refresh_runtime_state(request: Request):
+    predict_service = request.app.state.predict_service
+    runtime_state = request.app.state.runtime_state
+
+    try:
+        spec, runner = predict_service.runner_manager.resolve()
+        details = {}
+        if hasattr(runner, "health_check"):
+            details = runner.health_check()
+
+        runtime_state.active_model_version = spec.model_version
+        runtime_state.active_runner = f"{runner.name}:{spec.model_version}"
+        runtime_state.ready = runner.ready
+        runtime_state.details = details
+        runtime_state.last_error = None
+    except Exception as exc:
+        runtime_state.last_error = str(exc)
+
+    return runtime_state
+
+
 @router.get("/health", response_model=HealthResponse)
 async def health(request: Request) -> HealthResponse:
-    predict_service = request.app.state.predict_service
-    spec, runner = predict_service.runner_manager.resolve()
-    
-    details = {}
-    if hasattr(runner, "health_check"):
-        details = runner.health_check()
+    runtime_state = _refresh_runtime_state(request)
+    details = dict(runtime_state.details)
+    if runtime_state.last_error:
+        details["last_error"] = runtime_state.last_error
 
     return HealthResponse(
         service=request.app.state.health_payload.service,
         version=request.app.state.health_payload.version,
-        ready=runner.ready,
-        active_runner=f"{runner.name}:{spec.model_version}",
+        ready=runtime_state.ready,
+        active_runner=runtime_state.active_runner,
         storage_root=request.app.state.health_payload.storage_root,
         details=details,
     )
@@ -39,8 +58,10 @@ async def health(request: Request) -> HealthResponse:
 
 @router.get("/models", response_model=ModelCatalogResponse)
 async def list_models(request: Request) -> ModelCatalogResponse:
+    runtime_state = _refresh_runtime_state(request)
     registry = request.app.state.model_registry
-    active_model_version = request.app.state.active_model_version
+    active_model_version = runtime_state.active_model_version or registry.active_version
+
     items = [
         ModelCatalogItem(
             model_name=spec.model_name,
