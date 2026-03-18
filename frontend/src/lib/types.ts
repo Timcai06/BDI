@@ -101,3 +101,16 @@ export interface ApiError {
     details?: Record<string, unknown> | null;
   };
 }
+
+export interface BatchDeleteResultItem {
+  image_id: string;
+  deleted: boolean;
+  error_code?: string | null;
+}
+
+export interface BatchDeleteResultsResponse {
+  requested: number;
+  deleted_count: number;
+  failed_count: number;
+  results: BatchDeleteResultItem[];
+}

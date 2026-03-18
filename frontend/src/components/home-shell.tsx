@@ -12,16 +12,11 @@ import Link from "next/link";
 import { classifyError, ErrorMessage, type ErrorType } from "@/components/error-message";
 import { FileValidator, ValidationErrorList, type ValidationError } from "@/components/file-validator";
 import { HistoryPanel } from "@/components/history";
-import { RecentScans } from "@/components/recent-scans";
 import { ResultDashboard } from "@/components/result-dashboard";
 import { ScanAnimation } from "@/components/scan-animation";
 import { StatusCard } from "@/components/status-card";
 import { DashboardStats } from "@/components/dashboard-stats";
-import {
-  filterHistoryItems,
-  sortHistoryItems,
-  type HistorySortMode
-} from "@/lib/history-utils";
+import { type HistorySortMode } from "@/lib/history-utils";
 import { formatModelLabel } from "@/lib/model-labels";
 import {
   deleteResult,
@@ -114,7 +109,6 @@ export function HomeShell() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
   const [deleteSuccessMessage, setDeleteSuccessMessage] = useState<string | null>(null);
-  const [historyFilterMode, setHistoryFilterMode] = useState<"recent" | "all">("recent");
   const [historySearchQuery, setHistorySearchQuery] = useState("");
   const [historyCategoryFilter, setHistoryCategoryFilter] = useState("全部");
   const [historySortMode, setHistorySortMode] = useState<HistorySortMode>("newest");
@@ -158,13 +152,6 @@ export function HomeShell() {
       disabled: !model.is_available
     }));
   const availableHistoryCategories = [...new Set(historyItems.flatMap((item) => item.categories))];
-  const filteredHistoryItems = filterHistoryItems(historyItems, {
-    query: historySearchQuery,
-    category: historyCategoryFilter
-  });
-  const sortedHistoryItems = sortHistoryItems(filteredHistoryItems, historySortMode);
-  const visibleHistoryItems =
-    historyFilterMode === "recent" ? sortedHistoryItems.slice(0, 5) : sortedHistoryItems;
 
   useEffect(() => {
     if (actionNotices.length === 0) {
@@ -194,12 +181,17 @@ export function HomeShell() {
     ]);
   }, []);
 
-  const loadHistory = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+  const loadHistory = useCallback(async (
+    {
+      silent = false,
+      forceFresh = false
+    }: { silent?: boolean; forceFresh?: boolean } = {}
+  ) => {
     setHistoryLoading(true);
     setHistoryError(null);
 
     try {
-      const history = await listResults();
+      const history = await listResults(0, 20, forceFresh);
       setHistoryItems(history.items);
       if (!silent) {
         setStatus({
@@ -208,6 +200,7 @@ export function HomeShell() {
         });
         pushActionNotice("历史已刷新", `当前共 ${history.items.length} 条记录。`, "success");
       }
+      return history;
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "历史结果读取失败，请稍后重试。";
@@ -217,6 +210,7 @@ export function HomeShell() {
         message
       });
       pushActionNotice("历史加载失败", message, "error");
+      return null;
     } finally {
       setHistoryLoading(false);
     }
@@ -487,75 +481,6 @@ export function HomeShell() {
     await handleSubmit(syntheticEvent);
   }
 
-  function getStatusSuggestion() {
-    if (status.phase === "error") {
-      return {
-        title: "先回到可完成的路径",
-        body: "当前流程中断了。你可以先查看历史结果确认系统输出，或重新选择一张照片开始新的分析。",
-        primaryLabel: "查看历史记录",
-        primaryAction: () => {
-          setActiveNav("Scans");
-          void loadHistory();
-        },
-        secondaryLabel: "开始新分析",
-        secondaryAction: handleResetToUploader
-      };
-    }
-
-    if (status.phase === "success" && result?.detections.length === 0) {
-      return {
-        title: "没有检出病害时的下一步",
-        body: "这张图片当前没有识别到病害。你可以直接重新分析，或更换一张更清晰的巡检照片。",
-        primaryLabel: "重新分析",
-        primaryAction: () => {
-          void handleRerunCurrentImage();
-        },
-        secondaryLabel: "更换图片",
-        secondaryAction: handleResetToUploader
-      };
-    }
-
-    if (result) {
-      return {
-        title: "结果已生成",
-        body: "这次识别已经完成。现在最自然的下一步是查看历史记录做对比，或继续上传下一张照片。",
-        primaryLabel: "查看历史记录",
-        primaryAction: () => {
-          setActiveNav("Scans");
-          void loadHistory();
-        },
-        secondaryLabel: "继续分析下一张",
-        secondaryAction: handleResetToUploader
-      };
-    }
-
-    return {
-      title: "第一次使用建议",
-      body:
-        historyItems.length > 0
-          ? `你已经有 ${historyItems.length} 条历史记录。建议先开始一次新分析，结果会继续自动沉淀到历史里。`
-          : "先上传一张桥梁巡检照片完成第一次识别，系统会自动保存结果，方便后续复看和导出。",
-      primaryLabel: "开始分析",
-      primaryAction:
-        historyItems.length > 0
-          ? handleResetToUploader
-          : handleResetToUploader,
-      secondaryLabel: historyItems.length > 0 ? "查看历史记录" : "了解使用流程",
-      secondaryAction:
-        historyItems.length > 0
-          ? () => {
-            setActiveNav("Scans");
-            void loadHistory();
-          }
-          : () => {
-              document
-                .querySelector('[data-home-section="workflow"]')
-                ?.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
-    };
-  }
-
-  const statusSuggestion = getStatusSuggestion();
   const selectedModel =
     availableModels.find((model) => model.model_version === selectedModelVersion) ?? null;
   const selectedModelSupportsMasks = selectedModel?.supports_masks ?? true;
@@ -688,7 +613,7 @@ export function HomeShell() {
         message: "主结果已生成，可继续选择其他模型版本做快速对比。"
       });
 
-      void loadHistory();
+      void loadHistory({ forceFresh: true });
       setAnalysisModalOpen(false);
 
       setStatus({
@@ -753,6 +678,98 @@ export function HomeShell() {
     } finally {
       setDeletingImageId(null);
     }
+  }
+
+  async function handleBatchDeleteHistory(imageIds: string[]) {
+    if (imageIds.length === 0) {
+      return;
+    }
+
+    const beforeTotal = historyItems.length;
+    const deletedIds: string[] = [];
+    const failedIds: string[] = [];
+    const MAX_CONCURRENCY = 4;
+
+    setDeletingImageId("batch");
+    setDeleteSuccessMessage(null);
+
+    async function deleteWithRetry(imageId: string): Promise<boolean> {
+      try {
+        await deleteResult(imageId);
+        return true;
+      } catch {
+        try {
+          await deleteResult(imageId);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+    }
+
+    for (let index = 0; index < imageIds.length; index += MAX_CONCURRENCY) {
+      const batch = imageIds.slice(index, index + MAX_CONCURRENCY);
+      const outcomes = await Promise.all(
+        batch.map(async (imageId) => ({
+          imageId,
+          ok: await deleteWithRetry(imageId)
+        }))
+      );
+
+      for (const item of outcomes) {
+        if (item.ok) {
+          deletedIds.push(item.imageId);
+        } else {
+          failedIds.push(item.imageId);
+        }
+      }
+    }
+
+    setDeletingImageId(null);
+
+    if (deletedIds.length > 0) {
+      const deletedSet = new Set(deletedIds);
+      setHistoryItems((current) => current.filter((item) => !deletedSet.has(item.image_id)));
+      if (result && deletedSet.has(result.image_id)) {
+        setResult(null);
+        setSelectedDetectionId(null);
+        setPreviewUrl(null);
+        setResultViewMode("image");
+        setActiveNav("Home");
+      }
+      setDeleteSuccessMessage(`已提交批量删除 ${deletedIds.length} 条记录，正在同步列表...`);
+    }
+
+    const refreshed = await loadHistory({ silent: true, forceFresh: true });
+    const afterTotal = refreshed?.items.length ?? historyItems.length;
+
+    if (failedIds.length === 0) {
+      const viewHint = "当前显示全部记录。";
+      setDeleteSuccessMessage(`批量删除完成：成功 ${deletedIds.length} 条（删除前 ${beforeTotal} 条，当前 ${afterTotal} 条）。`);
+      setStatus({
+        phase: "success",
+        message: `批量删除完成：成功 ${deletedIds.length} 条（删除前 ${beforeTotal} 条，当前 ${afterTotal} 条）。${viewHint}`
+      });
+      pushActionNotice(
+        "批量删除完成",
+        `成功 ${deletedIds.length} 条（删除前 ${beforeTotal} 条，当前 ${afterTotal} 条）。${viewHint}`,
+        "success"
+      );
+      return;
+    }
+
+    setDeleteSuccessMessage(
+      `批量删除部分失败：成功 ${deletedIds.length} 条，失败 ${failedIds.length} 条。请重试失败项。`
+    );
+    setStatus({
+      phase: "error",
+      message: `批量删除部分失败：成功 ${deletedIds.length} 条，失败 ${failedIds.length} 条。`
+    });
+    pushActionNotice(
+      "批量删除部分失败",
+      `成功 ${deletedIds.length} 条，失败 ${failedIds.length} 条。`,
+      "error"
+    );
   }
 
   async function handleRunComparison() {
@@ -839,7 +856,7 @@ export function HomeShell() {
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-sm font-bold text-white">
               +
             </span>
-            <span className="hidden text-sm uppercase tracking-widest font-medium lg:block">开始分析</span>
+            <span className="hidden text-sm uppercase tracking-widest font-medium lg:block">新建分析</span>
           </button>
         </div>
 
@@ -906,12 +923,11 @@ export function HomeShell() {
         <div className="flex-1 overflow-y-auto p-6 relative" style={{ scrollbarGutter: 'stable' }}>
           {activeNav === "Scans" ? (
             <HistoryPanel
-              items={visibleHistoryItems}
+              items={historyItems}
               loading={historyLoading}
               errorMessage={historyError}
               deletingImageId={deletingImageId}
               deleteSuccessMessage={deleteSuccessMessage}
-              filterMode={historyFilterMode}
               searchQuery={historySearchQuery}
               categoryFilter={historyCategoryFilter}
               sortMode={historySortMode}
@@ -920,7 +936,7 @@ export function HomeShell() {
               onDeleteRequest={(imageId) => {
                 setDeleteTargetId(imageId);
               }}
-              onFilterChange={setHistoryFilterMode}
+              onBatchDelete={handleBatchDeleteHistory}
               onSearchQueryChange={setHistorySearchQuery}
               onCategoryFilterChange={setHistoryCategoryFilter}
               onSortModeChange={setHistorySortMode}
@@ -948,10 +964,10 @@ export function HomeShell() {
                   </p>
                 </div>
 
-                {/* Main Actions */}
-                <div className="grid gap-6 sm:grid-cols-2">
+                {/* Main Entry */}
+                <div className="space-y-3">
                   <button
-                    className="group rounded-[20px] border border-white/[0.06] bg-[#030303] p-6 text-left transition-all hover:bg-white/[0.03] hover:border-white/[0.12]"
+                    className="group w-full rounded-[20px] border border-sky-500/25 bg-[linear-gradient(135deg,rgba(14,31,48,0.65),rgba(3,3,3,0.95))] p-6 text-left transition-all hover:border-sky-400/45 hover:shadow-[0_0_30px_rgba(56,189,248,0.12)]"
                     type="button"
                     onClick={handleResetToUploader}
                   >
@@ -962,7 +978,7 @@ export function HomeShell() {
                         </svg>
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-lg tracking-wide font-medium text-white">开始分析</h3>
+                        <h3 className="text-lg tracking-wide font-medium text-white">开始一次检测</h3>
                         <p className="mt-1 text-xs text-white/40 leading-relaxed">
                           上传一张桥梁巡检照片，系统将自动识别病害并生成结果。
                         </p>
@@ -971,26 +987,14 @@ export function HomeShell() {
                   </button>
 
                   <button
-                    className="group rounded-[20px] border border-white/[0.06] bg-[#030303] p-6 text-left transition-all hover:bg-white/[0.03] hover:border-white/[0.12]"
+                    className="w-fit rounded-lg border border-white/10 bg-transparent px-4 py-2 text-xs font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white"
                     type="button"
                     onClick={() => {
                       setActiveNav("Scans");
                       void loadHistory();
                     }}
                   >
-                    <div className="flex items-start gap-4">
-                      <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 group-hover:scale-110 transition-transform">
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-lg tracking-wide font-medium text-white">查看历史记录</h3>
-                        <p className="mt-1 text-xs text-white/40 leading-relaxed">
-                          回看最近分析结果，继续比对、筛选或导出。
-                        </p>
-                      </div>
-                    </div>
+                    或先查看历史
                   </button>
                 </div>
 
@@ -1005,13 +1009,6 @@ export function HomeShell() {
                       </p>
                       <h3 className="mt-2 text-xl font-light text-white">三步完成一次识别</h3>
                     </div>
-                    <button
-                      className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-white/10"
-                      type="button"
-                      onClick={handleResetToUploader}
-                    >
-                      开始分析
-                    </button>
                   </div>
                   <div className="mt-5 grid gap-4 sm:grid-cols-3">
                     {[
@@ -1043,54 +1040,14 @@ export function HomeShell() {
                   </div>
                 </div>
 
-                {/* Recent Scans & System Suggestion */}
-                <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
-                  <div className="space-y-4">
-                    <div className="px-1">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
-                        最近分析
-                      </p>
-                      <h3 className="mt-2 text-xl font-light text-white">快速回看最近结果</h3>
-                    </div>
-                    <RecentScans
-                      items={historyItems}
-                      maxItems={5}
-                      onSelect={(imageId) => void handleSelectHistory(imageId)}
-                      onViewAll={() => {
-                        setActiveNav("Scans");
-                        void loadHistory();
-                      }}
-                    />
-                    <DashboardStats historyItems={historyItems} />
-                  </div>
-
-                  <div className="rounded-[20px] border border-white/[0.04] bg-[#030303] p-6 shadow-[0_0_40px_rgba(0,0,0,0.3)] backdrop-blur-xl flex flex-col justify-center">
+                <div className="space-y-4">
+                  <div className="px-1">
                     <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
-                      {statusSuggestion.title}
+                      数据总览
                     </p>
-                    <p className="mt-3 text-lg font-light text-white">
-                      推荐下一步
-                    </p>
-                    <p className="mt-3 text-sm leading-relaxed text-white/70">
-                      {statusSuggestion.body}
-                    </p>
-                    <div className="mt-5 flex gap-3">
-                      <button
-                        className="rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-white/20 w-fit"
-                        type="button"
-                        onClick={statusSuggestion.primaryAction}
-                      >
-                        {statusSuggestion.primaryLabel}
-                      </button>
-                      <button
-                        className="rounded-lg border border-white/10 bg-transparent px-4 py-2 text-xs font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white w-fit"
-                        type="button"
-                        onClick={statusSuggestion.secondaryAction}
-                      >
-                        {statusSuggestion.secondaryLabel}
-                      </button>
-                    </div>
+                    <h3 className="mt-2 text-xl font-light text-white">检测运行指标</h3>
                   </div>
+                  <DashboardStats historyItems={historyItems} />
                 </div>
               </div>
             </div>
@@ -1401,7 +1358,7 @@ export function HomeShell() {
                 <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">
                   2 分析设置
                 </p>
-                <p className="text-xs text-white/35">高级参数已预置默认值，首次使用可直接开始分析。</p>
+                <p className="text-xs text-white/35">高级参数已预置默认值，首次使用可直接开始检测。</p>
               </div>
 
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -1499,7 +1456,7 @@ export function HomeShell() {
                   <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/40">
                     3 提交前确认
                   </p>
-                  <p className="text-xs text-white/35">确认输入与输出后即可开始分析。</p>
+                  <p className="text-xs text-white/35">确认输入与输出后即可开始检测。</p>
                 </div>
                 <div className="mt-4 rounded-2xl border border-white/5 bg-white/[0.02] p-4">
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -1577,7 +1534,7 @@ export function HomeShell() {
                   title={!selectedFile ? "请先选择一张待分析图片" : undefined}
                   type="submit"
                 >
-                  {status.phase === "idle" || status.phase === "error" ? "4 开始分析" : "分析中..."}
+                  {status.phase === "idle" || status.phase === "error" ? "4 开始检测" : "分析中..."}
                 </button>
                 <button
                   className="rounded-xl border border-white/10 bg-white/5 px-6 py-3.5 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/10"

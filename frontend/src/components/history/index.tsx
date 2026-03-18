@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import { AdaptiveImage } from "@/components/adaptive-image";
 import type { HistorySortMode } from "@/lib/history-utils";
-import { formatModelLabel } from "@/lib/model-labels";
 import type { PredictionHistoryItem } from "@/lib/types";
 import { HistoryStats } from "./history-stats";
 import { HistoryToolbar } from "./history-toolbar";
@@ -18,7 +16,6 @@ interface HistoryPanelProps {
   errorMessage?: string | null;
   deletingImageId?: string | null;
   deleteSuccessMessage?: string | null;
-  filterMode: "recent" | "all";
   searchQuery: string;
   categoryFilter: string;
   sortMode: HistorySortMode;
@@ -26,7 +23,7 @@ interface HistoryPanelProps {
   onRefresh: () => void;
   onSelect: (imageId: string) => void;
   onDeleteRequest: (imageId: string) => void;
-  onFilterChange: (mode: "recent" | "all") => void;
+  onBatchDelete: (imageIds: string[]) => Promise<void>;
   onSearchQueryChange: (value: string) => void;
   onCategoryFilterChange: (value: string) => void;
   onSortModeChange: (value: HistorySortMode) => void;
@@ -40,7 +37,6 @@ export function HistoryPanel({
   errorMessage,
   deletingImageId,
   deleteSuccessMessage,
-  filterMode,
   searchQuery,
   categoryFilter,
   sortMode,
@@ -48,7 +44,7 @@ export function HistoryPanel({
   onRefresh,
   onSelect,
   onDeleteRequest,
-  onFilterChange,
+  onBatchDelete,
   onSearchQueryChange,
   onCategoryFilterChange,
   onSortModeChange,
@@ -140,25 +136,22 @@ export function HistoryPanel({
 
   const handleBatchDelete = useCallback(async () => {
     if (selectedIds.size === 0) return;
-    
-    setIsBatchDeleting(true);
-    // Note: Actual batch delete would need backend support
-    // For now, delete one by one
-    for (const imageId of selectedIds) {
-      onDeleteRequest(imageId);
-      // Wait for each delete to complete
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-    setIsBatchDeleting(false);
-    setSelectedIds(new Set());
-    setIsBatchMode(false);
-  }, [selectedIds, onDeleteRequest]);
 
-  // Reset page when filters change
-  const handleFilterChange = useCallback((mode: "recent" | "all") => {
-    setCurrentPage(1);
-    onFilterChange(mode);
-  }, [onFilterChange]);
+    const ids = Array.from(selectedIds);
+    const confirmed = window.confirm(`确认批量删除 ${ids.length} 条记录吗？该操作无法恢复。`);
+    if (!confirmed) {
+      return;
+    }
+
+    setIsBatchDeleting(true);
+    try {
+      await onBatchDelete(ids);
+      setSelectedIds(new Set());
+      setIsBatchMode(false);
+    } finally {
+      setIsBatchDeleting(false);
+    }
+  }, [selectedIds, onBatchDelete]);
 
   const handleSearchChange = useCallback((value: string) => {
     setCurrentPage(1);

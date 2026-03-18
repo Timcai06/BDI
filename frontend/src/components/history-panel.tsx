@@ -140,7 +140,7 @@ export function HistoryPanel({
             type="button"
             onClick={onOpenUploader}
           >
-            开始新分析
+            新建分析
           </button>
         </div>
       </div>
@@ -174,7 +174,7 @@ export function HistoryPanel({
                 type="button"
                 onClick={onOpenUploader}
               >
-                返回上传
+                新建分析
               </button>
             </div>
           </div>

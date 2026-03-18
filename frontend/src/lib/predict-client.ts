@@ -57,7 +57,7 @@ interface CacheEntry<T> {
   timestamp: number;
 }
 
-const MEMORY_CACHE = new Map<string, CacheEntry<any>>();
+const MEMORY_CACHE = new Map<string, CacheEntry<unknown>>();
 const DEFAULT_TTL_MS = 30_000; // 30秒缓存
 
 async function cachedFetch<T>(
@@ -124,6 +124,10 @@ function invalidateResultListCaches() {
   }
 }
 
+function encodeImageId(imageId: string): string {
+  return encodeURIComponent(imageId);
+}
+
 // ---------------------------------------------------------------------------
 // API client functions
 // ---------------------------------------------------------------------------
@@ -186,7 +190,11 @@ export async function listModels(): Promise<ModelCatalogResponse> {
   });
 }
 
-export async function listResults(offset: number = 0, limit: number = 20): Promise<PredictionHistoryResponse> {
+export async function listResults(
+  offset: number = 0,
+  limit: number = 20,
+  forceFresh: boolean = false
+): Promise<PredictionHistoryResponse> {
   if (!API_BASE_URL) {
     return {
       items: [
@@ -208,8 +216,7 @@ export async function listResults(offset: number = 0, limit: number = 20): Promi
     };
   }
 
-  const cacheKey = `${API_BASE_URL}/results?offset=${offset}&limit=${limit}`;
-  return cachedFetch(cacheKey, async () => {
+  const fetchResults = async () => {
     const response = await fetchWithTimeout(`${API_BASE_URL}/results?offset=${offset}&limit=${limit}`);
 
     if (!response.ok) {
@@ -218,7 +225,14 @@ export async function listResults(offset: number = 0, limit: number = 20): Promi
     }
 
     return (await response.json()) as PredictionHistoryResponse;
-  });
+  };
+
+  if (forceFresh) {
+    return fetchResults();
+  }
+
+  const cacheKey = `${API_BASE_URL}/results?offset=${offset}&limit=${limit}`;
+  return cachedFetch(cacheKey, fetchResults);
 }
 
 export async function getResult(imageId: string): Promise<PredictionResult> {
@@ -226,9 +240,10 @@ export async function getResult(imageId: string): Promise<PredictionResult> {
     return demoResult;
   }
 
-  const cacheKey = `${API_BASE_URL}/results/${imageId}`;
+  const encodedImageId = encodeImageId(imageId);
+  const cacheKey = `${API_BASE_URL}/results/${encodedImageId}`;
   return cachedFetch(cacheKey, async () => {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/results/${imageId}`);
+    const response = await fetchWithTimeout(`${API_BASE_URL}/results/${encodedImageId}`);
 
     if (!response.ok) {
       const payload = (await response.json()) as ApiError;
@@ -244,8 +259,10 @@ export async function deleteResult(imageId: string): Promise<void> {
     return;
   }
 
+  const encodedImageId = encodeImageId(imageId);
+
   try {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/results/${imageId}`, {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/results/${encodedImageId}`, {
       method: "DELETE"
     });
 
@@ -255,7 +272,7 @@ export async function deleteResult(imageId: string): Promise<void> {
     }
 
     // Invalidate caches
-    MEMORY_CACHE.delete(`${API_BASE_URL}/results/${imageId}`);
+    MEMORY_CACHE.delete(`${API_BASE_URL}/results/${encodedImageId}`);
     invalidateResultListCaches();
   } catch (error) {
     if (error instanceof Error) {
@@ -270,7 +287,7 @@ export function getOverlayDownloadUrl(imageId: string): string | null {
     return demoResult.artifacts.overlay_path ?? null;
   }
 
-  return `${API_BASE_URL}/results/${imageId}/overlay`;
+  return `${API_BASE_URL}/results/${encodeImageId(imageId)}/overlay`;
 }
 
 export function getResultImageUrl(imageId: string): string | null {
@@ -278,7 +295,7 @@ export function getResultImageUrl(imageId: string): string | null {
     return null;
   }
 
-  return `${API_BASE_URL}/results/${imageId}/image`;
+  return `${API_BASE_URL}/results/${encodeImageId(imageId)}/image`;
 }
 
 export async function getResultImageFile(imageId: string): Promise<File> {

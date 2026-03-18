@@ -210,6 +210,11 @@ export function ResultDashboard({
     comparisonResult && detectionDelta !== null
       ? getComparisonRecommendation(result, comparisonResult, detectionDelta, categoryDiffItems)
       : null;
+  const primaryActionLabel = rerunDisabled ? "新建分析" : "重新检测当前图片";
+  const primaryActionTitle = rerunDisabled
+    ? "选择新图片开始下一次检测"
+    : "使用当前本地图片重新执行推理";
+  const handlePrimaryAction = rerunDisabled ? onReset : onRerun;
 
   useEffect(() => {
     const node = frameRef.current;
@@ -322,53 +327,46 @@ export function ResultDashboard({
             </div>
 
             <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-              <div className="flex rounded-xl border border-white/8 bg-black/20 p-1">
-                <button
-                  className="h-8 rounded-lg px-3 text-xs font-medium text-white/72 transition-colors hover:bg-white/8 hover:text-white"
-                  type="button"
-                  onClick={onOpenHistory}
-                >
-                  历史记录
-                </button>
-              </div>
-              <div className="flex rounded-xl border border-white/8 bg-black/20 p-1">
-                <button
-                  className="h-8 rounded-lg px-3 text-xs font-medium text-white/72 transition-colors hover:bg-white/8 hover:text-white"
-                  type="button"
-                  onClick={onReset}
-                >
-                  更换图片
-                </button>
-                <button
-                  className="h-8 rounded-lg border border-sky-400/20 bg-sky-400/[0.08] px-3 text-xs font-medium text-sky-100 transition-colors hover:bg-sky-400/[0.14] disabled:cursor-not-allowed disabled:opacity-40"
-                  disabled={rerunDisabled}
-                  title={rerunDisabled ? "历史记录无法直接重跑，请重新上传原图后再分析" : "使用当前本地图片重新分析"}
-                  type="button"
-                  onClick={onRerun}
-                >
-                  重新分析
-                </button>
-              </div>
-              <div className="flex rounded-xl border border-white/8 bg-black/20 p-1">
-                <button
-                  aria-label="导出 JSON"
-                  className="h-8 rounded-lg px-3 text-xs font-medium text-white/72 transition-colors hover:bg-white/8 hover:text-white"
-                  type="button"
-                  onClick={onExportJson}
-                >
-                  导出 JSON
-                </button>
-                <button
-                  aria-label="导出叠加图"
-                  className="h-8 rounded-lg px-3 text-xs font-medium text-white/72 transition-colors hover:bg-white/8 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                  disabled={overlayDisabled}
-                  title={overlayDisabled ? "当前结果没有可导出的 overlay 文件" : "导出叠加图"}
-                  type="button"
-                  onClick={onExportOverlay}
-                >
-                  导出叠加图
-                </button>
-              </div>
+              <button
+                className="h-8 rounded-lg border border-sky-400/30 bg-sky-400/[0.12] px-4 text-xs font-semibold text-sky-100 transition-colors hover:bg-sky-400/[0.2]"
+                title={primaryActionTitle}
+                type="button"
+                onClick={handlePrimaryAction}
+              >
+                {primaryActionLabel}
+              </button>
+              <button
+                className="h-8 rounded-lg border border-white/8 bg-black/20 px-3 text-xs font-medium text-white/72 transition-colors hover:bg-white/8 hover:text-white"
+                type="button"
+                onClick={onOpenHistory}
+              >
+                历史记录
+              </button>
+              <details className="relative">
+                <summary className="flex h-8 cursor-pointer list-none items-center rounded-lg border border-white/8 bg-black/20 px-3 text-xs font-medium text-white/72 transition-colors hover:bg-white/8 hover:text-white">
+                  导出
+                </summary>
+                <div className="absolute right-0 top-10 z-20 flex min-w-[160px] flex-col gap-1 rounded-xl border border-white/10 bg-[#0B1120]/95 p-2 shadow-2xl backdrop-blur">
+                  <button
+                    aria-label="导出 JSON"
+                    className="rounded-md px-3 py-2 text-left text-xs text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                    type="button"
+                    onClick={onExportJson}
+                  >
+                    导出 JSON
+                  </button>
+                  <button
+                    aria-label="导出叠加图"
+                    className="rounded-md px-3 py-2 text-left text-xs text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={overlayDisabled}
+                    title={overlayDisabled ? "当前结果没有可导出的 overlay 文件" : "导出叠加图"}
+                    type="button"
+                    onClick={onExportOverlay}
+                  >
+                    导出叠加图
+                  </button>
+                </div>
+              </details>
             </div>
           </div>
         </div>

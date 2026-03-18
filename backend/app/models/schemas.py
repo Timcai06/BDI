@@ -84,6 +84,23 @@ class DeleteResultResponse(BaseModel):
     image_id: str
 
 
+class BatchDeleteResultsRequest(BaseModel):
+    image_ids: list[str] = Field(default_factory=list, min_length=1)
+
+
+class BatchDeleteResultItem(BaseModel):
+    image_id: str
+    deleted: bool
+    error_code: Optional[str] = None
+
+
+class BatchDeleteResultsResponse(BaseModel):
+    requested: int = Field(ge=0)
+    deleted_count: int = Field(ge=0)
+    failed_count: int = Field(ge=0)
+    results: list[BatchDeleteResultItem] = Field(default_factory=list)
+
+
 class HealthResponse(BaseModel):
     service: str
     version: str

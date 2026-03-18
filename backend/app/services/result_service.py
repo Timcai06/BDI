@@ -6,6 +6,8 @@ from fastapi import status
 
 from app.core.errors import AppError
 from app.models.schemas import (
+    BatchDeleteResultItem,
+    BatchDeleteResultsResponse,
     DeleteResultResponse,
     PredictResponse,
     ResultListResponse,
@@ -70,6 +72,34 @@ class ResultService:
 
         self.store.delete_result_artifacts(image_id=image_id)
         return DeleteResultResponse(image_id=image_id)
+
+    def batch_delete_results(self, *, image_ids: list[str]) -> BatchDeleteResultsResponse:
+        deleted_count = 0
+        failed_count = 0
+        results: list[BatchDeleteResultItem] = []
+
+        for image_id in image_ids:
+            if self.store.load_result(image_id=image_id) is None:
+                failed_count += 1
+                results.append(
+                    BatchDeleteResultItem(
+                        image_id=image_id,
+                        deleted=False,
+                        error_code="RESULT_NOT_FOUND",
+                    )
+                )
+                continue
+
+            self.store.delete_result_artifacts(image_id=image_id)
+            deleted_count += 1
+            results.append(BatchDeleteResultItem(image_id=image_id, deleted=True))
+
+        return BatchDeleteResultsResponse(
+            requested=len(image_ids),
+            deleted_count=deleted_count,
+            failed_count=failed_count,
+            results=results,
+        )
 
     def _build_summary(self, result: PredictResponse) -> ResultSummary:
         return ResultSummary(

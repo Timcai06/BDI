@@ -7,68 +7,6 @@ interface DashboardStatsProps {
   historyItems: PredictionHistoryItem[];
 }
 
-interface StatCardProps {
-  label: string;
-  value: string | number;
-  subtext?: string;
-  trend?: "up" | "down" | "neutral";
-  trendValue?: string;
-  icon: React.ReactNode;
-  accentColor: string;
-}
-
-function StatCard({ label, value, subtext, trend, trendValue, icon, accentColor }: StatCardProps) {
-  const trendColors = {
-    up: "text-emerald-400",
-    down: "text-rose-400",
-    neutral: "text-slate-400"
-  };
-
-  const trendIcons = {
-    up: "↑",
-    down: "↓",
-    neutral: "→"
-  };
-
-  return (
-    <div className="rounded-[20px] border border-white/[0.04] bg-[#030303] p-5 shadow-[0_0_40px_rgba(0,0,0,0.3)] backdrop-blur-xl transition-all duration-300 hover:border-white/[0.08] hover:shadow-[0_0_60px_rgba(0,0,0,0.4)] group">
-      <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-2">
-            {label}
-          </p>
-          <p className="text-2xl font-light text-white tracking-tight">
-            {value}
-          </p>
-          {(subtext || trend) && (
-            <div className="mt-2 flex items-center gap-2">
-              {trend && trendValue && (
-                <span className={`text-xs font-medium ${trendColors[trend]}`}>
-                  {trendIcons[trend]} {trendValue}
-                </span>
-              )}
-              {subtext && (
-                <span className="text-xs text-white/30">{subtext}</span>
-              )}
-            </div>
-          )}
-        </div>
-        <div 
-          className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
-          style={{ 
-            backgroundColor: `${accentColor}15`,
-            boxShadow: `0 0 20px ${accentColor}10`
-          }}
-        >
-          <div style={{ color: accentColor }}>
-            {icon}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function DashboardStats({ historyItems }: DashboardStatsProps) {
   const stats = useMemo(() => {
     const totalScans = historyItems.length;
@@ -124,57 +62,50 @@ export function DashboardStats({ historyItems }: DashboardStatsProps) {
     };
   }, [historyItems]);
 
+  const trendTone =
+    stats.trend === "up" ? "text-emerald-300 bg-emerald-500/15 border-emerald-400/30"
+      : stats.trend === "down" ? "text-rose-300 bg-rose-500/15 border-rose-400/30"
+        : "text-slate-300 bg-white/5 border-white/10";
+
+  const trendSymbol = stats.trend === "up" ? "↑" : stats.trend === "down" ? "↓" : "→";
+
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <StatCard
-        label="今日检测"
-        value={stats.todayScans}
-        trend={stats.trend}
-        trendValue={stats.trendValue}
-        subtext="较昨日"
-        accentColor="#38bdf8"
-        icon={
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-        }
-      />
-      
-      <StatCard
-        label="总检测数"
-        value={stats.totalScans}
-        subtext="累计分析"
-        accentColor="#a78bfa"
-        icon={
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-        }
-      />
-      
-      <StatCard
-        label="检出病害"
-        value={stats.totalDetections}
-        subtext="总数"
-        accentColor="#f472b6"
-        icon={
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        }
-      />
-      
-      <StatCard
-        label="平均耗时"
-        value={`${stats.avgInferenceTime}ms`}
-        subtext="单次推理"
-        accentColor="#34d399"
-        icon={
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        }
-      />
-    </div>
+    <section className="rounded-[24px] border border-white/[0.06] bg-[linear-gradient(180deg,rgba(3,8,20,0.96),rgba(3,3,3,0.95))] p-5 shadow-[0_0_60px_rgba(0,0,0,0.35)]">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/40">Dashboard Metrics</p>
+          <p className="mt-1 text-sm text-white/65">反映当前系统的检测规模、效率与输出强度</p>
+        </div>
+        <div className={`rounded-full border px-3 py-1 text-xs font-medium ${trendTone}`}>
+          今日趋势 {trendSymbol} {stats.trendValue || "稳定"}
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <article className="rounded-2xl border border-sky-400/20 bg-sky-400/[0.08] p-4">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-sky-100/70">今日检测</p>
+          <p className="mt-2 text-3xl font-light text-white">{stats.todayScans}</p>
+          <p className="mt-2 text-xs text-sky-100/70">24h 内新增任务</p>
+        </article>
+
+        <article className="rounded-2xl border border-indigo-300/20 bg-indigo-300/[0.08] p-4">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-indigo-100/70">累计检测</p>
+          <p className="mt-2 text-3xl font-light text-white">{stats.totalScans}</p>
+          <p className="mt-2 text-xs text-indigo-100/70">历史总任务数</p>
+        </article>
+
+        <article className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.08] p-4">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-amber-100/70">检出病害</p>
+          <p className="mt-2 text-3xl font-light text-white">{stats.totalDetections}</p>
+          <p className="mt-2 text-xs text-amber-100/70">累计识别病害总数</p>
+        </article>
+
+        <article className="rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.08] p-4">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-100/70">平均耗时</p>
+          <p className="mt-2 text-3xl font-light text-white">{stats.avgInferenceTime}<span className="ml-1 text-xl text-white/70">ms</span></p>
+          <p className="mt-2 text-xs text-emerald-100/70">单次推理平均时延</p>
+        </article>
+      </div>
+    </section>
   );
 }

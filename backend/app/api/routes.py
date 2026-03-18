@@ -7,6 +7,8 @@ from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse
 
 from app.models.schemas import (
+    BatchDeleteResultsRequest,
+    BatchDeleteResultsResponse,
     DeleteResultResponse,
     HealthResponse,
     ModelCatalogItem,
@@ -141,3 +143,11 @@ async def get_result_image(request: Request, image_id: str) -> FileResponse:
 @router.delete("/results/{image_id}", response_model=DeleteResultResponse)
 async def delete_result(request: Request, image_id: str) -> DeleteResultResponse:
     return request.app.state.result_service.delete_result(image_id=image_id)
+
+
+@router.post("/results/batch-delete", response_model=BatchDeleteResultsResponse)
+async def batch_delete_results(
+    request: Request,
+    payload: BatchDeleteResultsRequest,
+) -> BatchDeleteResultsResponse:
+    return request.app.state.result_service.batch_delete_results(image_ids=payload.image_ids)
