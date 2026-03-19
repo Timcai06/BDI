@@ -10,6 +10,7 @@ export interface PredictOptions {
   confidence: number;
   exportOverlay: boolean;
   modelVersion?: string | null;
+  pixelsPerMm?: number;
 }
 
 export interface BoundingBox {
@@ -49,6 +50,11 @@ export interface PredictResponse {
   schema_version: string;
   image_id: string;
   inference_ms: number;
+  inference_breakdown?: {
+    pre: number;
+    model: number;
+    post: number;
+  };
   model_name: string;
   model_version: string;
   backend: string;
@@ -68,6 +74,11 @@ export interface PredictionHistoryItem {
   backend: string;
   inference_mode: string;
   inference_ms: number;
+  inference_breakdown?: {
+    pre: number;
+    model: number;
+    post: number;
+  };
   detection_count: number;
   categories: string[];
   artifacts: Artifacts;

@@ -147,6 +147,9 @@ export async function predictImage(
   if (options.modelVersion) {
     formData.append("model_version", options.modelVersion);
   }
+  if (options.pixelsPerMm !== undefined) {
+    formData.append("pixels_per_mm", String(options.pixelsPerMm));
+  }
 
   try {
     const response = await fetchWithTimeout(`${API_BASE_URL}/predict`, {
@@ -320,4 +323,31 @@ export async function getResultImageFile(imageId: string): Promise<File> {
       ?.match(/filename="?([^"]+)"?/)?.[1] ?? fallbackName;
 
   return new File([blob], filename, { type: contentType });
+}
+
+export async function* getDiagnosisStream(imageId: string): AsyncGenerator<string, void, unknown> {
+  if (!API_BASE_URL) {
+    yield "【演示模式】AI 专家建议：当前发现的病害需持续监测。裂缝若有扩展趋势，请及时安排人工复测。";
+    return;
+  }
+
+  const encodedImageId = encodeImageId(imageId);
+  const response = await fetch(`${API_BASE_URL}/results/${encodedImageId}/diagnosis`);
+
+  if (!response.ok || !response.body) {
+    throw new Error("无法获取 AI 专家诊断。");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      yield decoder.decode(value, { stream: true });
+    }
+  } finally {
+    reader.releaseLock();
+  }
 }
