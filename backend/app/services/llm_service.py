@@ -1,0 +1,79 @@
+from typing import List, AsyncGenerator
+import json
+from openai import AsyncOpenAI
+from app.core.config import Settings
+from app.models.schemas import PredictResponse
+
+class LLMService:
+    def __init__(self, settings: Settings):
+        self.settings = settings
+        self.client = None
+        if settings.llm_api_key:
+            import logging
+            self.logger = logging.getLogger(__name__)
+            self.logger.info(f"Initializing LLMService with base_url: {settings.llm_base_url}, model: {settings.llm_model_name}")
+            self.client = AsyncOpenAI(
+                api_key=settings.llm_api_key,
+                base_url=settings.llm_base_url
+            )
+
+    async def generate_diagnosis_stream(self, result: PredictResponse) -> AsyncGenerator[str, None]:
+        if not self.client:
+            yield "错误：未配置 LLM API Key，请检查后端 .env 配置。"
+            return
+
+        # 整理检测数据摘要
+        detection_summary = []
+        for i, d in enumerate(result.detections):
+            metrics = d.metrics
+            info = f"- 病害{i+1}: {d.category} (置信度: {d.confidence:.2f})"
+            if metrics.length_mm:
+                info += f", 估计长度: {metrics.length_mm:.1f}mm"
+            if metrics.width_mm:
+                info += f", 估计宽度: {metrics.width_mm:.2f}mm"
+            if metrics.area_mm2:
+                info += f", 面积: {metrics.area_mm2:.1f}mm²"
+            detection_summary.append(info)
+
+        summary_text = "\n".join(detection_summary) if detection_summary else "未发现明确病害。"
+
+        prompt = f"""
+你是一名资深桥梁巡检专家。请根据以下无人机桥梁初检识别出的结构化数据，给出一段专业的病情评估和养护建议。
+
+【巡检摘要】
+模型名称: {result.model_name}
+检测总数: {len(result.detections)}
+检测详情:
+{summary_text}
+
+【要求】
+1. 口吻需极其专业、严谨，像一份正式的桥梁健康监测报告。
+2. 必须使用 Markdown 格式输出，排版需层次分明：
+   - 使用 `###` 级标题区分部分。
+   - 使用 `-` 或 `1.` 列表项陈列具体细节。
+   - 使用 **加粗** 强调关键病害或数据。
+3. 报告必须包含以下三个模块：
+   - ### 1. 病害现状量化评估：分析病害类型、置信度以及测量出的具体几何参数。
+   - ### 2. 结构安全性风险预测：基于病害位置和程度，评估对桥梁承载力或耐久性的潜在影响。
+   - ### 3. 分级养护与工程处置建议：给出具体的修补、复查或进一步检测建议（如：高频观察、化学灌浆、封闭交通等）。
+4. 如果发现裂缝（Crack）或严重的混凝土剥落，需引用标准规范（如 JTGT 5121-2021）。
+5. 总字数控制在 400 字左右，确保内容充实而非空谈。
+6. 直接输出诊断内容，不要任何开场白或结尾套话。
+"""
+
+        try:
+            stream = await self.client.chat.completions.create(
+                model=self.settings.llm_model_name,
+                messages=[
+                    {"role": "system", "content": "你是一名精准、专业的桥梁工程健康监测专家助手。"},
+                    {"role": "user", "content": prompt}
+                ],
+                stream=True
+            )
+
+            async for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+        except Exception as e:
+            self.logger.error(f"LLM Diagnosis Error: {str(e)}", exc_info=True)
+            yield f"诊断生成失败: {str(e)} (BaseURL: {self.settings.llm_base_url})"
