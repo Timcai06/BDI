@@ -130,6 +130,7 @@ export function HomeShell() {
   const [minConfidence, setMinConfidence] = useState(0.3);
   const [selectedDetectionId, setSelectedDetectionId] = useState<string | null>(null);
   const [resultViewMode, setResultViewMode] = useState<"image" | "overlay">("image");
+  const [pixelsPerMm, setPixelsPerMm] = useState(10.0);
 
   const deferredCategoryFilter = useDeferredValue(categoryFilter);
   const deferredMinConfidence = useDeferredValue(minConfidence);
@@ -577,7 +578,8 @@ export function HomeShell() {
       const prediction = await predictImage(selectedFile, {
         confidence,
         exportOverlay: exportOverlay && selectedModelSupportsMasks,
-        modelVersion: selectedModelVersion
+        modelVersion: selectedModelVersion,
+        pixelsPerMm
       });
 
       clearInterval(analyzeInterval);
@@ -800,7 +802,8 @@ export function HomeShell() {
       const nextComparison = await predictImage(sourceFile, {
         confidence,
         exportOverlay: exportOverlay && selectedModelSupportsMasks,
-        modelVersion: compareModelVersion
+        modelVersion: compareModelVersion,
+        pixelsPerMm
       });
       setComparisonResult(nextComparison);
       setCompareStatus({
@@ -917,7 +920,7 @@ export function HomeShell() {
             {activeNav === "Scans" ? "历史记录" : result ? result.image_id : "桥梁病害识别工作台"}
           </h1>
           <span className="px-2.5 py-1 rounded bg-white/10 backdrop-blur border border-white/20 text-[10px] uppercase font-mono tracking-widest text-slate-300">
-            Phase 3
+            Phase 4
           </span>
         </header>
 
@@ -1392,6 +1395,34 @@ export function HomeShell() {
                     onChange={() => setExportOverlay(!exportOverlay)}
                   />
                 </label>
+
+                {/* GSD 物理尺寸换算配置 */}
+                <div className="sm:col-span-2 rounded-xl border border-white/5 bg-white/[0.02] p-4 group transition-colors hover:bg-white/[0.04]">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 block mb-1">物理换算比例 (GSD)</span>
+                      <span className="text-xs text-white/30 font-light">
+                        定义多少像素代表 1mm 物理尺寸 (当前: {pixelsPerMm} px/mm)
+                      </span>
+                    </div>
+                    <span className="font-mono text-xs text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">
+                      1cm ≈ {Math.round(pixelsPerMm * 10)} 像素
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="50"
+                    step="0.5"
+                    value={pixelsPerMm}
+                    onChange={(e) => setPixelsPerMm(parseFloat(e.target.value))}
+                    className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-sky-400 group-hover:bg-white/20 transition-all"
+                  />
+                  <div className="flex justify-between mt-2 text-[10px] font-mono text-white/20 uppercase tracking-tighter">
+                    <span>高分辨率 (50px/mm)</span>
+                    <span>远距离 (1px/mm)</span>
+                  </div>
+                </div>
               </div>
 
               <div className="mt-6">
