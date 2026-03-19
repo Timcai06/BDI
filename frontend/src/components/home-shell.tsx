@@ -148,7 +148,7 @@ export function HomeShell() {
     .filter((model) => model.model_version !== result?.model_version)
     .map((model) => ({
       value: model.model_version,
-      label: `${formatModelLabel(model)} · ${model.backend}${model.is_active ? " · active" : ""}`,
+      label: `${formatModelLabel(model)} · ${model.backend}${model.is_active ? " · active" : ""}${!model.is_available ? " (环境未就绪)" : ""}`,
       disabled: !model.is_available
     }));
   const availableHistoryCategories = [...new Set(historyItems.flatMap((item) => item.categories))];
