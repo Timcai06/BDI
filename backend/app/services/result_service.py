@@ -110,6 +110,7 @@ class ResultService:
             backend=result.backend,
             inference_mode=result.inference_mode,
             inference_ms=result.inference_ms,
+            inference_breakdown=result.inference_breakdown,
             detection_count=len(result.detections),
             categories=sorted({item.category for item in result.detections}),
             artifacts=result.artifacts,

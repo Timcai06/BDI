@@ -22,11 +22,12 @@ class UltralyticsOutputAdapter:
         """
         self.pixels_per_mm = pixels_per_mm
 
-    def adapt(self, raw_output: Any) -> List[RawDetection]:
+    def adapt(self, raw_output: Any, pixels_per_mm: float | None = None) -> List[RawDetection]:
         """Adapt Ultralytics Result object to List[RawDetection].
 
         Also calculates physical metrics (length, width, area) from mask polygons.
         """
+        effective_pixels_per_mm = pixels_per_mm if pixels_per_mm is not None else self.pixels_per_mm
         result = raw_output
         names = result.names
         detections: List[RawDetection] = []
@@ -64,7 +65,7 @@ class UltralyticsOutputAdapter:
                     )
                     # Calculate physical metrics from mask
                     physical_metrics = calculate_metrics_from_mask(
-                        segment_points, self.pixels_per_mm
+                        segment_points, effective_pixels_per_mm
                     )
                     metrics = DetectionMetrics(
                         length_mm=physical_metrics.length_mm,

@@ -196,6 +196,7 @@ class PredictService:
         response = PredictResponse(
             image_id=image_id,
             inference_ms=raw_prediction.inference_ms,
+            inference_breakdown=raw_prediction.inference_breakdown,
             model_name=raw_prediction.model_name,
             model_version=raw_prediction.model_version,
             backend=raw_prediction.backend,

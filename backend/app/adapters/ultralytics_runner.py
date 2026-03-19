@@ -65,8 +65,9 @@ class UltralyticsRunner:
         image_name: str,
         options: PredictOptions,
     ) -> RawPrediction:
-        start_time = time.time()
+        t0 = time.time()
         img = Image.open(io.BytesIO(image_bytes))
+        t1 = time.time()
 
         results = self.model.predict(
             source=img,
@@ -76,11 +77,13 @@ class UltralyticsRunner:
             device=self.device,
             verbose=False,
         )
-        elapsed_ms = int((time.time() - start_time) * 1000)
+        t2 = time.time()
 
         result = results[0]
         assert self.adapter is not None, "Adapter should be initialized"
-        detections = self.adapter.adapt(result)
+        
+        # Use dynamic pixels_per_mm from options if it differs from the runner default
+        detections = self.adapter.adapt(result, pixels_per_mm=options.pixels_per_mm)
 
         overlay_bytes = None
         if options.return_overlay:
@@ -89,6 +92,14 @@ class UltralyticsRunner:
             buffer = io.BytesIO()
             overlay_image.save(buffer, format="WEBP", quality=85)
             overlay_bytes = buffer.getvalue()
+        t3 = time.time()
+
+        elapsed_ms = int((t3 - t0) * 1000)
+        breakdown = {
+            "pre": int((t1 - t0) * 1000),
+            "model": int((t2 - t1) * 1000),
+            "post": int((t3 - t2) * 1000),
+        }
 
         return RawPrediction(
             model_name=self.model_name,
@@ -96,6 +107,7 @@ class UltralyticsRunner:
             backend=self.backend,
             inference_mode=options.inference_mode,
             inference_ms=elapsed_ms,
+            inference_breakdown=breakdown,
             detections=detections,
             metadata={
                 "source_image": image_name,

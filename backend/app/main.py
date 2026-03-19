@@ -17,6 +17,7 @@ from app.core.runtime_state import RuntimeState
 from app.models.schemas import HealthResponse
 from app.services.predict_service import PredictService
 from app.services.result_service import ResultService
+from app.services.llm_service import LLMService
 from app.storage.local import LocalArtifactStore
 
 
@@ -55,6 +56,7 @@ def create_app() -> FastAPI:
         max_upload_size_bytes=settings.max_upload_size_bytes,
     )
     result_service = ResultService(store=store)
+    llm_service = LLMService(settings=settings)
 
     app = FastAPI(title=settings.app_name, version=settings.app_version)
     app.add_middleware(
@@ -79,6 +81,7 @@ def create_app() -> FastAPI:
 
     app.state.predict_service = predict_service
     app.state.result_service = result_service
+    app.state.llm_service = llm_service
     app.state.model_registry = registry
     app.state.runtime_state = RuntimeState(
         active_model_version=active_spec.model_version,

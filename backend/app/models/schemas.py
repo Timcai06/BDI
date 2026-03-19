@@ -12,6 +12,7 @@ class PredictOptions(BaseModel):
     inference_mode: Literal["direct", "sliced"] = "direct"
     model_version: Optional[str] = Field(default=None, min_length=1, max_length=64)
     return_overlay: bool = False
+    pixels_per_mm: float = Field(default=10.0, gt=0)
 
 
 class BoundingBox(BaseModel):
@@ -51,6 +52,7 @@ class PredictResponse(BaseModel):
     schema_version: str = "1.0.0"
     image_id: str
     inference_ms: int = Field(ge=0)
+    inference_breakdown: dict[str, int] = Field(default_factory=dict)
     model_name: str
     model_version: str
     backend: str
@@ -68,6 +70,7 @@ class ResultSummary(BaseModel):
     backend: str
     inference_mode: str
     inference_ms: int = Field(ge=0)
+    inference_breakdown: dict[str, int] = Field(default_factory=dict)
     detection_count: int = Field(ge=0)
     categories: list[str] = Field(default_factory=list)
     artifacts: ArtifactLinks
@@ -139,6 +142,7 @@ class RawPrediction(BaseModel):
     backend: str
     inference_mode: str
     inference_ms: int
+    inference_breakdown: dict[str, int] = Field(default_factory=dict)  # pre, model, post
     detections: list[RawDetection]
     metadata: dict[str, Any] = Field(default_factory=dict)
     overlay_png: Optional[bytes] = None

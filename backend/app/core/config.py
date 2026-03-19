@@ -42,6 +42,9 @@ class Settings(BaseModel):
             "http://127.0.0.1:3000",
         ]
     )
+    llm_api_key: Optional[str] = None
+    llm_base_url: str = "https://api.openai.com/v1"
+    llm_model_name: str = "gpt-3.5-turbo"
 
 
 def get_settings() -> Settings:
@@ -80,4 +83,7 @@ def get_settings() -> Settings:
             "http://localhost:3000",
             "http://127.0.0.1:3000",
         ],
+        llm_api_key=os.getenv("BDI_LLM_API_KEY"),
+        llm_base_url=os.getenv("BDI_LLM_BASE_URL", "https://api.openai.com/v1"),
+        llm_model_name=os.getenv("BDI_LLM_MODEL_NAME", "gpt-3.5-turbo"),
     )

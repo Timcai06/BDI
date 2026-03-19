@@ -103,6 +103,7 @@ async def predict(
     inference_mode: Annotated[str, Form()] = "direct",
     model_version: Annotated[Optional[str], Form()] = None,
     return_overlay: Annotated[bool, Form()] = False,
+    pixels_per_mm: Annotated[float, Form()] = 10.0,
 ) -> PredictResponse:
     options = PredictOptions(
         confidence=confidence,
@@ -110,6 +111,7 @@ async def predict(
         inference_mode=inference_mode,
         model_version=model_version,
         return_overlay=return_overlay,
+        pixels_per_mm=pixels_per_mm,
     )
     return await request.app.state.predict_service.predict(file=file, options=options)
 
@@ -151,3 +153,23 @@ async def batch_delete_results(
     payload: BatchDeleteResultsRequest,
 ) -> BatchDeleteResultsResponse:
     return request.app.state.result_service.batch_delete_results(image_ids=payload.image_ids)
+
+
+@router.get("/results/{image_id}/diagnosis")
+async def get_result_diagnosis(request: Request, image_id: str):
+    """
+    根据识别结果调用 LLM 生成专家诊断（流式返回）
+    """
+    from fastapi.responses import StreamingResponse
+
+    result_service = request.app.state.result_service
+    llm_service = request.app.state.llm_service
+    
+    # 1. 获取已有的识别结果
+    result = result_service.get_result(image_id=image_id)
+    
+    # 2. 调用 LLM 服务生成流式输出
+    return StreamingResponse(
+        llm_service.generate_diagnosis_stream(result),
+        media_type="text/event-stream"
+    )
