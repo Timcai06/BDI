@@ -129,6 +129,15 @@ function encodeImageId(imageId: string): string {
   return encodeURIComponent(imageId);
 }
 
+function getFilenameFromDisposition(header: string | null, fallback: string): string {
+  if (!header) {
+    return fallback;
+  }
+
+  const filenameMatch = header.match(/filename="?([^"]+)"?/i);
+  return filenameMatch?.[1] ?? fallback;
+}
+
 // ---------------------------------------------------------------------------
 // API client functions
 // ---------------------------------------------------------------------------
@@ -239,6 +248,30 @@ export async function listResults(
   return cachedFetch(cacheKey, fetchResults);
 }
 
+export async function listAllResults(forceFresh: boolean = false): Promise<PredictionHistoryResponse> {
+  const pageSize = 100;
+  let offset = 0;
+  let total = 0;
+  const items: PredictionHistoryResponse["items"] = [];
+
+  do {
+    const page = await listResults(offset, pageSize, forceFresh);
+    total = page.total;
+    items.push(...page.items);
+    offset += page.items.length;
+
+    if (page.items.length === 0) {
+      break;
+    }
+  } while (offset < total);
+
+  return {
+    items,
+    total,
+    offset: 0
+  };
+}
+
 export async function getResult(imageId: string): Promise<PredictionResult> {
   if (!API_BASE_URL) {
     return demoResult;
@@ -336,6 +369,67 @@ export async function batchDeleteResults(imageIds: string[]): Promise<BatchDelet
       throw error;
     }
     throw new Error("无法批量删除分析记录。");
+  }
+}
+
+export async function batchExportResults(
+  imageIds: string[],
+  assetType: "json" | "overlay"
+): Promise<{ blob: Blob; filename: string }> {
+  const fallbackFilename = `history-${assetType}-export.zip`;
+
+  if (imageIds.length === 0) {
+    throw new Error("请先选择要导出的记录。");
+  }
+
+  if (!API_BASE_URL) {
+    const placeholder = JSON.stringify(
+      {
+        asset_type: assetType,
+        image_ids: imageIds
+      },
+      null,
+      2
+    );
+    return {
+      blob: new Blob([placeholder], { type: "application/zip" }),
+      filename: fallbackFilename
+    };
+  }
+
+  try {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/results/batch-export/${assetType}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        image_ids: imageIds
+      })
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json()) as ApiError;
+      throw new Error(
+        getErrorMessage(
+          payload,
+          assetType === "json" ? "批量导出 JSON 失败。" : "批量导出叠加图失败。"
+        )
+      );
+    }
+
+    return {
+      blob: await response.blob(),
+      filename: getFilenameFromDisposition(
+        response.headers.get("content-disposition"),
+        fallbackFilename
+      )
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(assetType === "json" ? "无法导出 JSON 历史记录。" : "无法导出叠加图历史记录。");
   }
 }
 

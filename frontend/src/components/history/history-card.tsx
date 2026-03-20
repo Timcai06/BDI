@@ -48,22 +48,24 @@ export function HistoryCard({
 }: HistoryCardProps) {
   const isDeleting = deletingImageId === item.image_id;
   const imageUrl = getImageUrl(item.image_id);
+  const primaryCategory = item.categories[0] ?? "default";
+  const remainingCategoryCount = Math.max(item.categories.length - 1, 0);
 
   return (
     <article
-      className={`group relative flex w-full flex-col overflow-hidden rounded-2xl bg-[#030303] transition-all duration-300 cursor-pointer border ${
+      className={`group relative flex w-full flex-col overflow-hidden rounded-[20px] bg-[#030303] transition-all duration-300 cursor-pointer border ${
         isSelected
-          ? "border-sky-500/50 shadow-[0_0_30px_rgba(56,189,248,0.15)]"
+          ? "border-sky-500/60 shadow-[0_0_36px_rgba(56,189,248,0.16)] -translate-y-0.5"
           : "border-white/[0.04] hover:border-white/20 hover:shadow-[0_0_40px_rgba(66,133,244,0.08)]"
       }`}
       onClick={isBatchMode ? onToggleSelect : onSelect}
     >
       {/* Image Container */}
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-black/40">
+      <div className={`relative w-full overflow-hidden bg-black/40 ${isBatchMode ? "aspect-[16/9]" : "aspect-[4/3]"}`}>
         {imageUrl ? (
           <AdaptiveImage
             alt={item.image_id}
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            className={`object-cover transition-transform duration-500 ${isBatchMode ? "group-hover:scale-[1.02]" : "group-hover:scale-105"}`}
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             src={imageUrl}
           />
@@ -76,26 +78,18 @@ export function HistoryCard({
         )}
 
         {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
-
-        {/* Selection Checkbox (Batch Mode) */}
+        <div
+          className={`absolute inset-0 ${
+            isBatchMode
+              ? "bg-gradient-to-t from-black/95 via-black/55 to-black/15"
+              : "bg-gradient-to-t from-black/90 via-black/30 to-transparent"
+          }`}
+        />
         {isBatchMode && (
-          <div 
-            className="absolute top-3 left-3 z-20"
-            onClick={onToggleSelect}
-          >
-            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-              isSelected
-                ? "bg-sky-500 border-sky-500"
-                : "bg-black/40 border-white/30 hover:border-white/50"
-            }`}>
-              {isSelected && (
-                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-            </div>
-          </div>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.16),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.06),transparent_36%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+        )}
+        {isBatchMode && isSelected && (
+          <div className="absolute inset-0 bg-sky-500/10 ring-1 ring-inset ring-sky-400/40" />
         )}
 
         {/* Deleting Overlay */}
@@ -123,66 +117,117 @@ export function HistoryCard({
         </div>
 
         {/* Content Overlay */}
-        <div className="absolute inset-0 flex flex-col justify-between p-4 pointer-events-none">
+        <div className={`absolute inset-0 flex flex-col justify-between pointer-events-none ${isBatchMode ? "p-2.5" : "p-4"}`}>
           {/* Top Metadata */}
-          <div className="flex justify-between items-start">
-            <span className="rounded-lg bg-black/50 backdrop-blur-md px-2.5 py-1 text-[10px] font-medium text-sky-400 border border-white/10">
-              {formatModelLabel(item)}
-            </span>
-            <span className="rounded-lg bg-black/50 backdrop-blur-md px-2 py-1 text-[10px] font-mono text-white/60 border border-white/10">
-              {item.inference_ms}ms
-            </span>
-          </div>
+          {isBatchMode ? (
+            <div className="flex justify-end">
+              <span className="rounded-full border border-white/10 bg-black/55 px-1.5 py-0.5 text-[8px] font-mono text-white/65 backdrop-blur-md leading-none">
+                {item.inference_ms}ms
+              </span>
+            </div>
+          ) : (
+            <div className="flex justify-between items-start">
+              <span className="rounded-lg bg-black/50 backdrop-blur-md px-2.5 py-1 text-[10px] font-medium text-sky-400 border border-white/10">
+                {formatModelLabel(item)}
+              </span>
+              <span className="rounded-lg bg-black/50 backdrop-blur-md px-2 py-1 text-[10px] font-mono text-white/60 border border-white/10">
+                {item.inference_ms}ms
+              </span>
+            </div>
+          )}
 
           {/* Bottom Content */}
           <div>
-            {/* Categories */}
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {item.categories.slice(0, 3).map((category) => (
-                <span
-                  key={category}
-                  className="rounded-full px-2 py-0.5 text-[9px] font-medium border"
-                  style={{
-                    backgroundColor: `${getCategoryColor(category)}20`,
-                    borderColor: `${getCategoryColor(category)}40`,
-                    color: getCategoryColor(category)
-                  }}
+            {isBatchMode ? (
+              <div className="space-y-1">
+                <h3
+                  className="truncate text-[11px] font-medium leading-tight text-white"
+                  style={{ textShadow: "0 2px 8px rgba(0,0,0,0.8)" }}
                 >
-                  {category}
-                </span>
-              ))}
-              {item.categories.length > 3 && (
-                <span className="rounded-full px-2 py-0.5 text-[9px] text-white/40 bg-white/5 border border-white/10">
-                  +{item.categories.length - 3}
-                </span>
-              )}
-            </div>
+                  {item.image_id}
+                </h3>
 
-            {/* Title */}
-            <h3 
-              className="text-base font-medium text-white mb-1 truncate"
-              style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}
-            >
-              {item.image_id.length > 30 
-                ? item.image_id.slice(0, 30) + "..." 
-                : item.image_id}
-            </h3>
+                <div className="flex items-center gap-1 text-[8px] leading-none">
+                  <span
+                    className="rounded-full border px-1.5 py-0.5 font-medium"
+                    style={{
+                      backgroundColor: `${getCategoryColor(primaryCategory)}18`,
+                      borderColor: `${getCategoryColor(primaryCategory)}40`,
+                      color: getCategoryColor(primaryCategory)
+                    }}
+                  >
+                    {primaryCategory}
+                  </span>
+                  {remainingCategoryCount > 0 && (
+                    <span className="rounded-full border border-white/10 bg-black/45 px-1.5 py-0.5 text-white/45">
+                      +{remainingCategoryCount}
+                    </span>
+                  )}
+                </div>
 
-            {/* Meta Row */}
-            <div className="flex items-center gap-3 text-white/50">
-              <div className="flex items-center gap-1">
-                <span 
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ 
-                    backgroundColor: getCategoryColor(item.categories[0] || "default"),
-                    boxShadow: `0 0 6px ${getCategoryColor(item.categories[0] || "default")}`
-                  }}
-                />
-                <span className="text-xs">{item.detection_count} 处病害</span>
+                <div className="flex items-center justify-between gap-2 text-[8px] text-white/55 leading-none">
+                  <div className="flex items-center gap-1">
+                    <span
+                      className="h-1 w-1 rounded-full"
+                      style={{
+                        backgroundColor: getCategoryColor(primaryCategory),
+                        boxShadow: `0 0 6px ${getCategoryColor(primaryCategory)}`
+                      }}
+                    />
+                    <span>{item.detection_count} 处病害</span>
+                  </div>
+                  <span className="truncate text-white/40">{formatTime(item.created_at)}</span>
+                </div>
               </div>
-              <span className="text-[10px] opacity-50">·</span>
-              <span className="text-[10px]">{formatTime(item.created_at)}</span>
-            </div>
+            ) : (
+              <>
+                {/* Categories */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {item.categories.slice(0, 3).map((category) => (
+                    <span
+                      key={category}
+                      className="rounded-full px-2 py-0.5 text-[9px] font-medium border"
+                      style={{
+                        backgroundColor: `${getCategoryColor(category)}20`,
+                        borderColor: `${getCategoryColor(category)}40`,
+                        color: getCategoryColor(category)
+                      }}
+                    >
+                      {category}
+                    </span>
+                  ))}
+                  {item.categories.length > 3 && (
+                    <span className="rounded-full px-2 py-0.5 text-[9px] text-white/40 bg-white/5 border border-white/10">
+                      +{item.categories.length - 3}
+                    </span>
+                  )}
+                </div>
+
+                <h3 
+                  className="text-base font-medium text-white mb-1 truncate"
+                  style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}
+                >
+                  {item.image_id.length > 30 
+                    ? item.image_id.slice(0, 30) + "..." 
+                    : item.image_id}
+                </h3>
+
+                <div className="flex items-center gap-3 text-white/50">
+                  <div className="flex items-center gap-1">
+                    <span 
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ 
+                        backgroundColor: getCategoryColor(primaryCategory),
+                        boxShadow: `0 0 6px ${getCategoryColor(primaryCategory)}`
+                      }}
+                    />
+                    <span className="text-xs">{item.detection_count} 处病害</span>
+                  </div>
+                  <span className="text-[10px] opacity-50">·</span>
+                  <span className="text-[10px]">{formatTime(item.created_at)}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

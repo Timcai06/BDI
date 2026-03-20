@@ -19,14 +19,15 @@ import { DashboardStats } from "@/components/dashboard-stats";
 import { type HistorySortMode } from "@/lib/history-utils";
 import { formatModelLabel } from "@/lib/model-labels";
 import {
+  batchExportResults,
   batchDeleteResults,
   deleteResult,
   getOverlayDownloadUrl,
   getResultImageFile,
   getResultImageUrl,
   getResult,
+  listAllResults,
   listModels,
-  listResults,
   predictImage
 } from "@/lib/predict-client";
 import {
@@ -72,6 +73,15 @@ function downloadRemoteFile(url: string, filename: string) {
   anchor.target = "_blank";
   anchor.rel = "noreferrer";
   anchor.click();
+}
+
+function downloadBlobFile(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
 export function HomeShell() {
@@ -194,7 +204,7 @@ export function HomeShell() {
     setHistoryError(null);
 
     try {
-      const history = await listResults(0, 20, forceFresh);
+      const history = await listAllResults(forceFresh);
       setHistoryItems(history.items);
       setHistoryTotal(history.total);
       if (!silent) {
@@ -761,6 +771,36 @@ export function HomeShell() {
     }
   }
 
+  async function handleBatchExportHistory(
+    imageIds: string[],
+    assetType: "json" | "overlay"
+  ) {
+    const exportLabel = assetType === "json" ? "JSON" : "叠加图";
+
+    try {
+      const { blob, filename } = await batchExportResults(imageIds, assetType);
+      downloadBlobFile(blob, filename);
+      setStatus({
+        phase: "success",
+        message: `已开始导出 ${imageIds.length} 条历史记录的${exportLabel}压缩包。`
+      });
+      pushActionNotice(
+        `${exportLabel} 批量导出已开始`,
+        filename,
+        "success"
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : `批量导出${exportLabel}失败，请稍后重试。`;
+      setStatus({
+        phase: "error",
+        message
+      });
+      pushActionNotice(`${exportLabel} 批量导出失败`, message, "error");
+      throw error;
+    }
+  }
+
   async function handleRunComparison() {
     if (!result) {
       setCompareStatus({
@@ -929,6 +969,8 @@ export function HomeShell() {
                 setDeleteTargetId(imageId);
               }}
               onBatchDelete={handleBatchDeleteHistory}
+              onBatchExportJson={(imageIds) => handleBatchExportHistory(imageIds, "json")}
+              onBatchExportOverlay={(imageIds) => handleBatchExportHistory(imageIds, "overlay")}
               onSearchQueryChange={setHistorySearchQuery}
               onCategoryFilterChange={setHistoryCategoryFilter}
               onSortModeChange={setHistorySortMode}

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import type { HistorySortMode } from "@/lib/history-utils";
 import type { PredictionHistoryItem } from "@/lib/types";
 import { HistoryStats } from "./history-stats";
 import { HistoryToolbar } from "./history-toolbar";
 import { HistoryBatchActions } from "./history-batch-actions";
+import { HistoryBatchDrawer } from "./history-batch-drawer";
 import { HistoryCard } from "./history-card";
 import { HistoryEmptyState } from "./history-empty-state";
 import { HistoryPagination } from "./history-pagination";
@@ -25,6 +26,8 @@ interface HistoryPanelProps {
   onSelect: (imageId: string) => void;
   onDeleteRequest: (imageId: string) => void;
   onBatchDelete: (imageIds: string[]) => Promise<void>;
+  onBatchExportJson: (imageIds: string[]) => Promise<void>;
+  onBatchExportOverlay: (imageIds: string[]) => Promise<void>;
   onSearchQueryChange: (value: string) => void;
   onCategoryFilterChange: (value: string) => void;
   onSortModeChange: (value: HistorySortMode) => void;
@@ -47,6 +50,8 @@ export function HistoryPanel({
   onSelect,
   onDeleteRequest,
   onBatchDelete,
+  onBatchExportJson,
+  onBatchExportOverlay,
   onSearchQueryChange,
   onCategoryFilterChange,
   onSortModeChange,
@@ -57,6 +62,8 @@ export function HistoryPanel({
   const [isBatchMode, setIsBatchMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isBatchDeleting, setIsBatchDeleting] = useState(false);
+  const [isExportingJson, setIsExportingJson] = useState(false);
+  const [isExportingOverlay, setIsExportingOverlay] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -109,6 +116,29 @@ export function HistoryPanel({
   }, [filteredItems, currentPage, pageSize]);
 
   const totalPages = Math.ceil(filteredItems.length / pageSize);
+  const filteredIdSet = useMemo(() => new Set(filteredItems.map((item) => item.image_id)), [filteredItems]);
+  const selectedItems = useMemo(
+    () => filteredItems.filter((item) => selectedIds.has(item.image_id)),
+    [filteredItems, selectedIds]
+  );
+
+  useEffect(() => {
+    if (totalPages > 0 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const next = new Set(Array.from(prev).filter((imageId) => filteredIdSet.has(imageId)));
+      const isSameSelection =
+        next.size === prev.size && Array.from(prev).every((imageId) => next.has(imageId));
+      if (isSameSelection) {
+        return prev;
+      }
+      return next;
+    });
+  }, [filteredIdSet]);
 
   // Batch selection handlers
   const handleToggleBatchMode = useCallback(() => {
@@ -129,8 +159,8 @@ export function HistoryPanel({
   }, []);
 
   const handleSelectAll = useCallback(() => {
-    setSelectedIds(new Set(paginatedItems.map(item => item.image_id)));
-  }, [paginatedItems]);
+    setSelectedIds(new Set(filteredItems.map(item => item.image_id)));
+  }, [filteredItems]);
 
   const handleClearSelection = useCallback(() => {
     setSelectedIds(new Set());
@@ -140,7 +170,9 @@ export function HistoryPanel({
     if (selectedIds.size === 0) return;
 
     const ids = Array.from(selectedIds);
-    const confirmed = window.confirm(`确认批量删除 ${ids.length} 条记录吗？该操作无法恢复。`);
+    const confirmed = window.confirm(
+      `确认删除已选的 ${ids.length} 条记录吗？这些记录来自当前筛选结果，删除后原图、JSON 和叠加图都将一起移除，且无法恢复。`
+    );
     if (!confirmed) {
       return;
     }
@@ -154,6 +186,28 @@ export function HistoryPanel({
       setIsBatchDeleting(false);
     }
   }, [selectedIds, onBatchDelete]);
+
+  const handleBatchExportJson = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+
+    setIsExportingJson(true);
+    try {
+      await onBatchExportJson(Array.from(selectedIds));
+    } finally {
+      setIsExportingJson(false);
+    }
+  }, [selectedIds, onBatchExportJson]);
+
+  const handleBatchExportOverlay = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+
+    setIsExportingOverlay(true);
+    try {
+      await onBatchExportOverlay(Array.from(selectedIds));
+    } finally {
+      setIsExportingOverlay(false);
+    }
+  }, [selectedIds, onBatchExportOverlay]);
 
   const handleSearchChange = useCallback((value: string) => {
     setCurrentPage(1);
@@ -263,19 +317,22 @@ export function HistoryPanel({
             onUpload={onOpenUploader}
           />
         ) : (
-          <div className="space-y-6">
+          <div className={`flex gap-6 ${isBatchMode ? "xl:items-start" : ""}`}>
+            <div className="min-w-0 flex-1 space-y-6">
             {/* Batch Actions */}
             <HistoryBatchActions
+              isBatchMode={isBatchMode}
               selectedCount={selectedIds.size}
-              totalCount={paginatedItems.length}
+              filteredCount={filteredItems.length}
+              totalCount={totalCount}
               onSelectAll={handleSelectAll}
               onClearSelection={handleClearSelection}
-              onBatchDelete={handleBatchDelete}
-              isDeleting={isBatchDeleting}
+              onCloseBatchMode={handleToggleBatchMode}
+              isBusy={isBatchDeleting || isExportingJson || isExportingOverlay}
             />
 
             {/* Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className={`grid gap-6 ${isBatchMode ? "grid-cols-1 md:grid-cols-2 2xl:grid-cols-2" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"}`}>
               {paginatedItems.map((item) => (
                 <HistoryCard
                   key={item.image_id}
@@ -308,6 +365,23 @@ export function HistoryPanel({
                 onPageSizeChange={setPageSize}
               />
             )}
+            </div>
+
+            <HistoryBatchDrawer
+              isBatchMode={isBatchMode}
+              selectedItems={selectedItems}
+              filteredCount={filteredItems.length}
+              totalCount={totalCount}
+              currentPageCount={paginatedItems.length}
+              onClearSelection={handleClearSelection}
+              onCloseBatchMode={handleToggleBatchMode}
+              onBatchDelete={handleBatchDelete}
+              onBatchExportJson={handleBatchExportJson}
+              onBatchExportOverlay={handleBatchExportOverlay}
+              isDeleting={isBatchDeleting}
+              isExportingJson={isExportingJson}
+              isExportingOverlay={isExportingOverlay}
+            />
           </div>
         )}
       </div>
@@ -319,6 +393,7 @@ export function HistoryPanel({
 export { HistoryStats } from "./history-stats";
 export { HistoryToolbar } from "./history-toolbar";
 export { HistoryBatchActions } from "./history-batch-actions";
+export { HistoryBatchDrawer } from "./history-batch-drawer";
 export { HistoryCard } from "./history-card";
 export { HistoryEmptyState } from "./history-empty-state";
 export { HistoryPagination } from "./history-pagination";

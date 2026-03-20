@@ -4,6 +4,7 @@ import {
   getResultImageFile,
   getOverlayDownloadUrl,
   getResultImageUrl,
+  listAllResults,
   listModels,
   listResults,
   predictImage
@@ -34,6 +35,13 @@ describe("predict-client", () => {
 
     expect(result.items).toHaveLength(1);
     expect(result.items[0].image_id).toBe("bridge-deck-demo.jpg");
+  });
+
+  it("returns mock all-history when no api base url is configured", async () => {
+    const result = await listAllResults();
+
+    expect(result.total).toBe(1);
+    expect(result.items).toHaveLength(1);
   });
 
   it("returns mock model catalog when no API base url is configured", async () => {
@@ -133,6 +141,98 @@ describe("predict-client", () => {
         }
       ]
     });
+  });
+
+  it("posts to the batch export json endpoint when api base url is configured", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "http://127.0.0.1:8000");
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe("http://127.0.0.1:8000/results/batch-export/json");
+      expect(init?.method).toBe("POST");
+      expect(init?.body).toBe(JSON.stringify({
+        image_ids: ["a.jpg", "b.jpg"]
+      }));
+
+      return new Response("zip-binary", {
+        status: 200,
+        headers: {
+          "Content-Disposition": 'attachment; filename="history-json-export-20260320-110000.zip"'
+        }
+      });
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("@/lib/predict-client");
+    const result = await client.batchExportResults(["a.jpg", "b.jpg"], "json");
+    expect(result.filename).toBe("history-json-export-20260320-110000.zip");
+    expect(result.blob).toBeDefined();
+  });
+
+  it("collects all paginated history items", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "http://127.0.0.1:8000");
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+
+      if (url.endsWith("/results?offset=0&limit=100")) {
+        return Response.json({
+          items: Array.from({ length: 100 }, (_, index) => ({
+            image_id: `item-${index}.jpg`,
+            created_at: "2026-03-17T12:00:00Z",
+            model_name: "demo",
+            model_version: "v1-demo",
+            backend: "mock",
+            inference_mode: "single",
+            inference_ms: 1200,
+            detection_count: 1,
+            categories: ["裂缝"],
+            artifacts: {
+              upload_path: `uploads/item-${index}.jpg`,
+              json_path: `results/item-${index}.json`,
+              overlay_path: null
+            }
+          })),
+          total: 101,
+          offset: 0
+        });
+      }
+
+      if (url.endsWith("/results?offset=100&limit=100")) {
+        return Response.json({
+          items: [
+            {
+              image_id: "item-100.jpg",
+              created_at: "2026-03-17T12:00:00Z",
+              model_name: "demo",
+              model_version: "v1-demo",
+              backend: "mock",
+              inference_mode: "single",
+              inference_ms: 1200,
+              detection_count: 1,
+              categories: ["裂缝"],
+              artifacts: {
+                upload_path: "uploads/item-100.jpg",
+                json_path: "results/item-100.json",
+                overlay_path: null
+              }
+            }
+          ],
+          total: 101,
+          offset: 100
+        });
+      }
+
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("@/lib/predict-client");
+    const result = await client.listAllResults();
+    expect(result.total).toBe(101);
+    expect(result.items).toHaveLength(101);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("invalidates cached history after a successful prediction", async () => {
