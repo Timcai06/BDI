@@ -41,21 +41,23 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/justin/BDI_clean_check.git
-cd BDI_clean_check
+git clone https://github.com/Timcai06/BDI.git
+cd BDI
 
-# 安装依赖（使用 npm ci 确保锁文件一致）
+# 安装前端依赖
+cd frontend
 npm ci
+cd ..
 
-# 安装 bdi 命令（可选，推荐）
+# 可选：把 bdi 命令加入 PATH，之后可直接使用 `bdi ...`
 ln -sf "$(pwd)/scripts/bdi" /usr/local/bin/bdi
 # 或者添加到 PATH：export PATH="$(pwd)/scripts:$PATH"
 
-# 本地开发（默认 http://localhost:3000）
-npm run dev
+# 不改 PATH 的情况下，也可以直接使用仓库内包装脚本
+./bdi check
 ```
 
-> **Tip**：若只想快速预览 UI，可运行 `bdi run mock`（后端 mock）
+> **Tip**：若只想快速预览 UI，可运行 `./bdi run mock`。如果你已把 `scripts/bdi` 加入 `PATH`，也可以直接运行 `bdi run mock`。
 
 ---
 
@@ -63,18 +65,20 @@ npm run dev
 
 ### 启动命令
 
-- `bdi run` – 同时启动前端 & 后端（真实模型）
-- `bdi run mock` – 启动前端 + mock 后端，便于 UI 调试
-- `bdi status` – 查看当前服务状态
-- `bdi stop` – 停止所有运行中的服务
+- `./bdi run` – 同时启动前端 + 真实后端
+- `./bdi run mock` – 启动前端 + mock 后端，便于 UI 调试
+- `./bdi status` – 查看当前服务状态
+- `./bdi stop` – 停止所有运行中的服务
+
+如果你已经把 `scripts/bdi` 加入 `PATH`，以上命令里的 `./bdi` 也可以替换成 `bdi`。
 
 ### 脚本快捷入口
 
 ```bash
-./scripts/dev-frontend.sh   # 前端开发服务器
-./scripts/dev-backend-mock.sh   # Mock 后端
-./scripts/dev-backend-real.sh   # 真正推理后端
-./scripts/dev-check.sh          # 环境检查脚本
+./scripts/dev-frontend.sh      # 前端开发服务器
+./scripts/dev-backend-mock.sh  # Mock 后端
+./scripts/dev-backend-real.sh  # 真正推理后端
+./scripts/dev-check.sh         # 环境检查脚本
 ```
 
 ---
