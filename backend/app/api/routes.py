@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, File, Form, Request, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from app.models.schemas import (
     BatchDeleteResultsRequest,
@@ -153,6 +153,46 @@ async def batch_delete_results(
     payload: BatchDeleteResultsRequest,
 ) -> BatchDeleteResultsResponse:
     return request.app.state.result_service.batch_delete_results(image_ids=payload.image_ids)
+
+
+@router.post("/results/batch-export/json")
+async def batch_export_result_json(
+    request: Request,
+    payload: BatchDeleteResultsRequest,
+) -> Response:
+    content, filename, exported_count, skipped_count = request.app.state.result_service.export_results_archive(
+        image_ids=payload.image_ids,
+        asset_type="json",
+    )
+    return Response(
+        content=content,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Exported-Count": str(exported_count),
+            "X-Skipped-Count": str(skipped_count),
+        },
+    )
+
+
+@router.post("/results/batch-export/overlay")
+async def batch_export_result_overlay(
+    request: Request,
+    payload: BatchDeleteResultsRequest,
+) -> Response:
+    content, filename, exported_count, skipped_count = request.app.state.result_service.export_results_archive(
+        image_ids=payload.image_ids,
+        asset_type="overlay",
+    )
+    return Response(
+        content=content,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Exported-Count": str(exported_count),
+            "X-Skipped-Count": str(skipped_count),
+        },
+    )
 
 
 @router.get("/results/{image_id}/diagnosis")

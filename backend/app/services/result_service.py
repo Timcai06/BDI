@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime
+from io import BytesIO
 from pathlib import Path
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from fastapi import status
 
@@ -100,6 +103,59 @@ class ResultService:
             failed_count=failed_count,
             results=results,
         )
+
+    def export_results_archive(
+        self,
+        *,
+        image_ids: list[str],
+        asset_type: str,
+    ) -> tuple[bytes, str, int, int]:
+        archive = BytesIO()
+        exported_count = 0
+        skipped_count = 0
+
+        if asset_type not in {"json", "overlay"}:
+            raise AppError(
+                code="EXPORT_TYPE_INVALID",
+                message="Unsupported export asset type.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                details={"asset_type": asset_type},
+            )
+
+        with ZipFile(archive, mode="w", compression=ZIP_DEFLATED) as zip_file:
+            for image_id in image_ids:
+                source_path: Path
+                archive_name: str
+
+                if asset_type == "json":
+                    source_path = self.store.result_path(image_id)
+                    archive_name = f"{image_id}.json"
+                else:
+                    source_path = self.store.overlay_path(image_id)
+                    archive_name = source_path.name
+
+                if not source_path.exists():
+                    skipped_count += 1
+                    continue
+
+                zip_file.writestr(archive_name, source_path.read_bytes())
+                exported_count += 1
+
+        if exported_count == 0:
+            raise AppError(
+                code="EXPORT_NOT_FOUND",
+                message="No exportable artifacts found for the selected records.",
+                status_code=status.HTTP_404_NOT_FOUND,
+                details={
+                    "asset_type": asset_type,
+                    "requested": len(image_ids),
+                    "skipped_count": skipped_count,
+                },
+            )
+
+        timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+        filename = f"history-{asset_type}-export-{timestamp}.zip"
+        return archive.getvalue(), filename, exported_count, skipped_count
 
     def _build_summary(self, result: PredictResponse) -> ResultSummary:
         return ResultSummary(

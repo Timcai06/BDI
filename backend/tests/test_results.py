@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from io import BytesIO
 from pathlib import Path
+from zipfile import ZipFile
 
 from fastapi.testclient import TestClient
 
@@ -221,3 +223,76 @@ def test_delete_result_returns_not_found_for_unknown_result(tmp_path: Path, monk
     assert response.status_code == 404
     payload = response.json()
     assert payload["error"]["code"] == "RESULT_NOT_FOUND"
+
+
+def test_batch_export_json_returns_zip_archive(tmp_path: Path, monkeypatch) -> None:
+    client = create_test_client(tmp_path, monkeypatch)
+
+    predict_response = client.post(
+        "/predict",
+        files={"file": ("bridge.jpg", b"fake-jpeg-data", "image/jpeg")},
+    )
+    image_id = predict_response.json()["image_id"]
+
+    response = client.post("/results/batch-export/json", json={"image_ids": [image_id]})
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    assert response.headers["x-exported-count"] == "1"
+    assert response.headers["x-skipped-count"] == "0"
+
+    archive = ZipFile(BytesIO(response.content))
+    names = archive.namelist()
+    assert names == [f"{image_id}.json"]
+    exported_payload = archive.read(names[0]).decode("utf-8")
+    assert image_id in exported_payload
+
+
+def test_batch_export_overlay_skips_missing_overlay_files(tmp_path: Path, monkeypatch) -> None:
+    client = create_test_client(tmp_path, monkeypatch)
+
+    no_overlay_response = client.post(
+        "/predict",
+        files={"file": ("bridge-a.jpg", b"fake-jpeg-data", "image/jpeg")},
+    )
+    overlay_response = client.post(
+        "/predict",
+        files={"file": ("bridge-b.jpg", b"fake-jpeg-data", "image/jpeg")},
+        data={"return_overlay": "true"},
+    )
+
+    response = client.post(
+        "/results/batch-export/overlay",
+        json={
+            "image_ids": [
+                no_overlay_response.json()["image_id"],
+                overlay_response.json()["image_id"],
+            ]
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["x-exported-count"] == "1"
+    assert response.headers["x-skipped-count"] == "1"
+
+    archive = ZipFile(BytesIO(response.content))
+    names = archive.namelist()
+    assert names == [f'{overlay_response.json()["image_id"]}.webp']
+
+
+def test_batch_export_overlay_returns_not_found_when_nothing_is_exportable(tmp_path: Path, monkeypatch) -> None:
+    client = create_test_client(tmp_path, monkeypatch)
+
+    predict_response = client.post(
+        "/predict",
+        files={"file": ("bridge-a.jpg", b"fake-jpeg-data", "image/jpeg")},
+    )
+
+    response = client.post(
+        "/results/batch-export/overlay",
+        json={"image_ids": [predict_response.json()["image_id"]]},
+    )
+
+    assert response.status_code == 404
+    payload = response.json()
+    assert payload["error"]["code"] == "EXPORT_NOT_FOUND"
