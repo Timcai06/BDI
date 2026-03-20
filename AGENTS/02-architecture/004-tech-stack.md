@@ -14,6 +14,9 @@
 
 - `FastAPI`
 - `Pydantic`
+- `OpenAI`（LLM智能诊断API调用）
+- `opencv-python-headless`（图像处理）
+- `python-dotenv`（环境变量配置）
 - 基础开发环境可使用较新 Python 版本
 - 真实模型联调与运行环境以 `Python 3.9` 到 `Python 3.12` 为准
 

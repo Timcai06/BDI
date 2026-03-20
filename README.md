@@ -47,6 +47,10 @@ cd BDI_clean_check
 # 安装依赖（使用 npm ci 确保锁文件一致）
 npm ci
 
+# 安装 bdi 命令（可选，推荐）
+ln -sf "$(pwd)/scripts/bdi" /usr/local/bin/bdi
+# 或者添加到 PATH：export PATH="$(pwd)/scripts:$PATH"
+
 # 本地开发（默认 http://localhost:3000）
 npm run dev
 ```
@@ -86,7 +90,7 @@ graph LR
     FE --> UI["React Components"]
 ```
 
-- **前端**：Next.js 16、TailwindCSS、React 18
+- **前端**：Next.js 16、TailwindCSS、React 19
 - **后端**：FastAPI、Python 3.12、ultralytics YOLOv8‑seg
 - **数据库**：PostgreSQL 用于历史记录与模型元数据
 

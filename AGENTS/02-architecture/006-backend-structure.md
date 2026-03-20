@@ -22,6 +22,8 @@
 - `Model Adapter` 层：模型加载、版本切换、后端切换、屏蔽实现差异
 - `Postprocess` 层：结果标准化、`Mask`、量化字段、可视化
 - `Storage` 层：原图、`JSON`、叠加图、任务记录、日志
+- `LLM Service` 层：AI专家诊断、流式markdown输出
+- `Metrics Calculator` 层：物理测量计算（长度mm、宽度mm、面积mm²）
 
 ## 核心职责
 
@@ -60,6 +62,63 @@
 - `GET /results/{id}/overlay`
 - `GET /tasks/{id}`
 - `GET /health`
+- `POST /diagnosis/stream`（LLM流式诊断）
+
+## LLM智能诊断
+
+后端集成了LLM服务，用于生成专业的桥梁病害诊断报告。
+
+### 功能
+
+- 接收检测结果，生成专家级病情评估和养护建议
+- 支持流式markdown输出，实时显示生成内容
+- 自动引用相关标准规范（如JTGT 5121-2021）
+- 输出包含病害量化评估、风险预测、处置建议三个模块
+
+### 配置
+
+通过环境变量配置：
+
+- `LLM_API_KEY`：OpenAI兼容API密钥
+- `LLM_BASE_URL`：API基础URL（支持第三方兼容接口）
+- `LLM_MODEL_NAME`：模型名称
+
+### 实现
+
+- 文件：`backend/app/services/llm_service.py`
+- 类：`LLMService`
+- 使用 `AsyncOpenAI` 客户端进行异步调用
+- 支持流式输出（`generate_diagnosis_stream`）
+
+## 物理测量计算（GSD）
+
+后端实现了从像素到物理单位的转换，用于量化病害尺寸。
+
+### 功能
+
+- 从分割mask多边形计算物理尺寸
+- 支持裂缝长度、宽度、面积计算
+- 使用Shoelace公式计算多边形面积
+- 使用最大Feret直径计算裂缝长度
+
+### 配置
+
+- `BDI_PIXELS_PER_MM`：像素到毫米的转换系数（GSD参数）
+- 默认值为1.0（即1像素=1毫米）
+
+### 输出字段
+
+检测结果的`metrics`字段包含：
+
+- `length_mm`：裂缝长度（毫米）
+- `width_mm`：裂缝宽度（毫米）
+- `area_mm2`：病害面积（平方毫米）
+
+### 实现
+
+- 文件：`backend/app/core/metrics_calculator.py`
+- 核心函数：`calculate_metrics_from_mask(mask_points, pixels_per_mm)`
+- 返回：`PhysicalMetrics(length_mm, width_mm, area_mm2)`
 
 ## 存储策略
 
