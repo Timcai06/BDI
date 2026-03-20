@@ -19,6 +19,7 @@ import { DashboardStats } from "@/components/dashboard-stats";
 import { type HistorySortMode } from "@/lib/history-utils";
 import { formatModelLabel } from "@/lib/model-labels";
 import {
+  batchDeleteResults,
   deleteResult,
   getOverlayDownloadUrl,
   getResultImageFile,
@@ -104,6 +105,7 @@ export function HomeShell() {
     message: "选择一个次模型后，可对同一张本地图片执行快速对比。"
   });
   const [historyItems, setHistoryItems] = useState<PredictionHistoryItem[]>([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -194,12 +196,13 @@ export function HomeShell() {
     try {
       const history = await listResults(0, 20, forceFresh);
       setHistoryItems(history.items);
+      setHistoryTotal(history.total);
       if (!silent) {
         setStatus({
           phase: "success",
-          message: `历史结果已刷新，当前共 ${history.items.length} 条记录。`
+          message: `历史结果已刷新，当前共 ${history.total} 条记录。`
         });
-        pushActionNotice("历史已刷新", `当前共 ${history.items.length} 条记录。`, "success");
+        pushActionNotice("历史已刷新", `当前共 ${history.total} 条记录。`, "success");
       }
       return history;
     } catch (error) {
@@ -687,91 +690,75 @@ export function HomeShell() {
       return;
     }
 
-    const beforeTotal = historyItems.length;
-    const deletedIds: string[] = [];
-    const failedIds: string[] = [];
-    const MAX_CONCURRENCY = 4;
+    const beforeTotal = historyTotal;
 
     setDeletingImageId("batch");
     setDeleteSuccessMessage(null);
 
-    async function deleteWithRetry(imageId: string): Promise<boolean> {
-      try {
-        await deleteResult(imageId);
-        return true;
-      } catch {
-        try {
-          await deleteResult(imageId);
-          return true;
-        } catch {
-          return false;
-        }
-      }
-    }
+    try {
+      const response = await batchDeleteResults(imageIds);
+      const deletedIds = response.results
+        .filter((item) => item.deleted)
+        .map((item) => item.image_id);
+      const failedIds = response.results
+        .filter((item) => !item.deleted)
+        .map((item) => item.image_id);
 
-    for (let index = 0; index < imageIds.length; index += MAX_CONCURRENCY) {
-      const batch = imageIds.slice(index, index + MAX_CONCURRENCY);
-      const outcomes = await Promise.all(
-        batch.map(async (imageId) => ({
-          imageId,
-          ok: await deleteWithRetry(imageId)
-        }))
+      if (deletedIds.length > 0) {
+        const deletedSet = new Set(deletedIds);
+        setHistoryItems((current) => current.filter((item) => !deletedSet.has(item.image_id)));
+        if (result && deletedSet.has(result.image_id)) {
+          setResult(null);
+          setSelectedDetectionId(null);
+          setPreviewUrl(null);
+          setResultViewMode("image");
+          setActiveNav("Home");
+        }
+        setDeleteSuccessMessage(`已提交批量删除 ${deletedIds.length} 条记录，正在同步列表...`);
+      }
+
+      const refreshed = await loadHistory({ silent: true, forceFresh: true });
+      const afterTotal = refreshed?.total ?? historyTotal;
+
+      if (failedIds.length === 0) {
+        const viewHint = "当前显示全部记录。";
+        setDeleteSuccessMessage(`批量删除完成：成功 ${deletedIds.length} 条（删除前 ${beforeTotal} 条，当前 ${afterTotal} 条）。`);
+        setStatus({
+          phase: "success",
+          message: `批量删除完成：成功 ${deletedIds.length} 条（删除前 ${beforeTotal} 条，当前 ${afterTotal} 条）。${viewHint}`
+        });
+        pushActionNotice(
+          "批量删除完成",
+          `成功 ${deletedIds.length} 条（删除前 ${beforeTotal} 条，当前 ${afterTotal} 条）。${viewHint}`,
+          "success"
+        );
+        return;
+      }
+
+      setDeleteSuccessMessage(
+        `批量删除部分失败：成功 ${deletedIds.length} 条，失败 ${failedIds.length} 条。请重试失败项。`
       );
-
-      for (const item of outcomes) {
-        if (item.ok) {
-          deletedIds.push(item.imageId);
-        } else {
-          failedIds.push(item.imageId);
-        }
-      }
-    }
-
-    setDeletingImageId(null);
-
-    if (deletedIds.length > 0) {
-      const deletedSet = new Set(deletedIds);
-      setHistoryItems((current) => current.filter((item) => !deletedSet.has(item.image_id)));
-      if (result && deletedSet.has(result.image_id)) {
-        setResult(null);
-        setSelectedDetectionId(null);
-        setPreviewUrl(null);
-        setResultViewMode("image");
-        setActiveNav("Home");
-      }
-      setDeleteSuccessMessage(`已提交批量删除 ${deletedIds.length} 条记录，正在同步列表...`);
-    }
-
-    const refreshed = await loadHistory({ silent: true, forceFresh: true });
-    const afterTotal = refreshed?.items.length ?? historyItems.length;
-
-    if (failedIds.length === 0) {
-      const viewHint = "当前显示全部记录。";
-      setDeleteSuccessMessage(`批量删除完成：成功 ${deletedIds.length} 条（删除前 ${beforeTotal} 条，当前 ${afterTotal} 条）。`);
       setStatus({
-        phase: "success",
-        message: `批量删除完成：成功 ${deletedIds.length} 条（删除前 ${beforeTotal} 条，当前 ${afterTotal} 条）。${viewHint}`
+        phase: "error",
+        message: `批量删除部分失败：成功 ${deletedIds.length} 条，失败 ${failedIds.length} 条。`
       });
       pushActionNotice(
-        "批量删除完成",
-        `成功 ${deletedIds.length} 条（删除前 ${beforeTotal} 条，当前 ${afterTotal} 条）。${viewHint}`,
-        "success"
+        "批量删除部分失败",
+        `成功 ${deletedIds.length} 条，失败 ${failedIds.length} 条。`,
+        "error"
       );
-      return;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "批量删除失败，请稍后重试。";
+      setDeleteSuccessMessage(message);
+      setStatus({
+        phase: "error",
+        message
+      });
+      pushActionNotice("批量删除失败", message, "error");
+    } finally {
+      setDeletingImageId(null);
     }
-
-    setDeleteSuccessMessage(
-      `批量删除部分失败：成功 ${deletedIds.length} 条，失败 ${failedIds.length} 条。请重试失败项。`
-    );
-    setStatus({
-      phase: "error",
-      message: `批量删除部分失败：成功 ${deletedIds.length} 条，失败 ${failedIds.length} 条。`
-    });
-    pushActionNotice(
-      "批量删除部分失败",
-      `成功 ${deletedIds.length} 条，失败 ${failedIds.length} 条。`,
-      "error"
-    );
   }
 
   async function handleRunComparison() {
@@ -904,9 +891,9 @@ export function HomeShell() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className="hidden lg:block text-[11px] uppercase tracking-widest">最近记录</span>
-            {historyItems.length > 0 && (
+            {historyTotal > 0 && (
               <span className="hidden lg:flex ml-auto w-5 h-5 rounded-full bg-white/10 items-center justify-center text-[10px] font-medium text-white/70">
-                {historyItems.length > 9 ? "9+" : historyItems.length}
+                {historyTotal > 99 ? "99+" : historyTotal}
               </span>
             )}
           </button>
@@ -928,6 +915,7 @@ export function HomeShell() {
           {activeNav === "Scans" ? (
             <HistoryPanel
               items={historyItems}
+              totalCount={historyTotal}
               loading={historyLoading}
               errorMessage={historyError}
               deletingImageId={deletingImageId}
@@ -1040,7 +1028,7 @@ export function HomeShell() {
                     </p>
                     <h3 className="mt-2 text-xl font-light text-white">检测运行指标</h3>
                   </div>
-                  <DashboardStats historyItems={historyItems} />
+                  <DashboardStats historyItems={historyItems} totalHistoryCount={historyTotal} />
                 </div>
               </div>
             </div>

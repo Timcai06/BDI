@@ -1,4 +1,5 @@
 import {
+  batchDeleteResults,
   deleteResult,
   getResultImageFile,
   getOverlayDownloadUrl,
@@ -58,6 +59,80 @@ describe("predict-client", () => {
 
   it("does not throw when deleting in mock mode", async () => {
     await expect(deleteResult("bridge-deck-demo.jpg")).resolves.toBeUndefined();
+  });
+
+  it("returns successful results when batch deleting in mock mode", async () => {
+    const result = await batchDeleteResults(["bridge-deck-demo.jpg", "bridge-pier-demo.jpg"]);
+
+    expect(result.requested).toBe(2);
+    expect(result.deleted_count).toBe(2);
+    expect(result.failed_count).toBe(0);
+    expect(result.results).toEqual([
+      {
+        image_id: "bridge-deck-demo.jpg",
+        deleted: true,
+        error_code: null
+      },
+      {
+        image_id: "bridge-pier-demo.jpg",
+        deleted: true,
+        error_code: null
+      }
+    ]);
+  });
+
+  it("posts to the batch delete endpoint when api base url is configured", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "http://127.0.0.1:8000");
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe("http://127.0.0.1:8000/results/batch-delete");
+      expect(init?.method).toBe("POST");
+      expect(init?.headers).toEqual({
+        "Content-Type": "application/json"
+      });
+      expect(init?.body).toBe(JSON.stringify({
+        image_ids: ["a.jpg", "b.jpg"]
+      }));
+
+      return Response.json({
+        requested: 2,
+        deleted_count: 1,
+        failed_count: 1,
+        results: [
+          {
+            image_id: "a.jpg",
+            deleted: true,
+            error_code: null
+          },
+          {
+            image_id: "b.jpg",
+            deleted: false,
+            error_code: "not_found"
+          }
+        ]
+      });
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = await import("@/lib/predict-client");
+    await expect(client.batchDeleteResults(["a.jpg", "b.jpg"])).resolves.toEqual({
+      requested: 2,
+      deleted_count: 1,
+      failed_count: 1,
+      results: [
+        {
+          image_id: "a.jpg",
+          deleted: true,
+          error_code: null
+        },
+        {
+          image_id: "b.jpg",
+          deleted: false,
+          error_code: "not_found"
+        }
+      ]
+    });
   });
 
   it("invalidates cached history after a successful prediction", async () => {

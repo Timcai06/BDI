@@ -12,6 +12,7 @@ import { HistoryPagination } from "./history-pagination";
 
 interface HistoryPanelProps {
   items: PredictionHistoryItem[];
+  totalCount: number;
   loading: boolean;
   errorMessage?: string | null;
   deletingImageId?: string | null;
@@ -33,6 +34,7 @@ interface HistoryPanelProps {
 
 export function HistoryPanel({
   items,
+  totalCount,
   loading,
   errorMessage,
   deletingImageId,
@@ -193,7 +195,7 @@ export function HistoryPanel({
 
       {/* Stats */}
       <div className="py-6">
-        <HistoryStats items={items} filteredCount={filteredItems.length} />
+        <HistoryStats items={items} totalCount={totalCount} filteredCount={filteredItems.length} />
       </div>
 
       {/* Toolbar */}

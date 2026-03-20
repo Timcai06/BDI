@@ -56,7 +56,7 @@ export function HistoryCard({
           ? "border-sky-500/50 shadow-[0_0_30px_rgba(56,189,248,0.15)]"
           : "border-white/[0.04] hover:border-white/20 hover:shadow-[0_0_40px_rgba(66,133,244,0.08)]"
       }`}
-      onClick={onSelect}
+      onClick={isBatchMode ? onToggleSelect : onSelect}
     >
       {/* Image Container */}
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-black/40">

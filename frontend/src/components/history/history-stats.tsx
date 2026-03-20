@@ -5,6 +5,7 @@ import type { PredictionHistoryItem } from "@/lib/types";
 
 interface HistoryStatsProps {
   items: PredictionHistoryItem[];
+  totalCount: number;
   filteredCount: number;
 }
 
@@ -43,10 +44,8 @@ function StatItem({ label, value, subtext, icon, accentColor }: StatItemProps) {
   );
 }
 
-export function HistoryStats({ items, filteredCount }: HistoryStatsProps) {
+export function HistoryStats({ items, totalCount, filteredCount }: HistoryStatsProps) {
   const stats = useMemo(() => {
-    const totalCount = items.length;
-    
     // 今日新增
     const today = new Date().toISOString().split("T")[0];
     const todayCount = items.filter(item => 
@@ -60,19 +59,20 @@ export function HistoryStats({ items, filteredCount }: HistoryStatsProps) {
     );
     
     // 平均推理时间
-    const avgInferenceTime = totalCount > 0 
-      ? Math.round(items.reduce((sum, item) => sum + item.inference_ms, 0) / totalCount)
+    const loadedCount = items.length;
+    const avgInferenceTime = loadedCount > 0 
+      ? Math.round(items.reduce((sum, item) => sum + item.inference_ms, 0) / loadedCount)
       : 0;
     
     return { totalCount, todayCount, totalDetections, avgInferenceTime };
-  }, [items]);
+  }, [items, totalCount]);
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       <StatItem
         label="总记录"
         value={stats.totalCount}
-        subtext={`显示 ${filteredCount} 项`}
+        subtext={`当前筛选 ${filteredCount} 项`}
         accentColor="#38bdf8"
         icon={
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

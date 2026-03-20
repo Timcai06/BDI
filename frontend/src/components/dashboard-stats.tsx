@@ -5,11 +5,12 @@ import type { PredictionHistoryItem } from "@/lib/types";
 
 interface DashboardStatsProps {
   historyItems: PredictionHistoryItem[];
+  totalHistoryCount?: number;
 }
 
-export function DashboardStats({ historyItems }: DashboardStatsProps) {
+export function DashboardStats({ historyItems, totalHistoryCount }: DashboardStatsProps) {
   const stats = useMemo(() => {
-    const totalScans = historyItems.length;
+    const totalScans = totalHistoryCount ?? historyItems.length;
     
     // Calculate today's scans
     const today = new Date().toISOString().split("T")[0];
@@ -60,7 +61,7 @@ export function DashboardStats({ historyItems }: DashboardStatsProps) {
       trend,
       trendValue
     };
-  }, [historyItems]);
+  }, [historyItems, totalHistoryCount]);
 
   const trendTone =
     stats.trend === "up" ? "text-emerald-300 bg-emerald-500/15 border-emerald-400/30"

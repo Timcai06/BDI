@@ -5,6 +5,7 @@ import {
 } from "@/lib/mock-data";
 import type {
   ApiError,
+  BatchDeleteResultsResponse,
   ModelCatalogResponse,
   PredictOptions,
   PredictionHistoryResponse,
@@ -282,6 +283,59 @@ export async function deleteResult(imageId: string): Promise<void> {
       throw error;
     }
     throw new Error("无法删除分析记录。");
+  }
+}
+
+export async function batchDeleteResults(imageIds: string[]): Promise<BatchDeleteResultsResponse> {
+  if (imageIds.length === 0) {
+    return {
+      requested: 0,
+      deleted_count: 0,
+      failed_count: 0,
+      results: []
+    };
+  }
+
+  if (!API_BASE_URL) {
+    return {
+      requested: imageIds.length,
+      deleted_count: imageIds.length,
+      failed_count: 0,
+      results: imageIds.map((imageId) => ({
+        image_id: imageId,
+        deleted: true,
+        error_code: null
+      }))
+    };
+  }
+
+  try {
+    const response = await fetchWithTimeout(`${API_BASE_URL}/results/batch-delete`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        image_ids: imageIds
+      })
+    });
+
+    if (!response.ok) {
+      const payload = (await response.json()) as ApiError;
+      throw new Error(getErrorMessage(payload, "批量删除记录失败。"));
+    }
+
+    for (const imageId of imageIds) {
+      MEMORY_CACHE.delete(`${API_BASE_URL}/results/${encodeImageId(imageId)}`);
+    }
+    invalidateResultListCaches();
+
+    return (await response.json()) as BatchDeleteResultsResponse;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error("无法批量删除分析记录。");
   }
 }
 
