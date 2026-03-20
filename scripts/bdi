@@ -1,8 +1,18 @@
 #!/bin/zsh
 set -euo pipefail
 
-# 自动检测项目根目录（脚本所在目录的上级）
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# 自动检测项目根目录，并正确处理通过软链接调用的情况
+SOURCE_PATH="${0}"
+if [[ "$SOURCE_PATH" != */* ]]; then
+  SOURCE_PATH="$(command -v -- "$SOURCE_PATH")"
+fi
+while [ -L "$SOURCE_PATH" ]; do
+  LINK_DIR="$(cd "$(dirname "$SOURCE_PATH")" && pwd)"
+  SOURCE_PATH="$(readlink "$SOURCE_PATH")"
+  [[ "$SOURCE_PATH" != /* ]] && SOURCE_PATH="$LINK_DIR/$SOURCE_PATH"
+done
+
+SCRIPT_DIR="$(cd "$(dirname "$SOURCE_PATH")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 STATE_FILE="/tmp/bdi-state.env"
@@ -20,8 +30,10 @@ EOF
 }
 
 read_state() {
+  PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
   if [ -f "$STATE_FILE" ]; then
     source "$STATE_FILE"
+    PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
   else
     MODE="unknown"
   fi
@@ -106,6 +118,8 @@ stop_bdi() {
   else
     echo "Backend already stopped"
   fi
+
+  rm -f "$STATE_FILE"
 }
 
 usage() {
