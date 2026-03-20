@@ -1,0 +1,149 @@
+#!/bin/zsh
+set -euo pipefail
+
+# 自动检测项目根目录（脚本所在目录的上级）
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+STATE_FILE="/tmp/bdi-state.env"
+FRONTEND_PORT=3000
+BACKEND_PORT=8000
+
+write_state() {
+  local mode="$1"
+  cat > "$STATE_FILE" <<EOF
+PROJECT_DIR="$PROJECT_DIR"
+MODE="$mode"
+FRONTEND_PORT="$FRONTEND_PORT"
+BACKEND_PORT="$BACKEND_PORT"
+EOF
+}
+
+read_state() {
+  if [ -f "$STATE_FILE" ]; then
+    source "$STATE_FILE"
+  else
+    MODE="unknown"
+  fi
+}
+
+port_pid() {
+  local port="$1"
+  # lsof exits non-zero when no listener exists; do not let that abort the script.
+  lsof -ti tcp:"$port" -sTCP:LISTEN 2>/dev/null | head -n 1 || true
+}
+
+ensure_port_free() {
+  local port="$1"
+  local name="$2"
+  local pid
+  pid="$(port_pid "$port")"
+  if [ -n "$pid" ]; then
+    echo "$name port $port is already in use by pid $pid"
+    echo "Run: bdi stop"
+    exit 1
+  fi
+}
+
+show_status() {
+  read_state
+
+  local frontend_pid backend_pid
+  frontend_pid="$(port_pid "$FRONTEND_PORT")"
+  backend_pid="$(port_pid "$BACKEND_PORT")"
+
+  echo "BDI status"
+  echo "Project: $PROJECT_DIR"
+  echo "Mode: $MODE"
+  echo
+
+  if [ -n "$frontend_pid" ]; then
+    echo "[ok] frontend running on :$FRONTEND_PORT (pid: $frontend_pid)"
+  else
+    echo "[down] frontend not listening on :$FRONTEND_PORT"
+  fi
+
+  if [ -n "$backend_pid" ]; then
+    echo "[ok] backend running on :$BACKEND_PORT (pid: $backend_pid)"
+  else
+    echo "[down] backend not listening on :$BACKEND_PORT"
+  fi
+
+  if [ -n "$backend_pid" ]; then
+    local health_json models_json
+    health_json="$(curl -fsS "http://127.0.0.1:$BACKEND_PORT/health" 2>/dev/null || true)"
+    models_json="$(curl -fsS "http://127.0.0.1:$BACKEND_PORT/models" 2>/dev/null || true)"
+
+    if [ -n "$health_json" ]; then
+      echo
+      echo "Health:"
+      echo "$health_json"
+    fi
+
+    if [ -n "$models_json" ]; then
+      echo
+      echo "Models:"
+      echo "$models_json"
+    fi
+  fi
+}
+
+stop_bdi() {
+  local frontend_pid backend_pid
+  frontend_pid="$(port_pid "$FRONTEND_PORT")"
+  backend_pid="$(port_pid "$BACKEND_PORT")"
+
+  if [ -n "$frontend_pid" ]; then
+    kill "$frontend_pid" >/dev/null 2>&1 || true
+    echo "Stopped frontend pid $frontend_pid"
+  else
+    echo "Frontend already stopped"
+  fi
+
+  if [ -n "$backend_pid" ]; then
+    kill "$backend_pid" >/dev/null 2>&1 || true
+    echo "Stopped backend pid $backend_pid"
+  else
+    echo "Backend already stopped"
+  fi
+}
+
+usage() {
+  cat <<'EOF'
+Usage:
+  bdi run         Start frontend + real backend
+  bdi run mock    Start frontend + mock backend
+  bdi status      Show frontend/backend status and active model info
+  bdi stop        Stop frontend/backend listeners on 3000/8000
+  bdi check       Check local project environment
+  bdi cd          Print project directory
+EOF
+}
+
+cmd="${1:-}"
+
+case "$cmd" in
+  run)
+    mode="${2:-real}"
+    ensure_port_free "$FRONTEND_PORT" "Frontend"
+    ensure_port_free "$BACKEND_PORT" "Backend"
+    write_state "$mode"
+    exec "$PROJECT_DIR/scripts/dev.sh" "$mode"
+    ;;
+  status)
+    show_status
+    ;;
+  stop)
+    stop_bdi
+    ;;
+  check)
+    exec "$PROJECT_DIR/scripts/dev-check.sh"
+    ;;
+  cd)
+    echo "$PROJECT_DIR"
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac
