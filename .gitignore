@@ -63,3 +63,8 @@ exports/
 *.pth
 *.onnx
 *.engine
+!backend/models/
+!backend/models/*.pt
+!backend/models/*.pth
+!backend/models/*.onnx
+!backend/models/*.engine
