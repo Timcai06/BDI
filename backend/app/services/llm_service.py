@@ -76,4 +76,13 @@ class LLMService:
                     yield chunk.choices[0].delta.content
         except Exception as e:
             self.logger.error(f"LLM Diagnosis Error: {str(e)}", exc_info=True)
-            yield f"诊断生成失败: {str(e)} (BaseURL: {self.settings.llm_base_url})"
+            error_text = str(e)
+            if "invalid_api_key" in error_text or "Incorrect API key provided" in error_text:
+                yield (
+                    "诊断生成失败: 当前 API Key 对该接口地址无效。"
+                    f" 现在使用的 BaseURL 是 {self.settings.llm_base_url}。"
+                    " 如果这是第三方 OpenAI 兼容服务的 Key，请在后端 .env 中同时配置正确的 "
+                    "BDI_LLM_BASE_URL 和 BDI_LLM_MODEL_NAME。"
+                )
+                return
+            yield f"诊断生成失败: {error_text} (BaseURL: {self.settings.llm_base_url})"
