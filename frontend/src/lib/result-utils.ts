@@ -138,3 +138,52 @@ export function getDetectionOverlayStyle(
     height: `${(height / frameSize.height * 100).toFixed(3)}%`
   };
 }
+
+export function mapImagePointToFramePercent(
+  point: [number, number],
+  imageSize: Size,
+  frameSize: Size
+): { x: number; y: number } {
+  if (
+    imageSize.width <= 0 ||
+    imageSize.height <= 0 ||
+    frameSize.width <= 0 ||
+    frameSize.height <= 0
+  ) {
+    return { x: 0, y: 0 };
+  }
+
+  const scale = Math.min(
+    frameSize.width / imageSize.width,
+    frameSize.height / imageSize.height
+  );
+  const renderedWidth = imageSize.width * scale;
+  const renderedHeight = imageSize.height * scale;
+  const offsetX = (frameSize.width - renderedWidth) / 2;
+  const offsetY = (frameSize.height - renderedHeight) / 2;
+
+  const x = offsetX + point[0] * scale;
+  const y = offsetY + point[1] * scale;
+
+  return {
+    x: Number(((x / frameSize.width) * 100).toFixed(3)),
+    y: Number(((y / frameSize.height) * 100).toFixed(3)),
+  };
+}
+
+export function getDetectionMaskPolygonPoints(
+  detection: Detection,
+  imageSize: Size,
+  frameSize: Size
+): string {
+  if (!detection.mask?.points?.length) {
+    return "";
+  }
+
+  return detection.mask.points
+    .map(([x, y]) => {
+      const mapped = mapImagePointToFramePercent([x, y], imageSize, frameSize);
+      return `${mapped.x},${mapped.y}`;
+    })
+    .join(" ");
+}

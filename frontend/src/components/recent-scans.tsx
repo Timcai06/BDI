@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { getDefectColorHex } from "@/lib/defect-visuals";
 import type { PredictionHistoryItem } from "@/lib/types";
 import { formatModelLabel } from "@/lib/model-labels";
 
@@ -9,17 +10,6 @@ interface RecentScansProps {
   maxItems?: number;
   onSelect: (imageId: string) => void;
   onViewAll: () => void;
-}
-
-function getCategoryColor(category: string): string {
-  const colors: Record<string, string> = {
-    crack: "#ef4444",
-    spalling: "#f59e0b",
-    corrosion: "#06b6d4",
-    efflorescence: "#8b5cf6",
-    default: "#64748b"
-  };
-  return colors[category.toLowerCase()] || colors.default;
 }
 
 export function RecentScans({ items, maxItems = 5, onSelect, onViewAll }: RecentScansProps) {
@@ -63,7 +53,7 @@ export function RecentScans({ items, maxItems = 5, onSelect, onViewAll }: Recent
       </div>
 
       <div className="space-y-2">
-        {recentItems.map((item, index) => (
+        {recentItems.map((item) => (
           <button
             key={item.image_id}
             onClick={() => onSelect(item.image_id)}
@@ -102,11 +92,11 @@ export function RecentScans({ items, maxItems = 5, onSelect, onViewAll }: Recent
             {/* Detection count badge */}
             {item.detection_count > 0 && (
               <div className="flex-shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/[0.05] border border-white/[0.06]">
-                <span 
+                <span
                   className="w-1.5 h-1.5 rounded-full"
-                  style={{ 
-                    backgroundColor: getCategoryColor(item.categories[0] || "default"),
-                    boxShadow: `0 0 6px ${getCategoryColor(item.categories[0] || "default")}`
+                  style={{
+                    backgroundColor: getDefectColorHex(item.categories[0] || "default"),
+                    boxShadow: `0 0 6px ${getDefectColorHex(item.categories[0] || "default")}`
                   }}
                 />
                 <span className="text-[10px] font-medium text-white/70">

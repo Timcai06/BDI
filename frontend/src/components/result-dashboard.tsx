@@ -2,10 +2,12 @@ import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 
 import { AdaptiveImage } from "@/components/adaptive-image";
 import { StatusCard } from "@/components/status-card";
+import { getDefectColorHex } from "@/lib/defect-visuals";
 import { formatModelLabel } from "@/lib/model-labels";
 import {
   buildDetectionCategoryDiff,
   filterDetections,
+  getDetectionMaskPolygonPoints,
   getDetectionOverlayStyle,
   getDetectionSummary,
   getPrimaryFinding,
@@ -53,17 +55,6 @@ interface ResultDashboardProps {
   onCategoryFilterChange: (category: string) => void;
   onMinConfidenceChange: (confidence: number) => void;
   categories: string[];
-}
-
-function getCategoryColor(category: string) {
-  const norm = category.toLowerCase();
-  if (norm.includes("crack") || norm.includes("裂缝"))
-    return "border-[#FF4D4D] bg-[#FF4D4D]/10 text-[#FF4D4D]";
-  if (norm.includes("spalling") || norm.includes("剥落"))
-    return "border-[#FFC107] bg-[#FFC107]/10 text-[#FFC107]";
-  if (norm.includes("efflo") || norm.includes("泛碱"))
-    return "border-[#00D2FF] bg-[#00D2FF]/10 text-[#00D2FF]";
-  return "border-emerald-400 bg-emerald-400/10 text-emerald-400";
 }
 
 function calculateTotalMetrics(result: PredictionResult) {
@@ -239,13 +230,9 @@ export function ResultDashboard({
       ).toFixed(1)
     : "--";
   const activePreviewUrl =
-    viewMode === "overlay" && overlayPreviewUrl
-      ? overlayPreviewUrl
-      : previewUrl;
+    previewUrl ?? (viewMode === "overlay" ? overlayPreviewUrl : null);
   const activeComparisonPreviewUrl =
-    viewMode === "overlay" && comparisonOverlayPreviewUrl
-      ? comparisonOverlayPreviewUrl
-      : comparisonPreviewUrl;
+    comparisonPreviewUrl ?? (viewMode === "overlay" ? comparisonOverlayPreviewUrl : null);
   const current =
     prioritizedDetections.find((item) => item.id === selectedDetectionId) ??
     prioritizedDetections[0] ??
@@ -542,32 +529,113 @@ export function ResultDashboard({
                   <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
 
                   <div className="absolute inset-0 z-10">
-                    {prioritizedDetections.map((item) => {
-                      const colorCls = getCategoryColor(item.category);
-                      const isSelected = item.id === selectedDetectionId;
-                      const overlayStyle = getDetectionOverlayStyle(
-                        item.bbox,
-                        imageSize,
-                        frameSize,
-                      );
-                      return (
-                        <div
-                          key={item.id}
-                          className={`absolute rounded-sm group transition-all cursor-crosshair box-border hover:shadow-[0_0_15px_currentColor] ${isSelected ? "border-[3px] shadow-[0_0_18px_currentColor]" : "border-[1.5px] hover:border-[2.5px]"} ${colorCls}`}
-                          style={{
-                            ...overlayStyle,
-                            backgroundColor: "transparent",
-                          }}
-                          onClick={() => handleFocusDetection(item)}
-                        >
-                          <div className="absolute inset-0 bg-current opacity-10 group-hover:opacity-20 transition-opacity" />
-                          <span className="absolute -top-[21px] left-[-1.5px] px-1.5 py-0.5 text-[10px] font-mono font-bold bg-current text-[#0B1120] whitespace-nowrap opacity-80 group-hover:opacity-100 transition-opacity shadow-sm">
-                            {item.category.toUpperCase()}{" "}
-                            {(item.confidence * 100).toFixed(1)}%
-                          </span>
-                        </div>
-                      );
-                    })}
+                    {viewMode === "image"
+                      ? prioritizedDetections.map((item) => {
+                          const colorCode = getDefectColorHex(item.category);
+                          const isSelected = item.id === selectedDetectionId;
+                          const overlayStyle = getDetectionOverlayStyle(
+                            item.bbox,
+                            imageSize,
+                            frameSize,
+                          );
+                          return (
+                            <div
+                              key={item.id}
+                              className={`absolute rounded-sm group transition-all cursor-crosshair box-border hover:shadow-[0_0_15px_currentColor] ${isSelected ? "border-[3px] shadow-[0_0_18px_currentColor]" : "border-[1.5px] hover:border-[2.5px]"}`}
+                              style={{
+                                ...overlayStyle,
+                                borderColor: colorCode,
+                                color: colorCode,
+                              }}
+                              onClick={() => handleFocusDetection(item)}
+                            >
+                              <span
+                                className="absolute left-0 top-0 -translate-y-[calc(100%+6px)] rounded-md border px-2 py-1 text-[10px] font-mono font-bold whitespace-nowrap shadow-md"
+                                style={{
+                                  backgroundColor: colorCode,
+                                  borderColor: colorCode,
+                                  color: "#06131F",
+                                }}
+                              >
+                                {item.category.toUpperCase()}{" "}
+                                {(item.confidence * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                          );
+                        })
+                      : (
+                        <>
+                          <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                            {prioritizedDetections.map((item) => {
+                              const colorCode = getDefectColorHex(item.category);
+                              const isSelected = item.id === selectedDetectionId;
+                              const polygonPoints = getDetectionMaskPolygonPoints(
+                                item,
+                                imageSize,
+                                frameSize,
+                              );
+                              const bboxStyle = getDetectionOverlayStyle(
+                                item.bbox,
+                                imageSize,
+                                frameSize,
+                              );
+
+                              return polygonPoints ? (
+                                <polygon
+                                  key={item.id}
+                                  points={polygonPoints}
+                                  fill="none"
+                                  stroke={colorCode}
+                                  strokeWidth={isSelected ? "0.8" : "0.45"}
+                                  className="cursor-crosshair"
+                                  onClick={() => handleFocusDetection(item)}
+                                />
+                              ) : (
+                                <rect
+                                  key={item.id}
+                                  x={Number.parseFloat(bboxStyle.left)}
+                                  y={Number.parseFloat(bboxStyle.top)}
+                                  width={Number.parseFloat(bboxStyle.width)}
+                                  height={Number.parseFloat(bboxStyle.height)}
+                                  fill="none"
+                                  stroke={colorCode}
+                                  strokeDasharray="3 2"
+                                  strokeWidth={isSelected ? "0.8" : "0.45"}
+                                  className="cursor-crosshair"
+                                  onClick={() => handleFocusDetection(item)}
+                                />
+                              );
+                            })}
+                          </svg>
+                          {prioritizedDetections.map((item) => {
+                            const colorCode = getDefectColorHex(item.category);
+                            const bboxStyle = getDetectionOverlayStyle(
+                              item.bbox,
+                              imageSize,
+                              frameSize,
+                            );
+
+                            return (
+                              <button
+                                key={`${item.id}-label`}
+                                type="button"
+                                className="absolute rounded-md border px-2 py-1 text-left text-[10px] font-mono font-bold whitespace-nowrap shadow-md"
+                                style={{
+                                  left: bboxStyle.left,
+                                  top: bboxStyle.top,
+                                  transform: "translateY(calc(-100% - 6px))",
+                                  backgroundColor: colorCode,
+                                  borderColor: colorCode,
+                                  color: "#06131F",
+                                }}
+                                onClick={() => handleFocusDetection(item)}
+                              >
+                                {item.category.toUpperCase()} {(item.confidence * 100).toFixed(1)}%
+                              </button>
+                            );
+                          })}
+                        </>
+                      )}
                   </div>
                 </div>
               </div>
@@ -1177,9 +1245,7 @@ export function ResultDashboard({
               className="flex-1 overflow-y-auto p-3 space-y-2"
             >
               {prioritizedDetections.map((item, index) => {
-                const colorCls = getCategoryColor(item.category);
-                const colorCode =
-                  colorCls.match(/text-\[(.*?)\]/)?.[1] || "#10B981";
+                const colorCode = getDefectColorHex(item.category);
                 const isSelected = item.id === selectedDetectionId;
                 const isHighestPriority = item.id === topPriorityDetection?.id;
 

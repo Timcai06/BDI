@@ -1,6 +1,7 @@
 "use client";
 
 import { AdaptiveImage } from "@/components/adaptive-image";
+import { getDefectColorHex } from "@/lib/defect-visuals";
 import { formatModelLabel } from "@/lib/model-labels";
 import type { PredictionHistoryItem } from "@/lib/types";
 
@@ -9,7 +10,7 @@ interface HistoryCardProps {
   isSelected: boolean;
   isBatchMode: boolean;
   deletingImageId: string | null;
-  getImageUrl: (imageId: string) => string | null;
+  getImageUrl: (item: PredictionHistoryItem) => string | null;
   onSelect: () => void;
   onDeleteRequest: (e: React.MouseEvent) => void;
   onToggleSelect: (e: React.MouseEvent) => void;
@@ -25,17 +26,6 @@ function formatTime(value: string) {
   });
 }
 
-function getCategoryColor(category: string): string {
-  const colors: Record<string, string> = {
-    crack: "#ef4444",
-    spalling: "#f59e0b", 
-    corrosion: "#06b6d4",
-    efflorescence: "#8b5cf6",
-    default: "#64748b"
-  };
-  return colors[category.toLowerCase()] || colors.default;
-}
-
 export function HistoryCard({
   item,
   isSelected,
@@ -47,7 +37,7 @@ export function HistoryCard({
   onToggleSelect
 }: HistoryCardProps) {
   const isDeleting = deletingImageId === item.image_id;
-  const imageUrl = getImageUrl(item.image_id);
+  const imageUrl = getImageUrl(item);
   const primaryCategory = item.categories[0] ?? "default";
   const remainingCategoryCount = Math.max(item.categories.length - 1, 0);
 
@@ -151,9 +141,9 @@ export function HistoryCard({
                   <span
                     className="rounded-full border px-1.5 py-0.5 font-medium"
                     style={{
-                      backgroundColor: `${getCategoryColor(primaryCategory)}18`,
-                      borderColor: `${getCategoryColor(primaryCategory)}40`,
-                      color: getCategoryColor(primaryCategory)
+                      backgroundColor: `${getDefectColorHex(primaryCategory)}18`,
+                      borderColor: `${getDefectColorHex(primaryCategory)}40`,
+                      color: getDefectColorHex(primaryCategory)
                     }}
                   >
                     {primaryCategory}
@@ -170,8 +160,8 @@ export function HistoryCard({
                     <span
                       className="h-1 w-1 rounded-full"
                       style={{
-                        backgroundColor: getCategoryColor(primaryCategory),
-                        boxShadow: `0 0 6px ${getCategoryColor(primaryCategory)}`
+                        backgroundColor: getDefectColorHex(primaryCategory),
+                        boxShadow: `0 0 6px ${getDefectColorHex(primaryCategory)}`
                       }}
                     />
                     <span>{item.detection_count} 处病害</span>
@@ -188,9 +178,9 @@ export function HistoryCard({
                       key={category}
                       className="rounded-full px-2 py-0.5 text-[9px] font-medium border"
                       style={{
-                        backgroundColor: `${getCategoryColor(category)}20`,
-                        borderColor: `${getCategoryColor(category)}40`,
-                        color: getCategoryColor(category)
+                        backgroundColor: `${getDefectColorHex(category)}20`,
+                        borderColor: `${getDefectColorHex(category)}40`,
+                        color: getDefectColorHex(category)
                       }}
                     >
                       {category}
@@ -217,8 +207,8 @@ export function HistoryCard({
                     <span 
                       className="w-1.5 h-1.5 rounded-full"
                       style={{ 
-                        backgroundColor: getCategoryColor(primaryCategory),
-                        boxShadow: `0 0 6px ${getCategoryColor(primaryCategory)}`
+                        backgroundColor: getDefectColorHex(primaryCategory),
+                        boxShadow: `0 0 6px ${getDefectColorHex(primaryCategory)}`
                       }}
                     />
                     <span className="text-xs">{item.detection_count} 处病害</span>

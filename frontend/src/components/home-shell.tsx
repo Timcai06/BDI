@@ -165,6 +165,13 @@ export function HomeShell() {
       disabled: !model.is_available
     }));
   const availableHistoryCategories = [...new Set(historyItems.flatMap((item) => item.categories))];
+  const getHistoryPreviewUrl = useCallback(
+    (item: PredictionHistoryItem) =>
+      item.artifacts.overlay_path
+        ? getOverlayDownloadUrl(item.image_id) ?? item.artifacts.overlay_path ?? null
+        : getResultImageUrl(item.image_id),
+    [],
+  );
 
   useEffect(() => {
     if (actionNotices.length === 0) {
@@ -964,7 +971,7 @@ export function HomeShell() {
               categoryFilter={historyCategoryFilter}
               sortMode={historySortMode}
               availableCategories={availableHistoryCategories}
-              getImageUrl={getResultImageUrl}
+              getImageUrl={getHistoryPreviewUrl}
               onDeleteRequest={(imageId) => {
                 setDeleteTargetId(imageId);
               }}
@@ -1085,7 +1092,7 @@ export function HomeShell() {
                 categoryFilter={deferredCategoryFilter}
                 minConfidence={deferredMinConfidence}
                 previewUrl={previewUrl}
-                overlayPreviewUrl={result.artifacts.overlay_path ?? null}
+                overlayPreviewUrl={getOverlayDownloadUrl(result.image_id) ?? result.artifacts.overlay_path ?? null}
                 comparisonPreviewUrl={comparisonPreviewUrl}
                 comparisonOverlayPreviewUrl={comparisonOverlayPreviewUrl}
                 viewMode={resultViewMode}

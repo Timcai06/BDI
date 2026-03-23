@@ -32,7 +32,7 @@ interface HistoryPanelProps {
   onCategoryFilterChange: (value: string) => void;
   onSortModeChange: (value: HistorySortMode) => void;
   onOpenUploader: () => void;
-  getImageUrl: (imageId: string) => string | null;
+  getImageUrl: (item: PredictionHistoryItem) => string | null;
 }
 
 export function HistoryPanel({
