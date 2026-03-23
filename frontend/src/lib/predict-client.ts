@@ -222,6 +222,8 @@ export async function listResults(
           inference_mode: demoResult.inference_mode,
           inference_ms: demoResult.inference_ms,
           detection_count: demoResult.detections.length,
+          has_masks: demoResult.has_masks,
+          mask_detection_count: demoResult.mask_detection_count,
           categories: [...new Set(demoResult.detections.map((item) => item.category))],
           artifacts: demoResult.artifacts
         }

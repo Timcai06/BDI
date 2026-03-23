@@ -68,13 +68,6 @@ export function RecentScans({ items, maxItems = 5, onSelect, onViewAll }: Recent
 
             {/* Content */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-sm text-white/90 truncate font-medium">
-                  {item.image_id.length > 25 
-                    ? item.image_id.slice(0, 25) + "..." 
-                    : item.image_id}
-                </p>
-              </div>
               <div className="flex items-center gap-3 mt-1">
                 <span className="text-[10px] text-white/30">
                   {formatModelLabel({ 

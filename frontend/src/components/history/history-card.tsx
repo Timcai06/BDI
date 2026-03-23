@@ -130,13 +130,6 @@ export function HistoryCard({
           <div>
             {isBatchMode ? (
               <div className="space-y-1">
-                <h3
-                  className="truncate text-[11px] font-medium leading-tight text-white"
-                  style={{ textShadow: "0 2px 8px rgba(0,0,0,0.8)" }}
-                >
-                  {item.image_id}
-                </h3>
-
                 <div className="flex items-center gap-1 text-[8px] leading-none">
                   <span
                     className="rounded-full border px-1.5 py-0.5 font-medium"
@@ -206,15 +199,6 @@ export function HistoryCard({
                     </span>
                   )}
                 </div>
-
-                <h3 
-                  className="text-base font-medium text-white mb-1 truncate"
-                  style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}
-                >
-                  {item.image_id.length > 30 
-                    ? item.image_id.slice(0, 30) + "..." 
-                    : item.image_id}
-                </h3>
 
                 <div className="flex items-center gap-3 text-white/50">
                   <div className="flex items-center gap-1">

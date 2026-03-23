@@ -91,6 +91,7 @@ export function HomeShell() {
   const [confidence, setConfidence] = useState(0.45);
   const [activeNav, setActiveNav] = useState<NavItem>("Home");
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
 
   useEffect(() => {
     if (!selectedFile) {
@@ -552,48 +553,23 @@ export function HomeShell() {
       return;
     }
 
-    // Reset progress
-    setUploadProgress(0);
+    // Reset progress to starting state
+    setUploadProgress(10);
     setScanPhase("uploading");
-
-    // Simulate upload progress (0% to 30%)
-    const uploadInterval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 30) {
-          return prev;
-        }
-        return prev + Math.random() * 5;
-      });
-    }, 200);
 
     setStatus({
       phase: "uploading",
-      message: `正在上传 ${selectedFile.name}，随后会进入推理流程。`
+      message: `正在准备 ${selectedFile.name}...`
     });
 
-    // Simulate upload time based on file size
-    const uploadTime = Math.min(2000, 500 + selectedFile.size / 50000);
-    await new Promise(resolve => setTimeout(resolve, uploadTime));
-
-    clearInterval(uploadInterval);
-    setUploadProgress(30);
-
     try {
-      // Analyzing phase (30% to 60%)
+      // Transition immediately to analyzing
       setScanPhase("analyzing");
+      setUploadProgress(40);
       setStatus({
         phase: "running",
-        message: "后端已接收任务，正在执行 YOLOv8-seg 推理。"
+        message: "正在请求后端执行 YOLOv8-seg 推理..."
       });
-
-      const analyzeInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 60) {
-            return prev;
-          }
-          return prev + Math.random() * 3;
-        });
-      }, 300);
 
       const prediction = await predictImage(selectedFile, {
         confidence,
@@ -602,23 +578,13 @@ export function HomeShell() {
         pixelsPerMm
       });
 
-      clearInterval(analyzeInterval);
-
-      // Detecting phase (60% to 100%)
+      // Update to detecting as results arrive
       setScanPhase("detecting");
-      const detectInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev >= 95) {
-            return prev;
-          }
-          return prev + Math.random() * 4;
-        });
-      }, 150);
+      setUploadProgress(90);
 
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Give a tiny visual confirmation frame before completion
+      await new Promise(resolve => setTimeout(resolve, 200));
 
-      clearInterval(detectInterval);
       setUploadProgress(100);
       setScanPhase("complete");
 
@@ -1131,28 +1097,7 @@ export function HomeShell() {
         </div>
       </section>
 
-      {/* 右侧边栏 (状态机/统计) - 仅在没有结果时显示 */}
-      {!result && (
-        <aside className="hidden xl:flex w-[360px] shrink-0 border-l border-white/5 bg-[#05080A]/80 backdrop-blur-xl flex-col z-10 relative shadow-[-20px_0_50px_rgba(0,0,0,0.8)] animate-in fade-in slide-in-from-right-4 duration-500">
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,210,255,0.03),transparent)] pointer-events-none" />
-          <div className="p-6 border-b border-white/5 relative">
-            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#00D2FF]/60 mb-2">系统状态</p>
-            <StatusCard 
-              phase={status.phase} 
-              message={status.message} 
-              progress={uploadProgress}
-            />
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-6 relative">
-             <div className="rounded-xl border border-white/5 bg-white/[0.02] p-6 text-center">
-                <p className="text-sm text-slate-400 font-light leading-relaxed">
-                  系统已准备就绪。上传图像后，此处将实时展示检测进度与硬件资源占用情况。
-                </p>
-             </div>
-          </div>
-        </aside>
-      )}
+      {/* 右侧边栏已移除，避免弹窗关闭切到 ResultDashboard 时发生重心剧烈跳跃 */}
 
       {analysisModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 sm:p-6 backdrop-blur-md overflow-y-auto">
@@ -1411,54 +1356,80 @@ export function HomeShell() {
                   </div>
                 </label>
 
-                <label className={`rounded-xl border border-white/5 bg-white/[0.02] p-4 flex items-center justify-between group transition-colors ${
-                  selectedModelSupportsMasks
-                    ? "cursor-pointer hover:bg-white/[0.04]"
-                    : "cursor-not-allowed opacity-60"
-                }`}>
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 block mb-1">导出结果图</span>
-                    <span className="text-xs text-white/30 font-light">
-                      {selectedModelSupportsMasks ? "同步生成可视化结果图文件" : "当前模型不支持结果图导出"}
+                {/* Advanced Settings Accordion */}
+                <div className="sm:col-span-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+                    className="flex w-full items-center justify-between rounded-xl border border-white/5 bg-white/[0.01] px-4 py-3 text-sm text-white/50 transition-colors hover:bg-white/[0.03] hover:text-white"
+                  >
+                    <span className="flex items-center gap-2">
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      高级配置 (Advanced Settings)
                     </span>
-                  </div>
-                  <div className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${exportOverlay ? "bg-white/80" : "bg-white/10"}`}>
-                    <span className={`inline-block h-3 w-3 transform rounded-full bg-black transition-transform mt-1 ${exportOverlay ? "translate-x-5" : "translate-x-1"}`} />
-                  </div>
-                  <input
-                    type="checkbox"
-                    className="hidden"
-                    checked={exportOverlay}
-                    disabled={!selectedModelSupportsMasks}
-                    onChange={() => setExportOverlay(!exportOverlay)}
-                  />
-                </label>
+                    <svg
+                      className={`h-4 w-4 transform transition-transform duration-200 ${showAdvancedSettings ? 'rotate-180' : ''}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
 
-                {/* GSD 物理尺寸换算配置 */}
-                <div className="sm:col-span-2 rounded-xl border border-white/5 bg-white/[0.02] p-4 group transition-colors hover:bg-white/[0.04]">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 block mb-1">物理换算比例 (GSD)</span>
-                      <span className="text-xs text-white/30 font-light">
-                        定义多少像素代表 1mm 物理尺寸 (当前: {pixelsPerMm} px/mm)
-                      </span>
+                  {/* Accordion Content */}
+                  <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showAdvancedSettings ? 'max-h-[500px] mt-3 opacity-100' : 'max-h-0 opacity-0'}`}>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className={`rounded-xl border border-white/5 bg-white/[0.02] p-4 flex items-center justify-between group transition-colors ${
+                        selectedModelSupportsMasks
+                          ? "cursor-pointer hover:bg-white/[0.04]"
+                          : "cursor-not-allowed opacity-60"
+                      }`}>
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 block mb-1">导出结果图</span>
+                          <span className="text-xs text-white/30 font-light">
+                            {selectedModelSupportsMasks ? "同步生成可视化结果图文件" : "当前模型不支持结果图导出"}
+                          </span>
+                        </div>
+                        <div className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${exportOverlay ? "bg-white/80" : "bg-white/10"}`}>
+                          <span className={`inline-block h-3 w-3 transform rounded-full bg-black transition-transform mt-1 ${exportOverlay ? "translate-x-5" : "translate-x-1"}`} />
+                        </div>
+                        <input
+                          type="checkbox"
+                          className="hidden"
+                          checked={exportOverlay}
+                          disabled={!selectedModelSupportsMasks}
+                          onChange={() => setExportOverlay(!exportOverlay)}
+                        />
+                      </label>
+
+                      {/* GSD 物理尺寸换算配置 */}
+                      <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 group transition-colors hover:bg-white/[0.04]">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 block mb-1">物理换算比例 (GSD)</span>
+                            <span className="text-xs text-white/30 font-light">
+                              {pixelsPerMm} px/mm
+                            </span>
+                          </div>
+                          <span className="font-mono text-xs text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">
+                            1cm ≈ {Math.round(pixelsPerMm * 10)} px
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="1"
+                          max="50"
+                          step="0.5"
+                          value={pixelsPerMm}
+                          onChange={(e) => setPixelsPerMm(parseFloat(e.target.value))}
+                          className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-sky-400 group-hover:bg-white/20 transition-all"
+                        />
+                      </div>
                     </div>
-                    <span className="font-mono text-xs text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">
-                      1cm ≈ {Math.round(pixelsPerMm * 10)} 像素
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="1"
-                    max="50"
-                    step="0.5"
-                    value={pixelsPerMm}
-                    onChange={(e) => setPixelsPerMm(parseFloat(e.target.value))}
-                    className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-sky-400 group-hover:bg-white/20 transition-all"
-                  />
-                  <div className="flex justify-between mt-2 text-[10px] font-mono text-white/20 uppercase tracking-tighter">
-                    <span>高分辨率 (50px/mm)</span>
-                    <span>远距离 (1px/mm)</span>
                   </div>
                 </div>
               </div>
