@@ -53,8 +53,27 @@ uvicorn app.main:app --reload
 - 通过环境变量选择真实 `YOLOv8-seg` runner
 - 将 Ultralytics 原始结果转换为统一协议
 - 生成 overlay 与标准 JSON 产物
+- 在统一协议中显式返回 `has_masks` 与 `mask_detection_count`
 - 后端代码已修正为兼容 `Python 3.9`
 - 已验证新增多模型骨架在 `.venv-yolo` 的 `Python 3.9` 环境中可正常 import、测试和编译
+
+## 当前结果协议补充说明
+
+后端当前会在结果协议中显式返回实例掩膜能力：
+
+- `has_masks: bool`
+- `mask_detection_count: int`
+
+这两个字段用于帮助前端区分：
+
+- 当前结果是否真正包含实例分割掩膜
+- 是否允许进入“掩膜图”视图
+
+需要特别注意：
+
+- `overlay` 是后端导出的可视化结果图产物
+- `overlay` 不等于实例掩膜
+- 真实掩膜能力应以 `detections[].mask`、`has_masks` 和 `mask_detection_count` 为准
 
 ## 真实模型接入
 
