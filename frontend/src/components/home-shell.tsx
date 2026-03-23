@@ -141,7 +141,7 @@ export function HomeShell() {
   const [categoryFilter, setCategoryFilter] = useState("全部");
   const [minConfidence, setMinConfidence] = useState(0.3);
   const [selectedDetectionId, setSelectedDetectionId] = useState<string | null>(null);
-  const [resultViewMode, setResultViewMode] = useState<"image" | "overlay">("image");
+  const [resultViewMode, setResultViewMode] = useState<"image" | "result" | "mask">("image");
   const [pixelsPerMm, setPixelsPerMm] = useState(10.0);
 
   const deferredCategoryFilter = useDeferredValue(categoryFilter);
@@ -359,18 +359,18 @@ export function HomeShell() {
     if (!overlayUrl) {
       setStatus({
         phase: "error",
-        message: "当前结果没有可导出的 overlay 产物。"
+        message: "当前结果没有可导出的结果图产物。"
       });
-      pushActionNotice("叠加图导出失败", "当前结果没有可导出的 overlay。", "error");
+      pushActionNotice("结果图导出失败", "当前结果没有可导出的结果图。", "error");
       return;
     }
 
     downloadRemoteFile(overlayUrl, `${result.image_id}-overlay.png`);
     setStatus({
       phase: "success",
-      message: `已触发 ${result.image_id} 的 overlay 导出。`
+      message: `已触发 ${result.image_id} 的结果图导出。`
     });
-    pushActionNotice("叠加图已开始下载", `${result.image_id}-overlay.png`, "success");
+    pushActionNotice("结果图已开始下载", `${result.image_id}-overlay.png`, "success");
   }
 
   function handleResetToUploader() {
@@ -514,7 +514,7 @@ export function HomeShell() {
     }
 
     setExportOverlay(false);
-    pushActionNotice("模型能力提示", "当前模型不支持叠加图导出，已自动关闭该选项。", "error");
+    pushActionNotice("模型能力提示", "当前模型不支持结果图导出，已自动关闭该选项。", "error");
   }, [selectedModelSupportsMasks, exportOverlay, pushActionNotice]);
 
   async function handleRerunCurrentImage() {
@@ -782,7 +782,7 @@ export function HomeShell() {
     imageIds: string[],
     assetType: "json" | "overlay"
   ) {
-    const exportLabel = assetType === "json" ? "JSON" : "叠加图";
+    const exportLabel = assetType === "json" ? "JSON" : "结果图";
 
     try {
       const { blob, filename } = await batchExportResults(imageIds, assetType);
@@ -1099,7 +1099,8 @@ export function HomeShell() {
                 onViewModeChange={setResultViewMode}
                 onExportJson={handleExportJson}
                 onExportOverlay={handleExportOverlay}
-                overlayDisabled={!result.artifacts.overlay_path}
+                resultDisabled={!result.artifacts.overlay_path}
+                maskDisabled={!result.has_masks}
                 selectedDetectionId={selectedDetectionId}
                 onSelectDetection={(detection) => setSelectedDetectionId(detection.id)}
                 onOpenHistory={() => {
@@ -1416,9 +1417,9 @@ export function HomeShell() {
                     : "cursor-not-allowed opacity-60"
                 }`}>
                   <div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 block mb-1">导出叠加图</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 block mb-1">导出结果图</span>
                     <span className="text-xs text-white/30 font-light">
-                      {selectedModelSupportsMasks ? "同步生成基带画框图" : "当前模型不支持 mask/overlay 输出"}
+                      {selectedModelSupportsMasks ? "同步生成可视化结果图文件" : "当前模型不支持结果图导出"}
                     </span>
                   </div>
                   <div className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${exportOverlay ? "bg-white/80" : "bg-white/10"}`}>
@@ -1490,7 +1491,7 @@ export function HomeShell() {
                     <div className="rounded-xl border border-white/5 bg-black/20 px-4 py-3">
                       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">预计输出</p>
                       <p className="mt-2 text-sm text-white">
-                        {exportOverlay ? "结构化结果 + 叠加图" : "结构化结果"}
+                        {exportOverlay ? "结构化结果 + 结果图" : "结构化结果"}
                       </p>
                     </div>
                   </div>

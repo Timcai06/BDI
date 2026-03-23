@@ -214,6 +214,8 @@ class PredictService:
             ],
             artifacts=ArtifactLinks(upload_path=upload_path, json_path="", overlay_path=None),
         )
+        response.mask_detection_count = sum(1 for item in response.detections if item.mask is not None)
+        response.has_masks = response.mask_detection_count > 0
 
         if normalized_options.return_overlay and raw_prediction.overlay_png:
             overlay_path = self.store.save_overlay(

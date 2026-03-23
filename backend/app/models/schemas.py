@@ -58,6 +58,8 @@ class PredictResponse(BaseModel):
     backend: str
     inference_mode: str
     detections: list[Detection]
+    has_masks: bool = False
+    mask_detection_count: int = Field(default=0, ge=0)
     artifacts: ArtifactLinks
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -72,6 +74,8 @@ class ResultSummary(BaseModel):
     inference_ms: int = Field(ge=0)
     inference_breakdown: dict[str, int] = Field(default_factory=dict)
     detection_count: int = Field(ge=0)
+    has_masks: bool = False
+    mask_detection_count: int = Field(default=0, ge=0)
     categories: list[str] = Field(default_factory=list)
     artifacts: ArtifactLinks
 

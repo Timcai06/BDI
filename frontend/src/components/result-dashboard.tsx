@@ -13,7 +13,7 @@ import {
   getPrimaryFinding,
   getResultNextStep,
 } from "@/lib/result-utils";
-import { getDiagnosisStream } from "@/lib/predict-client";
+import { getDiagnosisText } from "@/lib/predict-client";
 import ReactMarkdown from 'react-markdown';
 import { motion } from 'framer-motion';
 import type { Detection, PredictionResult, PredictState } from "@/lib/types";
@@ -34,11 +34,12 @@ interface ResultDashboardProps {
   overlayPreviewUrl?: string | null;
   comparisonPreviewUrl?: string | null;
   comparisonOverlayPreviewUrl?: string | null;
-  viewMode: "image" | "overlay";
-  onViewModeChange: (mode: "image" | "overlay") => void;
+  viewMode: "image" | "result" | "mask";
+  onViewModeChange: (mode: "image" | "result" | "mask") => void;
   onExportJson: () => void;
   onExportOverlay: () => void;
-  overlayDisabled: boolean;
+  resultDisabled: boolean;
+  maskDisabled: boolean;
   selectedDetectionId: string | null;
   onSelectDetection: (detection: Detection) => void;
   onOpenHistory: () => void;
@@ -155,7 +156,8 @@ export function ResultDashboard({
   onViewModeChange,
   onExportJson,
   onExportOverlay,
-  overlayDisabled,
+  resultDisabled,
+  maskDisabled,
   selectedDetectionId,
   onSelectDetection,
   onOpenHistory,
@@ -190,10 +192,9 @@ export function ResultDashboard({
       setIsDiagnosisLoading(true);
       
       try {
-        const stream = getDiagnosisStream(result.image_id);
-        for await (const chunk of stream) {
-          if (cancelled) break;
-          setDiagnosis((prev) => prev + chunk);
+        const content = await getDiagnosisText(result.image_id);
+        if (!cancelled) {
+          setDiagnosis(content);
         }
       } catch (error) {
         if (!cancelled) {
@@ -230,9 +231,13 @@ export function ResultDashboard({
       ).toFixed(1)
     : "--";
   const activePreviewUrl =
-    previewUrl ?? (viewMode === "overlay" ? overlayPreviewUrl : null);
+    viewMode === "result"
+      ? overlayPreviewUrl ?? previewUrl
+      : previewUrl ?? (viewMode === "mask" ? overlayPreviewUrl : null);
   const activeComparisonPreviewUrl =
-    comparisonPreviewUrl ?? (viewMode === "overlay" ? comparisonOverlayPreviewUrl : null);
+    viewMode === "result"
+      ? comparisonOverlayPreviewUrl ?? comparisonPreviewUrl
+      : comparisonPreviewUrl ?? (viewMode === "mask" ? comparisonOverlayPreviewUrl : null);
   const current =
     prioritizedDetections.find((item) => item.id === selectedDetectionId) ??
     prioritizedDetections[0] ??
@@ -353,7 +358,7 @@ export function ResultDashboard({
                     识别结果
                   </p>
                   <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.18em] text-white/45">
-                    {viewMode === "overlay" ? "Overlay" : "Image"}
+                    {viewMode === "result" ? "Result" : viewMode === "mask" ? "Mask" : "Image"}
                   </span>
                 </div>
               </div>
@@ -372,23 +377,42 @@ export function ResultDashboard({
                   查看原图
                 </button>
                 <button
-                  aria-label="查看叠加图"
-                  aria-pressed={viewMode === "overlay"}
+                  aria-label="查看结果图"
+                  aria-pressed={viewMode === "result"}
                   className={`h-8 rounded-lg px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                    viewMode === "overlay"
+                    viewMode === "result"
                       ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                       : "text-slate-400 hover:bg-white/5"
                   }`}
-                  disabled={overlayDisabled}
+                  disabled={resultDisabled}
                   title={
-                    overlayDisabled
-                      ? "当前结果没有可切换的叠加图"
-                      : "切换到叠加图"
+                    resultDisabled
+                      ? "当前结果没有可切换的结果图"
+                      : "切换到结果图"
                   }
                   type="button"
-                  onClick={() => onViewModeChange("overlay")}
+                  onClick={() => onViewModeChange("result")}
                 >
-                  查看叠加图
+                  查看结果图
+                </button>
+                <button
+                  aria-label="查看掩膜图"
+                  aria-pressed={viewMode === "mask"}
+                  className={`h-8 rounded-lg px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                    viewMode === "mask"
+                      ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                      : "text-slate-400 hover:bg-white/5"
+                  }`}
+                  disabled={maskDisabled}
+                  title={
+                    maskDisabled
+                      ? "当前结果未返回掩膜数据"
+                      : "切换到掩膜图"
+                  }
+                  type="button"
+                  onClick={() => onViewModeChange("mask")}
+                >
+                  查看掩膜图
                 </button>
               </div>
             </div>
@@ -436,18 +460,18 @@ export function ResultDashboard({
                       导出 JSON
                     </button>
                     <button
-                      aria-label="导出叠加图"
+                      aria-label="导出结果图"
                       className="rounded-md px-3 py-2 text-left text-xs text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                      disabled={overlayDisabled}
+                      disabled={resultDisabled}
                       title={
-                        overlayDisabled
-                          ? "当前结果没有可导出的 overlay 文件"
-                          : "导出叠加图"
+                        resultDisabled
+                          ? "当前结果没有可导出的结果图文件"
+                          : "导出结果图"
                       }
                       type="button"
                       onClick={onExportOverlay}
                     >
-                      导出叠加图
+                      导出结果图
                     </button>
                   </div>
                 </details>
@@ -563,7 +587,7 @@ export function ResultDashboard({
                             </div>
                           );
                         })
-                      : (
+                      : viewMode === "mask" ? (
                         <>
                           <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                             {prioritizedDetections.map((item) => {
@@ -635,14 +659,14 @@ export function ResultDashboard({
                             );
                           })}
                         </>
-                      )}
+                      ) : null}
                   </div>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/6 px-5 py-4 text-[11px] font-mono text-slate-500">
                 <span>
-                  {viewMode === "overlay" ? "叠加图视图" : "原图视图"} /{" "}
+                  {viewMode === "result" ? "结果图视图" : viewMode === "mask" ? "掩膜图视图" : "原图视图"} /{" "}
                   {filteredDetections.length} 个病害
                 </span>
                 <span className="truncate text-right">
@@ -659,7 +683,7 @@ export function ResultDashboard({
                   图像级对比
                 </p>
                 <span className="text-xs font-mono text-slate-400">
-                  {viewMode === "overlay" ? "同步叠加图预览" : "同步原图预览"}
+                  {viewMode === "result" ? "同步结果图预览" : viewMode === "mask" ? "同步掩膜图预览" : "同步原图预览"}
                 </span>
               </div>
               <div className="grid gap-4 xl:grid-cols-2">
@@ -866,7 +890,7 @@ export function ResultDashboard({
 
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-[10px] text-slate-400">
-                      <span>后处理 (Metrics & Overlay)</span>
+                      <span>后处理 (Metrics & Result Image)</span>
                       <span className="font-mono">{result.inference_breakdown.post}ms</span>
                     </div>
                     <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
@@ -897,9 +921,26 @@ export function ResultDashboard({
             </p>
             <p className="mt-3 text-sm text-slate-400">
               {activePreviewUrl
-                ? `当前正在查看${viewMode === "overlay" ? "叠加图" : "原图"}，可继续筛选、导出或重新分析。`
+                ? `当前正在查看${
+                  viewMode === "result"
+                    ? "结果图"
+                    : viewMode === "mask"
+                      ? "掩膜图"
+                      : "原图"
+                }，可继续筛选、导出或重新分析。`
                 : "当前为历史记录回看模式，已恢复结构化结果和病害详情。"}
             </p>
+            <div className={`mt-3 rounded-xl border px-4 py-3 text-sm ${
+              result.has_masks
+                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-100"
+                : "border-amber-500/20 bg-amber-500/10 text-amber-100"
+            }`}>
+              <p className="font-medium">
+                {result.has_masks
+                  ? `当前结果包含 ${result.mask_detection_count} 处实例掩膜，可切换到“查看掩膜图”。`
+                  : "当前结果未返回实例掩膜数据，仅支持原图定位与结果图回看。"}
+              </p>
+            </div>
             <div className="mt-4 rounded-xl border border-sky-500/15 bg-sky-500/[0.06] p-4">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-300/70">
                 建议下一步
@@ -976,7 +1017,7 @@ export function ResultDashboard({
               <div className="bg-[#0B1120]/50 rounded-lg p-3 border border-white/5">
                 <div className="text-xs text-slate-400 mb-1">当前视图</div>
                 <div className="text-xl font-medium text-white">
-                  {viewMode === "overlay" ? "叠加图" : "原图"}
+                  {viewMode === "result" ? "结果图" : viewMode === "mask" ? "掩膜图" : "原图"}
                 </div>
               </div>
             </div>

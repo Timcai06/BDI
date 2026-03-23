@@ -168,6 +168,8 @@ class ResultService:
             inference_ms=result.inference_ms,
             inference_breakdown=result.inference_breakdown,
             detection_count=len(result.detections),
+            has_masks=result.has_masks,
+            mask_detection_count=result.mask_detection_count,
             categories=sorted({item.category for item in result.detections}),
             artifacts=result.artifacts,
         )

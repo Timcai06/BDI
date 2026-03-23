@@ -60,6 +60,8 @@ export interface PredictResponse {
   backend: string;
   inference_mode: string;
   detections: Detection[];
+  has_masks: boolean;
+  mask_detection_count: number;
   artifacts: Artifacts;
   created_at: string;
 }
@@ -80,6 +82,8 @@ export interface PredictionHistoryItem {
     post: number;
   };
   detection_count: number;
+  has_masks: boolean;
+  mask_detection_count: number;
   categories: string[];
   artifacts: Artifacts;
 }

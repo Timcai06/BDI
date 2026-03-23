@@ -60,6 +60,8 @@ interface CacheEntry<T> {
 
 const MEMORY_CACHE = new Map<string, CacheEntry<unknown>>();
 const DEFAULT_TTL_MS = 30_000; // 30秒缓存
+const DIAGNOSIS_TEXT_CACHE = new Map<string, string>();
+const DIAGNOSIS_INFLIGHT = new Map<string, Promise<string>>();
 
 async function cachedFetch<T>(
   key: string,
@@ -471,6 +473,56 @@ export async function getResultImageFile(imageId: string): Promise<File> {
       ?.match(/filename="?([^"]+)"?/)?.[1] ?? fallbackName;
 
   return new File([blob], filename, { type: contentType });
+}
+
+export async function getDiagnosisText(imageId: string): Promise<string> {
+  const cached = DIAGNOSIS_TEXT_CACHE.get(imageId);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const inflight = DIAGNOSIS_INFLIGHT.get(imageId);
+  if (inflight) {
+    return inflight;
+  }
+
+  const request = (async () => {
+    if (!API_BASE_URL) {
+      return "【演示模式】AI 专家建议：当前发现的病害需持续监测。裂缝若有扩展趋势，请及时安排人工复测。";
+    }
+
+    const encodedImageId = encodeImageId(imageId);
+    const response = await fetch(`${API_BASE_URL}/results/${encodedImageId}/diagnosis`);
+
+    if (!response.ok || !response.body) {
+      throw new Error("无法获取 AI 专家诊断。");
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let content = "";
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        content += decoder.decode(value, { stream: true });
+      }
+      content += decoder.decode();
+      DIAGNOSIS_TEXT_CACHE.set(imageId, content);
+      return content;
+    } finally {
+      reader.releaseLock();
+    }
+  })();
+
+  DIAGNOSIS_INFLIGHT.set(imageId, request);
+
+  try {
+    return await request;
+  } finally {
+    DIAGNOSIS_INFLIGHT.delete(imageId);
+  }
 }
 
 export async function* getDiagnosisStream(imageId: string): AsyncGenerator<string, void, unknown> {

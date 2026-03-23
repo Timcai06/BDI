@@ -148,6 +148,13 @@ export function HistoryCard({
                   >
                     {primaryCategory}
                   </span>
+                  <span className={`rounded-full border px-1.5 py-0.5 font-medium ${
+                    item.has_masks
+                      ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
+                      : "border-amber-400/30 bg-amber-400/10 text-amber-100"
+                  }`}>
+                    {item.has_masks ? `MASK ${item.mask_detection_count}` : "BBOX ONLY"}
+                  </span>
                   {remainingCategoryCount > 0 && (
                     <span className="rounded-full border border-white/10 bg-black/45 px-1.5 py-0.5 text-white/45">
                       +{remainingCategoryCount}
@@ -186,6 +193,13 @@ export function HistoryCard({
                       {category}
                     </span>
                   ))}
+                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-medium border ${
+                    item.has_masks
+                      ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
+                      : "border-amber-400/30 bg-amber-400/10 text-amber-100"
+                  }`}>
+                    {item.has_masks ? `MASK ${item.mask_detection_count}` : "BBOX ONLY"}
+                  </span>
                   {item.categories.length > 3 && (
                     <span className="rounded-full px-2 py-0.5 text-[9px] text-white/40 bg-white/5 border border-white/10">
                       +{item.categories.length - 3}
