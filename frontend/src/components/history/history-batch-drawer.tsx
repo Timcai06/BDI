@@ -113,10 +113,10 @@ export function HistoryBatchDrawer({
               className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-left text-sm font-medium text-emerald-300 transition-colors hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {isExportingOverlay
-                ? "正在打包叠加图..."
+                ? "正在打包结果图..."
                 : overlayExportableCount > 0
-                  ? `导出叠加图压缩包 (${overlayExportableCount})`
-                  : "所选记录没有可导出的叠加图"}
+                  ? `导出结果图压缩包 (${overlayExportableCount})`
+                  : "所选记录没有可导出的结果图"}
             </button>
             <button
               type="button"

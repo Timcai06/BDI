@@ -1,53 +1,102 @@
-const DEFECT_COLOR_MAP = {
-  crack: "#FF4D4D",
-  spalling: "#00D2FF",
-  corrosion: "#00D2FF",
-  efflorescence: "#A78BFA",
-  default: "#94A3B8",
+export const DEFECT_DICTIONARY = {
+  crack: {
+    color: "#FF4D4D",
+    label: "裂缝",
+  },
+  breakage: {
+    color: "#F97316",
+    label: "破损",
+  },
+  comb: {
+    color: "#EAB308",
+    label: "梳齿缺陷",
+  },
+  hole: {
+    color: "#22C55E",
+    label: "孔洞",
+  },
+  reinforcement: {
+    color: "#00D2FF",
+    label: "钢筋外露",
+  },
+  seepage: {
+    color: "#A78BFA",
+    label: "渗水",
+  },
+  default: {
+    color: "#94A3B8",
+    label: "未分类病害",
+  },
 } as const;
 
-function normalizeCategory(category: string): keyof typeof DEFECT_COLOR_MAP {
-  const value = category.trim().toLowerCase();
+type DefectKey = keyof typeof DEFECT_DICTIONARY;
 
-  if (value.includes("crack") || value.includes("裂缝")) {
+export function normalizeCategory(category: string): DefectKey {
+  const value = category.trim().toLowerCase();
+  const standardCategories: DefectKey[] = [
+    "crack",
+    "breakage",
+    "comb",
+    "hole",
+    "reinforcement",
+    "seepage",
+    "default",
+  ];
+
+  // Prefer canonical backend categories first.
+  if (standardCategories.includes(value as DefectKey)) {
+    return value as DefectKey;
+  }
+
+  if (value === "裂缝" || value.includes("crack")) {
     return "crack";
   }
-  if (value.includes("spalling") || value.includes("剥落")) {
-    return "spalling";
+  if (
+    value === "破损" ||
+    value.includes("breakage") ||
+    value.includes("spalling") ||
+    value.includes("剥落")
+  ) {
+    return "breakage";
+  }
+  if (value === "梳齿缺陷" || value.includes("comb") || value.includes("梳齿")) {
+    return "comb";
+  }
+  if (value === "孔洞" || value.includes("hole") || value.includes("空洞")) {
+    return "hole";
   }
   if (
+    value === "钢筋外露" ||
+    value.includes("reinforcement") ||
+    value.includes("rebar") ||
     value.includes("corrosion") ||
-    value.includes("锈蚀") ||
-    value.includes("腐蚀")
+    value.includes("锈蚀")
   ) {
-    return "corrosion";
+    return "reinforcement";
   }
   if (
-    value.includes("efflo") ||
-    value.includes("泛碱") ||
-    value.includes("白华")
+    value === "渗水" ||
+    value.includes("seepage") ||
+    value.includes("efflorescence") ||
+    value.includes("白华") ||
+    value.includes("泛碱")
   ) {
-    return "efflorescence";
+    return "seepage";
   }
 
   return "default";
 }
 
 export function getDefectColorHex(category: string): string {
-  return DEFECT_COLOR_MAP[normalizeCategory(category)];
+  return DEFECT_DICTIONARY[normalizeCategory(category)].color;
 }
 
-export function getDefectColorClasses(category: string): string {
-  switch (normalizeCategory(category)) {
-    case "crack":
-      return "border-[#FF4D4D] bg-[#FF4D4D]/10 text-[#FF4D4D]";
-    case "spalling":
-      return "border-[#00D2FF] bg-[#00D2FF]/10 text-[#00D2FF]";
-    case "corrosion":
-      return "border-[#00D2FF] bg-[#00D2FF]/10 text-[#00D2FF]";
-    case "efflorescence":
-      return "border-[#A78BFA] bg-[#A78BFA]/10 text-[#A78BFA]";
-    default:
-      return "border-slate-400 bg-slate-400/10 text-slate-400";
-  }
+export function getDefectLabel(category: string): string {
+  return DEFECT_DICTIONARY[normalizeCategory(category)].label;
+}
+
+export function getCanonicalCategoryOptions(): string[] {
+  return Object.entries(DEFECT_DICTIONARY)
+    .filter(([key]) => key !== "default")
+    .map(([, value]) => value.label);
 }

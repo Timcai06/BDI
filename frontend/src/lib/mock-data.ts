@@ -9,6 +9,8 @@ export const demoResult: PredictionResult = {
   backend: "mock",
   inference_mode: "direct",
   created_at: "2026-03-07T11:00:00Z",
+  has_masks: true,
+  mask_detection_count: 2,
   detections: [
     {
       id: "det-crack-001",
@@ -34,7 +36,7 @@ export const demoResult: PredictionResult = {
     },
     {
       id: "det-spall-002",
-      category: "剥落",
+      category: "破损",
       confidence: 0.81,
       bbox: { x: 488, y: 188, width: 144, height: 112 },
       mask: {
@@ -92,6 +94,7 @@ export function buildDemoResultForModelVersion(modelVersion: string): Prediction
       ...demoResult,
       model_version: modelVersion,
       inference_ms: 241,
+      mask_detection_count: 1,
       detections: [
         {
           ...demoResult.detections[0],

@@ -1,5 +1,4 @@
 from typing import List, AsyncGenerator
-import json
 from openai import AsyncOpenAI
 from app.core.config import Settings
 from app.models.schemas import PredictResponse
@@ -40,6 +39,8 @@ class LLMService:
         prompt = f"""
 你是一名资深桥梁巡检专家。请根据以下无人机桥梁初检识别出的结构化数据，给出一段专业的病情评估和养护建议。
 
+本系统重点识别六类典型病害：Crack（裂缝）、Breakage（破损）、Comb（梳齿缺陷）、Hole（孔洞）、Reinforcement（钢筋外露）、Seepage（渗水）。
+
 【巡检摘要】
 模型名称: {result.model_name}
 检测总数: {len(result.detections)}
@@ -56,7 +57,13 @@ class LLMService:
    - ### 1. 病害现状量化评估：分析病害类型、置信度以及测量出的具体几何参数。
    - ### 2. 结构安全性风险预测：基于病害位置和程度，评估对桥梁承载力或耐久性的潜在影响。
    - ### 3. 分级养护与工程处置建议：给出具体的修补、复查或进一步检测建议（如：高频观察、化学灌浆、封闭交通等）。
-4. 如果发现裂缝（Crack）或严重的混凝土剥落，需引用标准规范（如 JTGT 5121-2021）。
+4. 需要针对不同病害类型给出差异化判断：
+   - 裂缝（Crack）：关注扩展趋势、贯通风险与耐久性劣化，可引用相关桥梁养护规范。
+   - 破损（Breakage）：关注构件边角剥损、受冲击破坏及局部承载退化。
+   - 梳齿缺陷（Comb）：关注伸缩缝/梳齿构造功能退化、行车舒适性与构造安全。
+   - 孔洞（Hole）：关注局部脱空、空蚀、材料流失及水损进一步扩展。
+   - 钢筋外露（Reinforcement）：重点评估保护层失效、锈蚀扩展及承载风险，必要时提高风险等级。
+   - 渗水（Seepage）：关注长期水侵、冻融、钢筋腐蚀与附属构造劣化。
 5. 总字数控制在 400 字左右，确保内容充实而非空谈。
 6. 直接输出诊断内容，不要任何开场白或结尾套话。
 """

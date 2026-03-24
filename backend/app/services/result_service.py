@@ -124,21 +124,25 @@ class ResultService:
 
         with ZipFile(archive, mode="w", compression=ZIP_DEFLATED) as zip_file:
             for image_id in image_ids:
-                source_path: Path
-                archive_name: str
-
                 if asset_type == "json":
-                    source_path = self.store.result_path(image_id)
-                    archive_name = f"{image_id}.json"
-                else:
-                    source_path = self.store.overlay_path(image_id)
-                    archive_name = source_path.name
+                    payload = self.store.load_result(image_id=image_id)
+                    if payload is None:
+                        skipped_count += 1
+                        continue
 
+                    normalized_payload = PredictResponse.model_validate(payload).model_dump_json(
+                        indent=2
+                    )
+                    zip_file.writestr(f"{image_id}.json", normalized_payload)
+                    exported_count += 1
+                    continue
+
+                source_path = self.store.overlay_path(image_id)
                 if not source_path.exists():
                     skipped_count += 1
                     continue
 
-                zip_file.writestr(archive_name, source_path.read_bytes())
+                zip_file.writestr(source_path.name, source_path.read_bytes())
                 exported_count += 1
 
         if exported_count == 0:

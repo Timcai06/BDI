@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { getDefectColorHex } from "@/lib/defect-visuals";
+import { getDefectColorHex, getDefectLabel } from "@/lib/defect-visuals";
 import type { PredictionHistoryItem } from "@/lib/types";
 import { formatModelLabel } from "@/lib/model-labels";
 
@@ -93,7 +93,7 @@ export function RecentScans({ items, maxItems = 5, onSelect, onViewAll }: Recent
                   }}
                 />
                 <span className="text-[10px] font-medium text-white/70">
-                  {item.detection_count} 处病害
+                  {getDefectLabel(item.categories[0] || "default")} · {item.detection_count} 处
                 </span>
               </div>
             )}

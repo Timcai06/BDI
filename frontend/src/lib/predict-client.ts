@@ -417,7 +417,7 @@ export async function batchExportResults(
       throw new Error(
         getErrorMessage(
           payload,
-          assetType === "json" ? "批量导出 JSON 失败。" : "批量导出叠加图失败。"
+          assetType === "json" ? "批量导出 JSON 失败。" : "批量导出结果图失败。"
         )
       );
     }
@@ -433,7 +433,7 @@ export async function batchExportResults(
     if (error instanceof Error) {
       throw error;
     }
-    throw new Error(assetType === "json" ? "无法导出 JSON 历史记录。" : "无法导出叠加图历史记录。");
+    throw new Error(assetType === "json" ? "无法导出 JSON 历史记录。" : "无法导出结果图历史记录。");
   }
 }
 
@@ -490,7 +490,7 @@ export async function getDiagnosisText(imageId: string): Promise<string> {
 
   const request = (async () => {
     if (!API_BASE_URL) {
-      return "【演示模式】AI 专家建议：当前发现的病害需持续监测。裂缝若有扩展趋势，请及时安排人工复测。";
+      return "【演示模式】AI 专家建议：请结合裂缝、破损、梳齿缺陷、孔洞、钢筋外露与渗水等六类病害特征进行复核，并优先关注高风险构件。";
     }
 
     const encodedImageId = encodeImageId(imageId);
@@ -529,7 +529,7 @@ export async function getDiagnosisText(imageId: string): Promise<string> {
 
 export async function* getDiagnosisStream(imageId: string): AsyncGenerator<string, void, unknown> {
   if (!API_BASE_URL) {
-    yield "【演示模式】AI 专家建议：当前发现的病害需持续监测。裂缝若有扩展趋势，请及时安排人工复测。";
+    yield "【演示模式】AI 专家建议：请结合裂缝、破损、梳齿缺陷、孔洞、钢筋外露与渗水等六类病害特征进行复核，并优先关注高风险构件。";
     return;
   }
 

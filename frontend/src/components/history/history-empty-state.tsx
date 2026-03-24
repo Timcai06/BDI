@@ -44,7 +44,7 @@ export function HistoryEmptyState({ hasFilters, onClearFilters, onUpload }: Hist
       
       <p className="text-xl font-light text-white mb-3">暂无分析记录</p>
       <p className="text-sm text-white/40 mb-8 max-w-sm mx-auto">
-        上传桥梁巡检图像，AI 将自动识别裂缝、剥落等病害并生成检测报告
+        上传桥梁巡检图像，AI 将自动识别裂缝、破损、梳齿缺陷、孔洞、钢筋外露与渗水并生成检测报告
       </p>
       
       <div className="flex flex-col sm:flex-row items-center justify-center gap-3">

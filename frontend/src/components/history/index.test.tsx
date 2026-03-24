@@ -45,7 +45,7 @@ const items = [
     inference_mode: "direct",
     inference_ms: 188,
     detection_count: 2,
-    categories: ["剥落"],
+    categories: ["破损"],
     artifacts: {
       upload_path: "uploads/pier-003.jpg",
       json_path: "results/pier-003.json",
@@ -66,7 +66,7 @@ function renderHistoryPanel(overrides: Partial<ComponentProps<typeof HistoryPane
       searchQuery=""
       categoryFilter="全部"
       sortMode="newest"
-      availableCategories={["裂缝", "剥落"]}
+      availableCategories={["裂缝", "破损"]}
       onRefresh={() => {}}
       onSelect={() => {}}
       onDeleteRequest={() => {}}
@@ -110,7 +110,7 @@ describe("HistoryPanel batch mode", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: "批量" }));
-    fireEvent.click(screen.getByText("bridge-001.jpg"));
+    fireEvent.click(screen.getByText("3 处病害"));
 
     expect(onSelect).not.toHaveBeenCalled();
     expect(screen.getByText(/已选择/i)).toHaveTextContent("已选择 1 项");

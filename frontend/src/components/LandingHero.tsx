@@ -156,7 +156,7 @@ export function LandingHero() {
         <motion.div className="mb-8" variants={itemVariants}>
           <p className="mb-3 text-xl font-light text-white/85 sm:text-2xl md:text-3xl">桥梁病害智能判读系统</p>
           <p className="mx-auto max-w-2xl text-sm leading-7 text-white/48 sm:text-base">
-            支持裂缝、剥落、锈蚀等病害识别，默认输出叠加结果、结构化数据与可追溯的系统记录。
+            支持裂缝、破损、梳齿缺陷、孔洞、钢筋外露与渗水识别，默认输出结果图、结构化数据与可追溯的系统记录。
           </p>
         </motion.div>
 
@@ -188,7 +188,7 @@ export function LandingHero() {
           {[
             { label: "Inference", value: "< 30s", desc: "单张图像完成识别与结构化输出" },
             { label: "Review", value: "Human Loop", desc: "支持人工复核与历史追踪" },
-            { label: "Output", value: "Overlay + JSON", desc: "默认沉淀为可交付结果" },
+            { label: "Output", value: "Result + JSON", desc: "默认沉淀为可交付结果" },
           ].map((item) => (
             <div
               key={item.label}

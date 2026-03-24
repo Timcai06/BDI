@@ -11,7 +11,7 @@ const historyItems: PredictionHistoryItem[] = [
     inference_mode: "direct",
     inference_ms: 180,
     detection_count: 1,
-    categories: ["剥落"],
+    categories: ["破损"],
     artifacts: {
       upload_path: "uploads/bridge-003.jpg",
       json_path: "results/bridge-003.json",
@@ -43,7 +43,7 @@ const historyItems: PredictionHistoryItem[] = [
     inference_mode: "direct",
     inference_ms: 240,
     detection_count: 5,
-    categories: ["裂缝", "剥落"],
+    categories: ["裂缝", "破损"],
     artifacts: {
       upload_path: "uploads/bridge-002.jpg",
       json_path: "results/bridge-002.json",
@@ -56,7 +56,7 @@ describe("history-utils", () => {
   it("filters history items by query and category", () => {
     const filtered = filterHistoryItems(historyItems, {
       query: "real",
-      category: "剥落"
+      category: "破损"
     });
 
     expect(filtered.map((item) => item.image_id)).toEqual([

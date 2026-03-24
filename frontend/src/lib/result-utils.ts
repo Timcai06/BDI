@@ -1,4 +1,5 @@
 import type { Detection, PredictionResult } from "@/lib/types";
+import { getDefectLabel, normalizeCategory } from "@/lib/defect-visuals";
 
 interface Size {
   width: number;
@@ -11,7 +12,7 @@ export function formatConfidence(value: number): string {
 
 export function getDetectionSummary(result: PredictionResult): string {
   if (result.detections.length === 0) {
-    return "系统未在当前阈值下识别到裂缝、剥落、锈蚀或泛碱等目标。建议结合图像质量与拍摄角度进一步复检。";
+    return "系统未在当前阈值下识别到裂缝、破损、梳齿缺陷、孔洞、钢筋外露或渗水等目标。建议结合图像质量与拍摄角度进一步复检。";
   }
 
   const categories = new Set(result.detections.map((item) => item.category));
@@ -35,9 +36,10 @@ export function getPrimaryFinding(result: PredictionResult): string {
     return `本次识别发现 ${result.detections.length} 处异常区域`;
   }
 
-  const riskLevel = topCategory.includes("裂缝") || topCategory.includes("crack") || topCount >= 5 ? "中高" : "中低";
+  const normalized = normalizeCategory(topCategory);
+  const riskLevel = normalized === "crack" || normalized === "reinforcement" || topCount >= 5 ? "中高" : "中低";
 
-  return `本次识别发现 ${result.detections.length} 处结构性损伤，主要涉及${topCategory}，综合风险评级：${riskLevel}`;
+  return `本次识别发现 ${result.detections.length} 处结构性损伤，主要涉及${getDefectLabel(topCategory)}，综合风险评级：${riskLevel}`;
 }
 
 export function getResultNextStep(result: PredictionResult): string {
@@ -64,18 +66,18 @@ export function buildDetectionCategoryDiff(
   comparison: PredictionResult
 ): DetectionCategoryDiffItem[] {
   const categories = new Set([
-    ...primary.detections.map((item) => item.category),
-    ...comparison.detections.map((item) => item.category)
+    ...primary.detections.map((item) => getDefectLabel(item.category)),
+    ...comparison.detections.map((item) => getDefectLabel(item.category))
   ]);
 
   return [...categories]
     .sort((left, right) => left.localeCompare(right, "zh-CN"))
     .map((category) => {
       const primaryCount = primary.detections.filter(
-        (item) => item.category === category
+        (item) => getDefectLabel(item.category) === category
       ).length;
       const comparisonCount = comparison.detections.filter(
-        (item) => item.category === category
+        (item) => getDefectLabel(item.category) === category
       ).length;
 
       return {
@@ -93,7 +95,8 @@ export function filterDetections(
   minConfidence: number
 ): Detection[] {
   return detections.filter((item) => {
-    const categoryMatched = category === "全部" || item.category === category;
+    const categoryMatched =
+      category === "全部" || getDefectLabel(item.category) === category;
     return categoryMatched && item.confidence >= minConfidence;
   });
 }

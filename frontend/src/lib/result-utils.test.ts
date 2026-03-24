@@ -13,7 +13,9 @@ describe("result-utils", () => {
   });
 
   it("builds a human-readable summary", () => {
-    expect(getDetectionSummary(demoResult)).toBe("检出 2 处病害，涉及 2 类病害。");
+    expect(getDetectionSummary(demoResult)).toBe(
+      "系统已输出病害类别、置信度、掩膜与几何参数，涉及 2 类结构病害，可继续用于专家复核与报告生成。"
+    );
   });
 
   it("filters detections by category and confidence", () => {
@@ -46,16 +48,16 @@ describe("result-utils", () => {
 
     expect(diff).toEqual([
       {
-        category: "剥落",
-        primaryCount: 1,
-        comparisonCount: 0,
-        delta: -1
-      },
-      {
         category: "裂缝",
         primaryCount: 1,
         comparisonCount: 1,
         delta: 0
+      },
+      {
+        category: "破损",
+        primaryCount: 1,
+        comparisonCount: 0,
+        delta: -1
       }
     ]);
   });

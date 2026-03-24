@@ -3,7 +3,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.core.category_mapper import normalize_defect_category
 
 
 class PredictOptions(BaseModel):
@@ -40,6 +42,11 @@ class Detection(BaseModel):
     bbox: BoundingBox
     mask: Optional[MaskPayload] = None
     metrics: DetectionMetrics = Field(default_factory=DetectionMetrics)
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def normalize_category(cls, value: Any) -> str:
+        return normalize_defect_category(str(value))
 
 
 class ArtifactLinks(BaseModel):
@@ -138,6 +145,11 @@ class RawDetection(BaseModel):
     bbox: BoundingBox
     mask: Optional[MaskPayload] = None
     metrics: DetectionMetrics = Field(default_factory=DetectionMetrics)
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def normalize_category(cls, value: Any) -> str:
+        return normalize_defect_category(str(value))
 
 
 class RawPrediction(BaseModel):

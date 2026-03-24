@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 
 import { AdaptiveImage } from "@/components/adaptive-image";
 import { StatusCard } from "@/components/status-card";
-import { getDefectColorHex } from "@/lib/defect-visuals";
+import { getDefectColorHex, getDefectLabel } from "@/lib/defect-visuals";
 import { formatModelLabel } from "@/lib/model-labels";
 import {
   buildDetectionCategoryDiff,
@@ -269,7 +269,7 @@ export function ResultDashboard({
       setThinkingIndex(prev => (prev + 1) % thinkingSteps.length);
     }, 2500);
     return () => clearInterval(interval);
-  }, [isDiagnosisLoading]);
+  }, [isDiagnosisLoading, thinkingSteps.length]);
   // -------------------------
 
   const comparisonRecommendation =
@@ -490,7 +490,7 @@ export function ResultDashboard({
                 <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="space-y-1">
                     <p className="text-[9px] font-bold uppercase tracking-widest text-[#00D2FF]/60">病害类别</p>
-                    <p className="text-sm font-semibold text-white">{current?.category || "--"}</p>
+                    <p className="text-sm font-semibold text-white">{current ? getDefectLabel(current.category) : "--"}</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-[9px] font-bold uppercase tracking-widest text-[#00D2FF]/60">识别置信度</p>
@@ -581,7 +581,7 @@ export function ResultDashboard({
                                   color: "#06131F",
                                 }}
                               >
-                                {item.category.toUpperCase()}{" "}
+                                {getDefectLabel(item.category)}{" "}
                                 {(item.confidence * 100).toFixed(1)}%
                               </span>
                             </div>
@@ -654,7 +654,7 @@ export function ResultDashboard({
                                 }}
                                 onClick={() => handleFocusDetection(item)}
                               >
-                                {item.category.toUpperCase()} {(item.confidence * 100).toFixed(1)}%
+                                {getDefectLabel(item.category)} {(item.confidence * 100).toFixed(1)}%
                               </button>
                             );
                           })}
@@ -1249,7 +1249,7 @@ export function ResultDashboard({
                           className="grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] items-center gap-3 rounded-lg border border-white/5 bg-black/20 px-3 py-3 text-xs"
                         >
                           <div className="font-medium text-white">
-                            {item.category}
+                            {getDefectLabel(item.category)}
                           </div>
                           <div className="font-mono text-slate-400">
                             主 {item.primaryCount}
@@ -1306,7 +1306,7 @@ export function ResultDashboard({
                           {String(index + 1).padStart(2, "0")}.
                         </span>
                         <h4 className="text-sm font-medium text-slate-200 uppercase">
-                          {item.category}
+                          {getDefectLabel(item.category)}
                         </h4>
                         {isHighestPriority ? (
                           <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-200">

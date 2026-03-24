@@ -1,7 +1,7 @@
 "use client";
 
 import { AdaptiveImage } from "@/components/adaptive-image";
-import { getDefectColorHex } from "@/lib/defect-visuals";
+import { getDefectColorHex, getDefectLabel } from "@/lib/defect-visuals";
 import { formatModelLabel } from "@/lib/model-labels";
 import type { PredictionHistoryItem } from "@/lib/types";
 
@@ -139,7 +139,7 @@ export function HistoryCard({
                       color: getDefectColorHex(primaryCategory)
                     }}
                   >
-                    {primaryCategory}
+                    {getDefectLabel(primaryCategory)}
                   </span>
                   <span className={`rounded-full border px-1.5 py-0.5 font-medium ${
                     item.has_masks
@@ -183,7 +183,7 @@ export function HistoryCard({
                         color: getDefectColorHex(category)
                       }}
                     >
-                      {category}
+                      {getDefectLabel(category)}
                     </span>
                   ))}
                   <span className={`rounded-full px-2 py-0.5 text-[9px] font-medium border ${

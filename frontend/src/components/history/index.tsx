@@ -171,7 +171,7 @@ export function HistoryPanel({
 
     const ids = Array.from(selectedIds);
     const confirmed = window.confirm(
-      `确认删除已选的 ${ids.length} 条记录吗？这些记录来自当前筛选结果，删除后原图、JSON 和叠加图都将一起移除，且无法恢复。`
+      `确认删除已选的 ${ids.length} 条记录吗？这些记录来自当前筛选结果，删除后原图、JSON 和结果图都将一起移除，且无法恢复。`
     );
     if (!confirmed) {
       return;

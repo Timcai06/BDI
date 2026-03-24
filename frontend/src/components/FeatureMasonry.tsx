@@ -49,7 +49,7 @@ export function FeatureMasonry() {
     {
       title: "交付接口",
       subtitle: "Structured Output",
-      description: "输出叠加图、JSON 与历史记录，让识别结果自然进入报告、复核与业务系统。",
+      description: "输出结果图、JSON 与历史记录，让识别结果自然进入报告、复核与业务系统。",
       icon: (
         <svg className="w-6 h-6 text-accent-deep" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7.5 6.75h9m-9 5.25h9m-9 5.25h6" />
@@ -123,7 +123,7 @@ export function FeatureMasonry() {
                         </div>
                         <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3">
                           <p className="uppercase tracking-[0.24em] text-white/30">Output</p>
-                          <p className="mt-2 text-sm text-white">Overlay + JSON</p>
+                          <p className="mt-2 text-sm text-white">Result + JSON</p>
                         </div>
                       </div>
                     ) : null}
