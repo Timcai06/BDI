@@ -12,10 +12,11 @@ class LocalArtifactStore:
         self.uploads_dir = self.root / "uploads"
         self.results_dir = self.root / "results"
         self.overlays_dir = self.root / "overlays"
+        self.diagnoses_dir = self.root / "diagnoses"
         self.ensure_dirs()
 
     def ensure_dirs(self) -> None:
-        for directory in (self.root, self.uploads_dir, self.results_dir, self.overlays_dir):
+        for directory in (self.root, self.uploads_dir, self.results_dir, self.overlays_dir, self.diagnoses_dir):
             directory.mkdir(parents=True, exist_ok=True)
 
     def build_image_id(self, original_name: str) -> str:
@@ -50,6 +51,22 @@ class LocalArtifactStore:
     def overlay_path(self, image_id: str) -> Path:
         return self.overlays_dir / f"{image_id}.webp"
 
+    def diagnosis_path(self, image_id: str) -> Path:
+        return self.diagnoses_dir / f"{image_id}.md"
+
+    def save_diagnosis(self, *, image_id: str, content: str) -> str:
+        destination = self.diagnosis_path(image_id)
+        tmp = destination.with_suffix(".md.tmp")
+        tmp.write_text(content, encoding="utf-8")
+        tmp.rename(destination)
+        return str(destination)
+
+    def load_diagnosis(self, *, image_id: str) -> Optional[str]:
+        destination = self.diagnosis_path(image_id)
+        if not destination.exists():
+            return None
+        return destination.read_text(encoding="utf-8")
+
     def load_result(self, *, image_id: str) -> Optional[Dict[str, Any]]:
         destination = self.result_path(image_id)
         if not destination.exists():
@@ -82,6 +99,7 @@ class LocalArtifactStore:
             self.result_path(image_id),
             self.upload_path(image_id),
             self.overlay_path(image_id),
+            self.diagnosis_path(image_id),
         ):
             if path.exists():
                 path.unlink()

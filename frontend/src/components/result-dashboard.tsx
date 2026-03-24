@@ -9,9 +9,6 @@ import {
   filterDetections,
   getDetectionMaskPolygonPoints,
   getDetectionOverlayStyle,
-  getDetectionSummary,
-  getPrimaryFinding,
-  getResultNextStep,
 } from "@/lib/result-utils";
 import { getDiagnosisText } from "@/lib/predict-client";
 import ReactMarkdown from 'react-markdown';
@@ -181,6 +178,7 @@ export function ResultDashboard({
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const [diagnosis, setDiagnosis] = useState<string>("");
   const [isDiagnosisLoading, setIsDiagnosisLoading] = useState(false);
+  const [showComparisonDetails, setShowComparisonDetails] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -214,6 +212,12 @@ export function ResultDashboard({
       cancelled = true;
     };
   }, [result.image_id]);
+
+  useEffect(() => {
+    if (!comparisonResult) {
+      setShowComparisonDetails(false);
+    }
+  }, [comparisonResult]);
   const filteredDetections = filterDetections(
     result.detections,
     categoryFilter,
@@ -223,13 +227,6 @@ export function ResultDashboard({
     (left, right) =>
       getDetectionPriorityScore(right) - getDetectionPriorityScore(left),
   );
-  const averageConfidence = filteredDetections.length
-    ? (
-        (filteredDetections.reduce((sum, item) => sum + item.confidence, 0) /
-          filteredDetections.length) *
-        100
-      ).toFixed(1)
-    : "--";
   const activePreviewUrl =
     viewMode === "result"
       ? overlayPreviewUrl ?? previewUrl
@@ -251,8 +248,6 @@ export function ResultDashboard({
   const categoryDiffItems = comparisonResult
     ? buildDetectionCategoryDiff(result, comparisonResult)
     : [];
-  const primaryFinding = getPrimaryFinding(result);
-  const resultNextStep = getResultNextStep(result);
   
   // -- Thinking messages logic --
   const thinkingSteps = [
@@ -338,7 +333,7 @@ export function ResultDashboard({
   }
 
   return (
-    <div className="flex h-full flex-col gap-5 overflow-y-auto pb-6">
+    <div className="flex w-full flex-col gap-5 pb-6">
       <div className="relative z-10 flex flex-col items-start gap-6 xl:flex-row">
         <div className="flex min-w-0 flex-[3] flex-col gap-6">
         {/* 图像监控主界面区 */}
@@ -490,11 +485,11 @@ export function ResultDashboard({
                   className="relative mx-auto aspect-[4/3] max-h-full w-full overflow-hidden rounded-[1.25rem] border border-white/8 bg-[#050b16] ring-1 ring-white/6 shadow-2xl"
                 >
                   {activePreviewUrl ? (
-                    <AdaptiveImage
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
                       alt="Inspection"
-                      className="rounded-[1.25rem] object-contain opacity-90"
+                      className="absolute inset-0 h-full w-full rounded-[1.25rem] object-contain opacity-90"
                       onLoad={handleImageLoad}
-                      sizes="(min-width: 1280px) 70vw, 100vw"
                       src={activePreviewUrl}
                     />
                   ) : (
@@ -703,9 +698,406 @@ export function ResultDashboard({
           ) : null}
         </div>
 
+        <div className="rounded-[1.5rem] border border-white/10 bg-[#05080A]/80 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-xl group">
+          <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="group/card relative flex flex-col justify-between overflow-hidden rounded-xl border border-white/5 bg-[linear-gradient(145deg,rgba(5,8,10,0.95),rgba(11,17,32,0.8))] p-4 transition-all duration-300 hover:bg-white/[0.03] hover:border-[#00D2FF]/30 hover:shadow-[0_0_20px_rgba(0,210,255,0.1)]">
+              <div className="absolute -inset-[1px] bg-gradient-to-br from-[#00D2FF]/10 to-transparent opacity-0 transition-opacity duration-300 group-hover/card:opacity-100" />
+              <div className="relative mb-2 flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-[#00D2FF]/60 drop-shadow-sm">主病害</span>
+                <span className="h-1.5 w-1.5 rounded-full bg-[#00D2FF]/60 shadow-[0_0_8px_#00D2FF]" />
+              </div>
+              <div className="relative mt-2 text-2xl font-light tracking-wide text-white drop-shadow-md">
+                {current ? getDefectLabel(current.category) : "暂无"}
+              </div>
+            </div>
+
+            <div className="group/card relative flex flex-col justify-between overflow-hidden rounded-xl border border-white/5 bg-[linear-gradient(145deg,rgba(5,8,10,0.95),rgba(11,17,32,0.8))] p-4 transition-all duration-300 hover:bg-white/[0.03] hover:border-[#7FFFD4]/30 hover:shadow-[0_0_20px_rgba(127,255,212,0.1)]">
+              <div className="absolute -inset-[1px] bg-gradient-to-br from-[#7FFFD4]/10 to-transparent opacity-0 transition-opacity duration-300 group-hover/card:opacity-100" />
+              <div className="relative mb-2 flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-[#7FFFD4]/60 drop-shadow-sm">掩膜能力</span>
+                <span className={`h-1.5 w-1.5 rounded-full ${result.has_masks ? "bg-[#7FFFD4]" : "bg-white/20"} shadow-[0_0_8px_#7FFFD4]`} />
+              </div>
+              <div className="relative mt-2 text-2xl font-light tracking-wide text-white drop-shadow-md">
+                {result.has_masks ? `${result.mask_detection_count} 处 MASK` : "BBOX ONLY"}
+              </div>
+            </div>
+
+            <div className="group/card relative flex flex-col justify-between overflow-hidden rounded-xl border border-white/5 bg-[linear-gradient(145deg,rgba(5,8,10,0.95),rgba(11,17,32,0.8))] p-4 transition-all duration-300 hover:bg-white/[0.03] hover:border-amber-400/30 hover:shadow-[0_0_20px_rgba(251,191,36,0.1)]">
+              <div className="absolute -inset-[1px] bg-gradient-to-br from-amber-400/10 to-transparent opacity-0 transition-opacity duration-300 group-hover/card:opacity-100" />
+              <div className="relative mb-2 flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-amber-400/60 drop-shadow-sm">推理耗时</span>
+                <span className="h-[2px] w-4 rounded-full bg-amber-400/60 animate-pulse shadow-[0_0_8px_#FBBF24]" />
+              </div>
+              <div className="relative mt-2 text-2xl font-mono text-white drop-shadow-md">
+                {result.inference_ms}<span className="text-xs font-sans text-amber-400/40 ml-1">ms</span>
+              </div>
+            </div>
+
+            <div className="group/card relative flex flex-col justify-between overflow-hidden rounded-xl border border-white/5 bg-[linear-gradient(145deg,rgba(5,8,10,0.95),rgba(11,17,32,0.8))] p-4 transition-all duration-300 hover:bg-white/[0.03] hover:border-[#00D2FF]/30 hover:shadow-[0_0_20px_rgba(0,210,255,0.1)]">
+              <div className="absolute -inset-[1px] bg-gradient-to-br from-[#00D2FF]/10 to-transparent opacity-0 transition-opacity duration-300 group-hover/card:opacity-100" />
+              <div className="relative mb-2 flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-[#00D2FF]/60 drop-shadow-sm">当前视图</span>
+                <svg className="w-3.5 h-3.5 text-[#00D2FF]/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </div>
+              <div className="relative mt-2 text-2xl font-light tracking-wide text-white drop-shadow-md">
+                {viewMode === "result" ? "结果图" : viewMode === "mask" ? "掩膜图" : "原图"}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-[1.5rem] border border-white/10 bg-[#05080A]/60 shadow-lg backdrop-blur">
+          <div className="flex items-center justify-between border-b border-white/5 p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">
+              病害列表
+            </p>
+            <span className="font-mono text-xs text-slate-400">
+              {prioritizedDetections.length} 项
+            </span>
+          </div>
+
+          <div
+            ref={listContainerRef}
+            className="max-h-[420px] overflow-y-auto p-3 space-y-2"
+          >
+            {prioritizedDetections.map((item, index) => {
+              const colorCode = getDefectColorHex(item.category);
+              const isSelected = item.id === selectedDetectionId;
+              const isHighestPriority = item.id === topPriorityDetection?.id;
+
+              return (
+                <article
+                  key={item.id}
+                  ref={(node) => {
+                    detectionItemRefs.current[item.id] = node;
+                  }}
+                  className={`rounded-xl border p-3 transition-colors group cursor-pointer ${isSelected ? "border-sky-500/40 bg-sky-500/[0.08]" : "border-white/5 bg-white/[0.02] hover:bg-white/[0.04]"}`}
+                  data-detection-id={item.id}
+                  onClick={() => handleFocusDetection(item)}
+                >
+                  <div className="mb-2 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono text-slate-500">
+                        {String(index + 1).padStart(2, "0")}.
+                      </span>
+                      <h4 className="text-sm font-medium text-slate-200 uppercase">
+                        {getDefectLabel(item.category)}
+                      </h4>
+                      {isHighestPriority ? (
+                        <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-200">
+                          优先查看
+                        </span>
+                      ) : null}
+                    </div>
+                    <span
+                      className="rounded border border-white/10 px-2 py-0.5 text-xs font-mono"
+                      style={{ color: colorCode }}
+                    >
+                      {(item.confidence * 100).toFixed(1)}%
+                    </span>
+                  </div>
+
+                  <div className="grid max-h-0 grid-cols-2 gap-y-2 overflow-hidden text-xs opacity-0 transition-all duration-300 group-hover:mt-3 group-hover:max-h-24 group-hover:opacity-100">
+                    <div className="flex items-center gap-2">
+                      <span className="w-10 text-slate-500">Size</span>
+                      <span className="font-mono text-slate-300">
+                        {item.metrics.length_mm
+                          ? `${(item.metrics.length_mm / 10).toFixed(1)}cm`
+                          : "--"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-10 text-slate-500">Area</span>
+                      <span className="font-mono text-slate-300">
+                        {item.metrics.area_mm2
+                          ? `${(item.metrics.area_mm2 / 100).toFixed(1)}cm²`
+                          : "--"}
+                      </span>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+
+            {filteredDetections.length === 0 && (
+              <div className="flex h-32 items-center justify-center font-mono text-sm text-slate-500">
+                [ NO DATA MATCHES FILTERS, TRY LOWER CONFIDENCE ]
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-[1.5rem] border border-white/10 bg-[#05080A]/60 p-5 shadow-lg backdrop-blur">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">
+                模型对比
+              </p>
+              <p className="mt-2 text-sm text-slate-400">
+                使用同一张本地图片再跑一个模型版本，快速比较结果数量、耗时与版本差异。
+              </p>
+            </div>
+            {comparisonResult ? (
+              <button
+                className="rounded-md border border-white/10 px-3 py-2 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10"
+                type="button"
+                onClick={onClearComparison}
+              >
+                清除对比
+              </button>
+            ) : null}
+          </div>
+
+          <div className="mt-4 flex gap-3">
+            <select
+              className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-sm text-white/80 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={compareDisabled}
+              value={compareModelVersion ?? ""}
+              onChange={(event) =>
+                onCompareModelVersionChange(event.target.value)
+              }
+            >
+              {compareOptions.length === 0 ? (
+                <option value="">暂无可对比模型</option>
+              ) : (
+                compareOptions.map((option) => (
+                  <option
+                    key={option.value}
+                    value={option.value}
+                    disabled={option.disabled}
+                  >
+                    {option.label}
+                  </option>
+                ))
+              )}
+            </select>
+            <button
+              className="rounded-lg border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-300 transition-colors hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={compareDisabled || !compareModelVersion}
+              type="button"
+              onClick={onRunComparison}
+            >
+              {compareStatus?.phase === "running" ? "对比中..." : "开始对比"}
+            </button>
+          </div>
+
+          <p className="mt-3 text-xs text-slate-400">
+            {compareStatus?.message ??
+              "当前结果来自主模型，你可以选一个其他版本快速做二次推理。"}
+          </p>
+
+          {comparisonResult ? (
+            <div className="mt-5 space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-xl border border-white/5 bg-[#0B1120]/50 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
+                    主模型
+                  </p>
+                  <div className="mt-3 space-y-2 text-sm text-slate-300">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">版本</span>
+                      <span className="font-mono text-white">
+                        {formatModelLabel(result)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">病害</span>
+                      <span className="font-mono text-white">
+                        {result.detections.length}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">耗时</span>
+                      <span className="font-mono text-white">
+                        {result.inference_ms}ms
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-sky-500/20 bg-sky-500/[0.06] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-300/70">
+                    对比模型
+                  </p>
+                  <div className="mt-3 space-y-2 text-sm text-slate-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400">版本</span>
+                      <span className="font-mono text-white">
+                        {formatModelLabel(comparisonResult)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400">病害</span>
+                      <span className="font-mono text-white">
+                        {comparisonResult.detections.length}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400">耗时</span>
+                      <span className="font-mono text-white">
+                        {comparisonResult.inference_ms}ms
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
+                    数量差值
+                  </p>
+                  <div className="mt-3 text-2xl font-mono text-white">
+                    {detectionDelta === null
+                      ? "--"
+                      : detectionDelta > 0
+                        ? `+${detectionDelta}`
+                        : `${detectionDelta}`}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-400">
+                    {detectionDelta === null
+                      ? "暂无差值"
+                      : detectionDelta > 0
+                        ? "对比模型检出更多病害"
+                        : detectionDelta < 0
+                          ? "当前主模型检出更多病害"
+                          : "两者检出数量一致"}
+                  </p>
+                </div>
+
+                <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
+                    耗时差值
+                  </p>
+                  <div className="mt-3 text-2xl font-mono text-white">
+                    {comparisonResult.inference_ms - result.inference_ms > 0
+                      ? `+${comparisonResult.inference_ms - result.inference_ms}ms`
+                      : `${comparisonResult.inference_ms - result.inference_ms}ms`}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-400">
+                    负值代表对比模型更快，正值代表对比模型更慢。
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 text-sm text-slate-300">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
+                      差异摘要
+                    </p>
+                    <p className="mt-2 text-xs text-slate-400">
+                      先看结论，再按需展开明细。
+                    </p>
+                  </div>
+                  <button
+                    className="rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10"
+                    type="button"
+                    onClick={() => setShowComparisonDetails((currentValue) => !currentValue)}
+                  >
+                    {showComparisonDetails ? "收起明细" : "展开明细"}
+                  </button>
+                </div>
+                {comparisonRecommendation ? (
+                  <div className="mt-3 rounded-lg border border-sky-500/15 bg-sky-500/[0.06] px-3 py-3 text-sm leading-relaxed text-slate-100">
+                    {comparisonRecommendation}
+                  </div>
+                ) : null}
+
+                {showComparisonDetails ? (
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-lg bg-black/20 px-3 py-3">
+                      <div className="text-xs text-slate-500">主模型长度/面积</div>
+                      <div className="mt-1 font-mono text-white">
+                        {mainMetrics.totalLength > 0 ? `${(mainMetrics.totalLength / 10).toFixed(1)}cm` : "--"} /{" "}
+                        {mainMetrics.totalArea > 0 ? `${(mainMetrics.totalArea / 100).toFixed(1)}cm²` : "--"}
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-black/20 px-3 py-3">
+                      <div className="text-xs text-slate-500">对比模型长度/面积</div>
+                      <div className="mt-1 font-mono text-white">
+                        {comparisonMetrics && comparisonMetrics.totalLength > 0 ? `${(comparisonMetrics.totalLength / 10).toFixed(1)}cm` : "--"} /{" "}
+                        {comparisonMetrics && comparisonMetrics.totalArea > 0 ? `${(comparisonMetrics.totalArea / 100).toFixed(1)}cm²` : "--"}
+                      </div>
+                    </div>
+                    {mainMetrics.totalLength > 0 && comparisonMetrics && comparisonMetrics.totalLength > 0 && (
+                      <div className="rounded-lg bg-black/20 px-3 py-3">
+                        <div className="text-xs text-slate-500">长度差值</div>
+                        <div className="mt-1 font-mono text-white">
+                          {(() => {
+                            const delta = comparisonMetrics.totalLength - mainMetrics.totalLength;
+                            return delta > 0 ? `+${(delta / 10).toFixed(1)}cm` : `${(delta / 10).toFixed(1)}cm`;
+                          })()}
+                        </div>
+                      </div>
+                    )}
+                    {mainMetrics.totalArea > 0 && comparisonMetrics && comparisonMetrics.totalArea > 0 && (
+                      <div className="rounded-lg bg-black/20 px-3 py-3">
+                        <div className="text-xs text-slate-500">面积差值</div>
+                        <div className="mt-1 font-mono text-white">
+                          {(() => {
+                            const delta = comparisonMetrics.totalArea - mainMetrics.totalArea;
+                            return delta > 0 ? `+${(delta / 100).toFixed(1)}cm²` : `${(delta / 100).toFixed(1)}cm²`;
+                          })()}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="rounded-lg border border-white/5 bg-black/20 px-3 py-3 text-sm text-slate-300 sm:col-span-2">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
+                        病害差异
+                      </p>
+                      <p className="mt-2 text-xs text-slate-400">
+                        当前按病害类别统计差异，用于快速判断主模型和对比模型分别多检或少检了什么。
+                      </p>
+                      <div className="mt-4 space-y-2">
+                        {categoryDiffItems.map((item) => {
+                          const deltaTone =
+                            item.delta === 0
+                              ? "text-slate-300"
+                              : item.delta > 0
+                                ? "text-sky-300"
+                                : "text-amber-300";
+                          const deltaLabel =
+                            item.delta === 0
+                              ? "一致"
+                              : item.delta > 0
+                                ? "对比模型更多"
+                                : "主模型更多";
+
+                          return (
+                            <div
+                              key={item.category}
+                              className="grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] items-center gap-3 rounded-lg border border-white/5 bg-black/20 px-3 py-3 text-xs"
+                            >
+                              <div className="font-medium text-white">
+                                {getDefectLabel(item.category)}
+                              </div>
+                              <div className="font-mono text-slate-400">
+                                主 {item.primaryCount}
+                              </div>
+                              <div className="font-mono text-slate-400">
+                                对比 {item.comparisonCount}
+                              </div>
+                              <div className={`text-right font-medium ${deltaTone}`}>
+                                {deltaLabel}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+        </div>
+
       </div>
         {/* 结论区与辅工具栏 */}
-        <aside className="relative z-10 flex w-full shrink-0 flex-col gap-5 xl:w-[400px]">
+        <aside className="relative z-10 flex w-full shrink-0 flex-col gap-5 xl:w-[400px] sticky top-0 self-start">
           <div className="relative shrink-0 overflow-hidden rounded-[2rem] border border-[#00D2FF]/20 bg-[linear-gradient(145deg,rgba(5,8,10,0.95),rgba(5,8,10,0.8))] p-5 shadow-[0_0_40px_rgba(0,210,255,0.1)] backdrop-blur-xl group">
             <div className="absolute -inset-[1px] bg-gradient-to-br from-[#00D2FF]/20 to-[#7FFFD4]/0 opacity-50 z-[-1]" />
             
@@ -778,99 +1170,6 @@ export function ResultDashboard({
               </div>
             )}
 
-        {/* AI Analysis and Physical Metrics (Filling empty space) */}
-        <div className="mb-8">
-          <div className="relative flex h-[440px] flex-col overflow-hidden rounded-2xl border border-[#7FFFD4]/30 bg-[linear-gradient(180deg,rgba(127,255,212,0.08),rgba(5,8,10,0.6))] p-4 shadow-2xl transition-all group hover:bg-[#7FFFD4]/8 hover:border-[#7FFFD4]/30">
-             <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
-              <svg className="h-10 w-10 text-[#7FFFD4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} />
-              </svg>
-            </div>
-            
-            <div className="mb-3 flex flex-wrap items-center gap-2.5">
-              <div className="h-1.5 w-8 rounded-full bg-gradient-to-r from-[#7FFFD4] to-transparent" />
-              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#7FFFD4]">
-                核心诊断建议
-              </p>
-              <div className="ml-2 flex items-center gap-1.5">
-                 <span className="rounded border border-[#7FFFD4]/20 bg-[#7FFFD4]/10 px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-[0.18em] text-[#7FFFD4]">OpenCode AI</span>
-                 <span className="rounded border border-[#00D2FF]/20 bg-[#00D2FF]/10 px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-[0.18em] text-[#00D2FF]">Kimi K2.5</span>
-              </div>
-              {isDiagnosisLoading && (
-                <div className="ml-auto flex items-center gap-2 rounded-full border border-[#7FFFD4]/20 bg-[#7FFFD4]/10 px-2.5 py-1">
-                  <span className="text-[9px] text-[#7FFFD4] font-medium uppercase animate-pulse">Analyzing</span>
-                  <span className="flex gap-1">
-                    <span className="h-1 w-1 animate-bounce rounded-full bg-[#7FFFD4]" />
-                    <span className="h-1 w-1 animate-bounce rounded-full bg-[#7FFFD4] [animation-delay:-0.15s]" />
-                    <span className="h-1 w-1 animate-bounce rounded-full bg-[#7FFFD4] [animation-delay:-0.3s]" />
-                  </span>
-                </div>
-              )}
-            </div>
-            
-            <div className="mb-2 flex items-center justify-between text-[9px] uppercase tracking-[0.14em] text-[#7FFFD4]/35">
-              <span>固定诊断面板</span>
-              <span>滚动查看完整内容</span>
-            </div>
-
-            <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-[#7FFFD4]/10 bg-black/10">
-              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-10 bg-gradient-to-b from-[#071014] to-transparent" />
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-12 bg-gradient-to-t from-[#071014] to-transparent" />
-
-              <div className="h-full overflow-y-auto px-1 pr-3 text-[13px] font-light leading-[1.75] text-[#7FFFD4]/90 prose prose-invert prose-emerald max-w-none custom-scrollbar scroll-smooth">
-                {diagnosis ? (
-                  <ReactMarkdown
-                    components={{
-                      h3: ({...props}) => <h3 className="mt-6 mb-2 border-l-4 border-[#7FFFD4] bg-[#7FFFD4]/5 py-1.5 pl-3 text-sm font-bold text-[#7FFFD4] rounded-r" {...props} />,
-                      p: ({...props}) => <p className="mb-3 last:mb-0 leading-relaxed opacity-90" {...props} />,
-                      strong: ({...props}) => <strong className="text-[#00D2FF] font-semibold" {...props} />,
-                      li: ({...props}) => <li className="mb-2 list-none relative pl-5 before:content-['▹'] before:absolute before:left-0 before:text-[#7FFFD4]" {...props} />
-                     }}
-                  >
-                    {diagnosis}
-                  </ReactMarkdown>
-                ) : (
-                  <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-6">
-                     <div className="relative">
-                        <div className="w-16 h-16 rounded-full border-2 border-[#7FFFD4]/10 flex items-center justify-center animate-spin-slow" />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                           <div className="w-2 h-2 rounded-full bg-[#7FFFD4] animate-ping" />
-                        </div>
-                        <div className="absolute -inset-4 border border-[#7FFFD4]/5 rounded-full animate-pulse" />
-                     </div>
-                     <div className="text-center space-y-2">
-                       <p className="text-xs text-[#7FFFD4]/60 font-mono tracking-[0.1em] uppercase">
-                         {isDiagnosisLoading ? "Consulting Digital Twin..." : "System Idle"}
-                       </p>
-                       {isDiagnosisLoading && (
-                         <motion.p 
-                           initial={{ opacity: 0, y: 5 }}
-                           animate={{ opacity: 1, y: 0 }}
-                           key={thinkingIndex}
-                           className="text-[11px] text-[#7FFFD4]/30 italic font-light"
-                         >
-                           {thinkingSteps[thinkingIndex]}
-                         </motion.p>
-                       )}
-                     </div>
-                  </div>
-                )}
-                {isDiagnosisLoading && <span className="inline-block h-4 w-2 ml-2 bg-[#7FFFD4] animate-pulse align-middle" />}
-              </div>
-            </div>
-            
-            <div className="mt-4 pt-3 border-t border-[#7FFFD4]/10 flex items-center justify-between">
-              <p className="text-[10px] text-[#7FFFD4]/40 italic">
-                Powered by OpenCode Kimi K2.5 • 基于结构化特征与桥梁巡检规范之量化评估报告
-              </p>
-              <div className="flex gap-4">
-                 <span className="h-1 w-8 rounded-full bg-[#7FFFD4]/20" />
-                 <span className="h-1 w-8 rounded-full bg-[#00D2FF]/20" />
-              </div>
-            </div>
-          </div>
-        </div>
-
             <div className="mt-6">
               <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#00D2FF]/60 mb-4">展示筛选</p>
               <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
@@ -904,383 +1203,98 @@ export function ResultDashboard({
                 </div>
               </div>
             </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <div className="bg-[#0B1120]/50 rounded-lg p-3 border border-white/5">
-                <div className="text-xs text-slate-400 mb-1">病害总数</div>
-                <div className="text-xl font-mono text-white">
-                  {filteredDetections.length}
-                </div>
-              </div>
-              <div className="bg-[#0B1120]/50 rounded-lg p-3 border border-white/5">
-                <div className="text-xs text-slate-400 mb-1">平均置信度</div>
-                <div className="text-xl font-mono text-sky-400">
-                  {averageConfidence === "--" ? "--" : `${averageConfidence}%`}
-                </div>
-              </div>
-              <div className="bg-[#0B1120]/50 rounded-lg p-3 border border-white/5">
-                <div className="text-xs text-slate-400 mb-1">推理耗时</div>
-                <div className="text-xl font-mono text-white">
-                  {result.inference_ms}ms
-                </div>
-              </div>
-              <div className="bg-[#0B1120]/50 rounded-lg p-3 border border-white/5">
-                <div className="text-xs text-slate-400 mb-1">当前视图</div>
-                <div className="text-xl font-medium text-white">
-                  {viewMode === "result" ? "结果图" : viewMode === "mask" ? "掩膜图" : "原图"}
-                </div>
-              </div>
-            </div>
           </div>
+        </aside>
+      </div>
 
-          <div className="rounded-[1.5rem] border border-white/10 bg-[#05080A]/60 p-5 shadow-lg backdrop-blur">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">
-                  模型对比
-                </p>
-                <p className="mt-2 text-sm text-slate-400">
-                  使用同一张本地图片再跑一个模型版本，快速比较结果数量、耗时与版本差异。
-                </p>
-              </div>
-              {comparisonResult ? (
-                <button
-                  className="rounded-md border border-white/10 px-3 py-2 text-xs font-semibold text-slate-300 transition-colors hover:bg-white/10"
-                  type="button"
-                  onClick={onClearComparison}
-                >
-                  清除对比
-                </button>
-              ) : null}
-            </div>
+      <div className="relative flex h-[440px] flex-col overflow-hidden rounded-2xl border border-[#7FFFD4]/30 bg-[linear-gradient(180deg,rgba(127,255,212,0.08),rgba(5,8,10,0.6))] p-4 shadow-2xl transition-all group hover:bg-[#7FFFD4]/8 hover:border-[#7FFFD4]/30">
+        <div className="absolute top-0 right-0 p-8 opacity-10 transition-opacity group-hover:opacity-20">
+          <svg className="h-10 w-10 text-[#7FFFD4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} />
+          </svg>
+        </div>
 
-            <div className="mt-4 flex gap-3">
-              <select
-                className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-sm text-white/80 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={compareDisabled}
-                value={compareModelVersion ?? ""}
-                onChange={(event) =>
-                  onCompareModelVersionChange(event.target.value)
-                }
-              >
-                {compareOptions.length === 0 ? (
-                  <option value="">暂无可对比模型</option>
-                ) : (
-                  compareOptions.map((option) => (
-                    <option
-                      key={option.value}
-                      value={option.value}
-                      disabled={option.disabled}
-                    >
-                      {option.label}
-                    </option>
-                  ))
-                )}
-              </select>
-              <button
-                className="rounded-lg border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-300 transition-colors hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={compareDisabled || !compareModelVersion}
-                type="button"
-                onClick={onRunComparison}
-              >
-                {compareStatus?.phase === "running" ? "对比中..." : "开始对比"}
-              </button>
-            </div>
-
-            <p className="mt-3 text-xs text-slate-400">
-              {compareStatus?.message ??
-                "当前结果来自主模型，你可以选一个其他版本快速做二次推理。"}
-            </p>
-
-            {comparisonResult ? (
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-white/5 bg-[#0B1120]/50 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
-                    主结果
-                  </p>
-                  <div className="mt-3 space-y-2 text-sm text-slate-300">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">模型版本</span>
-                      <span className="font-mono text-white">
-                        {formatModelLabel(result)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">病害数量</span>
-                      <span className="font-mono text-white">
-                        {result.detections.length}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500">推理耗时</span>
-                      <span className="font-mono text-white">
-                        {result.inference_ms}ms
-                      </span>
-                    </div>
-                    {mainMetrics.totalLength > 0 && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500">总长度</span>
-                        <span className="font-mono text-white">
-                          {(mainMetrics.totalLength / 10).toFixed(1)}cm
-                        </span>
-                      </div>
-                    )}
-                    {mainMetrics.totalArea > 0 && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500">总面积</span>
-                        <span className="font-mono text-white">
-                          {(mainMetrics.totalArea / 100).toFixed(1)}cm²
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-sky-500/20 bg-sky-500/[0.06] p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-300/70">
-                    对比结果
-                  </p>
-                  <div className="mt-3 space-y-2 text-sm text-slate-200">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400">模型版本</span>
-                      <span className="font-mono text-white">
-                        {formatModelLabel(comparisonResult)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400">病害数量</span>
-                      <span className="font-mono text-white">
-                        {comparisonResult.detections.length}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-400">推理耗时</span>
-                      <span className="font-mono text-white">
-                        {comparisonResult.inference_ms}ms
-                      </span>
-                    </div>
-                    {comparisonMetrics && comparisonMetrics.totalLength > 0 && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">总长度</span>
-                        <span className="font-mono text-white">
-                          {(comparisonMetrics.totalLength / 10).toFixed(1)}cm
-                        </span>
-                      </div>
-                    )}
-                    {comparisonMetrics && comparisonMetrics.totalArea > 0 && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">总面积</span>
-                        <span className="font-mono text-white">
-                          {(comparisonMetrics.totalArea / 100).toFixed(1)}cm²
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="sm:col-span-2 rounded-xl border border-white/5 bg-white/[0.02] p-4 text-sm text-slate-300">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
-                    差异摘要
-                  </p>
-                  {comparisonRecommendation ? (
-                    <div className="mt-3 rounded-lg border border-sky-500/15 bg-sky-500/[0.06] px-3 py-3 text-sm leading-relaxed text-slate-100">
-                      {comparisonRecommendation}
-                    </div>
-                  ) : null}
-                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-lg bg-black/20 px-3 py-3">
-                      <div className="text-xs text-slate-500">病害数量差值</div>
-                      <div className="mt-1 font-mono text-white">
-                        {detectionDelta === null
-                          ? "--"
-                          : detectionDelta > 0
-                            ? `+${detectionDelta}`
-                            : `${detectionDelta}`}
-                      </div>
-                    </div>
-                    <div className="rounded-lg bg-black/20 px-3 py-3">
-                      <div className="text-xs text-slate-500">耗时差值</div>
-                      <div className="mt-1 font-mono text-white">
-                        {comparisonResult.inference_ms - result.inference_ms > 0
-                          ? `+${comparisonResult.inference_ms - result.inference_ms}ms`
-                          : `${comparisonResult.inference_ms - result.inference_ms}ms`}
-                      </div>
-                    </div>
-                    {mainMetrics.totalLength > 0 && comparisonMetrics && comparisonMetrics.totalLength > 0 && (
-                      <div className="rounded-lg bg-black/20 px-3 py-3">
-                        <div className="text-xs text-slate-500">长度差值</div>
-                        <div className="mt-1 font-mono text-white">
-                          {(() => {
-                            const delta = comparisonMetrics.totalLength - mainMetrics.totalLength;
-                            return delta > 0 ? `+${(delta / 10).toFixed(1)}cm` : `${(delta / 10).toFixed(1)}cm`;
-                          })()}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  {mainMetrics.totalArea > 0 && comparisonMetrics && comparisonMetrics.totalArea > 0 && (
-                    <div className="mt-3 rounded-lg bg-black/20 px-3 py-3">
-                      <div className="text-xs text-slate-500">面积差值</div>
-                      <div className="mt-1 font-mono text-white">
-                        {(() => {
-                          const delta = comparisonMetrics.totalArea - mainMetrics.totalArea;
-                          return delta > 0 ? `+${(delta / 100).toFixed(1)}cm²` : `${(delta / 100).toFixed(1)}cm²`;
-                        })()}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="sm:col-span-2 rounded-xl border border-white/5 bg-white/[0.02] p-4 text-sm text-slate-300">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
-                    病害差异
-                  </p>
-                  <p className="mt-2 text-xs text-slate-400">
-                    当前按病害类别统计差异，用于快速判断主模型和对比模型分别多检或少检了什么。
-                  </p>
-                  <div className="mt-4 space-y-2">
-                    {categoryDiffItems.map((item) => {
-                      const deltaTone =
-                        item.delta === 0
-                          ? "text-slate-300"
-                          : item.delta > 0
-                            ? "text-sky-300"
-                            : "text-amber-300";
-                      const deltaLabel =
-                        item.delta === 0
-                          ? "一致"
-                          : item.delta > 0
-                            ? "对比模型更多"
-                            : "主模型更多";
-
-                      return (
-                        <div
-                          key={item.category}
-                          className="grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] items-center gap-3 rounded-lg border border-white/5 bg-black/20 px-3 py-3 text-xs"
-                        >
-                          <div className="font-medium text-white">
-                            {getDefectLabel(item.category)}
-                          </div>
-                          <div className="font-mono text-slate-400">
-                            主 {item.primaryCount}
-                          </div>
-                          <div className="font-mono text-slate-400">
-                            对比 {item.comparisonCount}
-                          </div>
-                          <div
-                            className={`text-right font-medium ${deltaTone}`}
-                          >
-                            {deltaLabel}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            ) : null}
+        <div className="mb-3 flex flex-wrap items-center gap-2.5">
+          <div className="h-1.5 w-8 rounded-full bg-gradient-to-r from-[#7FFFD4] to-transparent" />
+          <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#7FFFD4]">
+            核心诊断建议
+          </p>
+          <div className="ml-2 flex items-center gap-1.5">
+            <span className="rounded border border-[#7FFFD4]/20 bg-[#7FFFD4]/10 px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-[0.18em] text-[#7FFFD4]">OpenCode AI</span>
+            <span className="rounded border border-[#00D2FF]/20 bg-[#00D2FF]/10 px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-[0.18em] text-[#00D2FF]">Kimi K2.5</span>
           </div>
-
-          <div className="rounded-[1.5rem] border border-white/10 bg-[#05080A]/60 shadow-lg backdrop-blur flex-1 flex flex-col overflow-hidden">
-            <div className="p-5 border-b border-white/5 flex items-center justify-between shrink-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">
-                病害列表
-              </p>
-              <span className="font-mono text-xs text-slate-400">
-                {prioritizedDetections.length} 项
+          {isDiagnosisLoading && (
+            <div className="ml-auto flex items-center gap-2 rounded-full border border-[#7FFFD4]/20 bg-[#7FFFD4]/10 px-2.5 py-1">
+              <span className="text-[9px] font-medium uppercase text-[#7FFFD4] animate-pulse">Analyzing</span>
+              <span className="flex gap-1">
+                <span className="h-1 w-1 animate-bounce rounded-full bg-[#7FFFD4]" />
+                <span className="h-1 w-1 animate-bounce rounded-full bg-[#7FFFD4] [animation-delay:-0.15s]" />
+                <span className="h-1 w-1 animate-bounce rounded-full bg-[#7FFFD4] [animation-delay:-0.3s]" />
               </span>
             </div>
+          )}
+        </div>
 
-            <div
-              ref={listContainerRef}
-              className="flex-1 overflow-y-auto p-3 space-y-2"
-            >
-              {prioritizedDetections.map((item, index) => {
-                const colorCode = getDefectColorHex(item.category);
-                const isSelected = item.id === selectedDetectionId;
-                const isHighestPriority = item.id === topPriorityDetection?.id;
+        <div className="mb-2 flex items-center justify-between text-[9px] uppercase tracking-[0.14em] text-[#7FFFD4]/35">
+          <span>固定诊断面板</span>
+          <span>滚动查看完整内容</span>
+        </div>
 
-                return (
-                  <article
-                    key={item.id}
-                    ref={(node) => {
-                      detectionItemRefs.current[item.id] = node;
-                    }}
-                    className={`rounded-xl border p-3 transition-colors group cursor-pointer ${isSelected ? "border-sky-500/40 bg-sky-500/[0.08]" : "border-white/5 bg-white/[0.02] hover:bg-white/[0.04]"}`}
-                    data-detection-id={item.id}
-                    onClick={() => handleFocusDetection(item)}
-                  >
-                    <div className="flex items-center justify-between gap-4 mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono text-slate-500">
-                          {String(index + 1).padStart(2, "0")}.
-                        </span>
-                        <h4 className="text-sm font-medium text-slate-200 uppercase">
-                          {getDefectLabel(item.category)}
-                        </h4>
-                        {isHighestPriority ? (
-                          <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-200">
-                            优先查看
-                          </span>
-                        ) : null}
-                      </div>
-                      <span
-                        className="text-xs font-mono px-2 py-0.5 rounded border border-white/10"
-                        style={{ color: colorCode }}
-                      >
-                        {(item.confidence * 100).toFixed(1)}%
-                      </span>
+        <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-[#7FFFD4]/10 bg-black/10">
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-10 bg-gradient-to-b from-[#071014] to-transparent" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-12 bg-gradient-to-t from-[#071014] to-transparent" />
+
+          <div className="custom-scrollbar h-full max-w-none overflow-y-auto px-1 pr-3 text-[13px] font-light leading-[1.75] text-[#7FFFD4]/90 prose prose-invert prose-emerald scroll-smooth">
+            {diagnosis ? (
+              <ReactMarkdown
+                components={{
+                  h3: ({...props}) => <h3 className="mt-6 mb-2 rounded-r border-l-4 border-[#7FFFD4] bg-[#7FFFD4]/5 py-1.5 pl-3 text-sm font-bold text-[#7FFFD4]" {...props} />,
+                  p: ({...props}) => <p className="mb-3 last:mb-0 leading-relaxed opacity-90" {...props} />,
+                  strong: ({...props}) => <strong className="font-semibold text-[#00D2FF]" {...props} />,
+                  li: ({...props}) => <li className="relative mb-2 list-none pl-5 before:absolute before:left-0 before:text-[#7FFFD4] before:content-['▹']" {...props} />
+                 }}
+              >
+                {diagnosis}
+              </ReactMarkdown>
+            ) : (
+              <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-6">
+                 <div className="relative">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#7FFFD4]/10 animate-spin-slow" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                       <div className="h-2 w-2 rounded-full bg-[#7FFFD4] animate-ping" />
                     </div>
-
-                    <div className="grid grid-cols-2 gap-y-2 text-xs max-h-0 opacity-0 overflow-hidden transition-all duration-300 group-hover:max-h-40 group-hover:opacity-100 group-hover:mt-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-500 truncate w-10">Id</span>
-                        <span
-                          className="font-mono text-slate-300 truncate"
-                          title={item.id}
-                        >
-                          {item.id.split("-")[0]}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-500 w-10">Size</span>
-                        <span className="font-mono text-slate-300">
-                          {item.metrics.length_mm
-                            ? `${(item.metrics.length_mm / 10).toFixed(1)}cm`
-                            : "--"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-500 w-10">Width</span>
-                        <span className="font-mono text-slate-300">
-                          {item.metrics.width_mm
-                            ? `${(item.metrics.width_mm / 10).toFixed(2)}cm`
-                            : "--"}
-                        </span>
-                      </div>
-                      <div className="flex gap-2 col-span-2">
-                        <span className="text-slate-500 w-10">Area</span>
-                        <span className="font-mono text-slate-300">
-                          {item.metrics.area_mm2
-                            ? `${(item.metrics.area_mm2 / 100).toFixed(1)}cm²`
-                            : "--"}
-                        </span>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-
-              {filteredDetections.length === 0 && (
-                <div className="h-32 flex items-center justify-center text-sm text-slate-500 font-mono">
-                  [ NO DATA MATCHES FILTERS, TRY LOWER CONFIDENCE ]
-                </div>
-              )}
-            </div>
+                    <div className="absolute -inset-4 rounded-full border border-[#7FFFD4]/5 animate-pulse" />
+                 </div>
+                 <div className="space-y-2 text-center">
+                   <p className="text-xs font-mono uppercase tracking-[0.1em] text-[#7FFFD4]/60">
+                     {isDiagnosisLoading ? "Consulting Digital Twin..." : "System Idle"}
+                   </p>
+                   {isDiagnosisLoading && (
+                     <motion.p 
+                       initial={{ opacity: 0, y: 5 }}
+                       animate={{ opacity: 1, y: 0 }}
+                       key={thinkingIndex}
+                       className="text-[11px] italic font-light text-[#7FFFD4]/30"
+                     >
+                       {thinkingSteps[thinkingIndex]}
+                     </motion.p>
+                   )}
+                 </div>
+              </div>
+            )}
+            {isDiagnosisLoading && <span className="ml-2 inline-block h-4 w-2 animate-pulse align-middle bg-[#7FFFD4]" />}
           </div>
+        </div>
 
-
-        </aside>
+        <div className="mt-4 flex items-center justify-between border-t border-[#7FFFD4]/10 pt-3">
+          <p className="text-[10px] italic text-[#7FFFD4]/40">
+            Powered by OpenCode Kimi K2.5 • 基于结构化特征与桥梁巡检规范之量化评估报告
+          </p>
+          <div className="flex gap-4">
+             <span className="h-1 w-8 rounded-full bg-[#7FFFD4]/20" />
+             <span className="h-1 w-8 rounded-full bg-[#00D2FF]/20" />
+          </div>
+        </div>
       </div>
     </div>
   );

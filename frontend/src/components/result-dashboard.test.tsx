@@ -121,6 +121,7 @@ describe("ResultDashboard", () => {
     expect(screen.getByText("模型对比")).toBeInTheDocument();
     expect(screen.getByText("差异摘要")).toBeInTheDocument();
     expect(screen.getByText("图像级对比")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "展开明细" }));
     expect(screen.getByText("病害差异")).toBeInTheDocument();
     expect(screen.getByText("主模型更多")).toBeInTheDocument();
     expect(screen.getAllByText(/v1-demo/i).length).toBeGreaterThan(0);

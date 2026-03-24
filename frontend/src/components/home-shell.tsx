@@ -750,7 +750,7 @@ export function HomeShell() {
               </div>
             </div>
           ) : (
-            <div className="h-full">
+            <div>
               <ResultDashboard
                 result={result}
                 comparisonResult={comparisonResult}
@@ -965,11 +965,11 @@ export function HomeShell() {
                             {/* 图片容器 */}
                             <div className="relative w-full h-full flex items-center justify-center bg-black/40 border border-white/10 overflow-hidden backdrop-blur-sm shadow-2xl group/preview rounded-sm">
                                 {previewUrl ? (
-                                  <AdaptiveImage
+                                  /* eslint-disable-next-line @next/next/no-img-element */
+                                  <img
                                     src={previewUrl}
                                     alt="预览"
                                     className="max-w-full max-h-[340px] object-contain transition-transform duration-700 group-hover/preview:scale-[1.02]"
-                                    sizes="(max-width: 1024px) 100vw, 768px"
                                   />
                                 ) : (
                                   <div className="w-12 h-12 border-4 border-sky-500/30 border-t-sky-400 rounded-full animate-spin" />

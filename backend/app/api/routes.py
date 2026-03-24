@@ -198,18 +198,34 @@ async def batch_export_result_overlay(
 @router.get("/results/{image_id}/diagnosis")
 async def get_result_diagnosis(request: Request, image_id: str):
     """
-    根据识别结果调用 LLM 生成专家诊断（流式返回）
+    根据识别结果调用 LLM 生成专家诊断（流式返回）。
+    首次调用将持久化到磁盘，后续请求直接返回缓存结果。
     """
-    from fastapi.responses import StreamingResponse
+    from fastapi.responses import PlainTextResponse, StreamingResponse
 
     result_service = request.app.state.result_service
     llm_service = request.app.state.llm_service
-    
-    # 1. 获取已有的识别结果
+
+    # 1. 检查磁盘缓存
+    cached = result_service.get_cached_diagnosis(image_id=image_id)
+    if cached:
+        return PlainTextResponse(cached, media_type="text/plain; charset=utf-8")
+
+    # 2. 获取已有的识别结果
     result = result_service.get_result(image_id=image_id)
-    
-    # 2. 调用 LLM 服务生成流式输出
+
+    # 3. 调用 LLM 服务生成流式输出，同时收集完整文本以便持久化
+    async def stream_and_save():
+        full_content = []
+        async for chunk in llm_service.generate_diagnosis_stream(result):
+            full_content.append(chunk)
+            yield chunk
+        # 流式输出完成后将完整文本持久化到磁盘
+        complete_text = "".join(full_content)
+        if complete_text and not complete_text.startswith("错误：") and not complete_text.startswith("诊断生成失败"):
+            result_service.save_diagnosis(image_id=image_id, content=complete_text)
+
     return StreamingResponse(
-        llm_service.generate_diagnosis_stream(result),
+        stream_and_save(),
         media_type="text/event-stream"
     )

@@ -33,6 +33,12 @@ export function DashboardSidebar() {
         <Link
           href="/dashboard"
           className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white transition-colors hover:bg-white/10 lg:justify-start"
+          onClick={(e) => {
+            if (pathname === "/dashboard") {
+              e.preventDefault();
+              window.location.reload();
+            }
+          }}
         >
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-sm font-bold text-white">
             +

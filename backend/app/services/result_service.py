@@ -177,3 +177,11 @@ class ResultService:
             categories=sorted({item.category for item in result.detections}),
             artifacts=result.artifacts,
         )
+
+    def get_cached_diagnosis(self, *, image_id: str) -> str | None:
+        """Return the cached diagnosis markdown, or None if not yet generated."""
+        return self.store.load_diagnosis(image_id=image_id)
+
+    def save_diagnosis(self, *, image_id: str, content: str) -> str:
+        """Persist a completed diagnosis to disk."""
+        return self.store.save_diagnosis(image_id=image_id, content=content)
