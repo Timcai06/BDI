@@ -338,156 +338,114 @@ export function ResultDashboard({
   }
 
   return (
-    <div className="flex flex-col gap-6 h-full overflow-y-auto pb-8">
-      <div className="flex flex-col xl:flex-row gap-8 items-start relative z-10">
-        <div className="flex-[3] min-w-0 flex flex-col gap-8">
+    <div className="flex h-full flex-col gap-5 overflow-y-auto pb-6">
+      <div className="relative z-10 flex flex-col items-start gap-6 xl:flex-row">
+        <div className="flex min-w-0 flex-[3] flex-col gap-6">
         {/* 图像监控主界面区 */}
-        <div className="w-full rounded-[2rem] border border-[#00D2FF]/10 bg-[#05080A]/90 shadow-[0_0_80px_rgba(0,210,255,0.05)] backdrop-blur-xl overflow-hidden flex flex-col xl:col-span-2 min-h-[650px] relative">
+        <div className="relative flex min-h-[620px] w-full flex-col overflow-hidden rounded-[2rem] border border-[#00D2FF]/10 bg-[#05080A]/90 shadow-[0_0_80px_rgba(0,210,255,0.05)] backdrop-blur-xl xl:col-span-2">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#00D2FF]/5 via-transparent to-transparent pointer-events-none" />
-          <div className="relative border-b border-white/5 bg-[linear-gradient(180deg,rgba(5,8,10,0.82),rgba(5,8,10,0.58))] px-5 py-4 shrink-0 z-10">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
+          <div className="relative z-10 shrink-0 border-b border-white/5 bg-[linear-gradient(180deg,rgba(5,8,10,0.4),rgba(5,8,10,0.1))] px-5 py-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-4 w-full">
+              <div className="flex items-center gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse" />
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
-                    实时结果
+                  <div className="h-2 w-2 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.8)] animate-pulse" />
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">
+                    AI 分析看板
                   </span>
                 </div>
-                <div className="mt-2 flex flex-wrap items-center gap-3">
-                  <p className="text-lg font-medium tracking-[0.04em] text-white">
-                    识别结果
-                  </p>
-                  <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.18em] text-white/45">
-                    {viewMode === "result" ? "Result" : viewMode === "mask" ? "Mask" : "Image"}
-                  </span>
+                <div className="h-4 w-px bg-white/10" />
+                <div className="flex rounded-lg border border-white/8 bg-black/20 p-1">
+                  <button
+                    aria-pressed={viewMode === "image"}
+                    className={`h-7 rounded-md px-3 text-[11px] font-semibold transition-colors ${
+                      viewMode === "image"
+                        ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                        : "text-slate-400 hover:bg-white/5 hover:text-white/80"
+                    }`}
+                    type="button"
+                    onClick={() => onViewModeChange("image")}
+                  >
+                    原图
+                  </button>
+                  <button
+                    aria-pressed={viewMode === "result"}
+                    className={`h-7 rounded-md px-3 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                      viewMode === "result"
+                        ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                        : "text-slate-400 hover:bg-white/5 hover:text-white/80"
+                    }`}
+                    disabled={resultDisabled}
+                    type="button"
+                    onClick={() => onViewModeChange("result")}
+                  >
+                    结果图
+                  </button>
+                  <button
+                    aria-pressed={viewMode === "mask"}
+                    className={`h-7 rounded-md px-3 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                      viewMode === "mask"
+                        ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                        : "text-slate-400 hover:bg-white/5 hover:text-white/80"
+                    }`}
+                    disabled={maskDisabled}
+                    type="button"
+                    onClick={() => onViewModeChange("mask")}
+                  >
+                    掩膜图
+                  </button>
                 </div>
               </div>
 
-              <div className="flex rounded-xl border border-white/8 bg-black/20 p-1">
+              <div className="flex items-center gap-2">
+                <details className="relative">
+                  <summary className="flex h-8 cursor-pointer list-none items-center rounded-lg px-3 text-[11px] font-medium text-white/50 transition-colors hover:bg-white/5 hover:text-white">
+                    导出与下载
+                  </summary>
+                  <div className="absolute right-0 top-10 z-20 flex min-w-[160px] flex-col gap-1 rounded-xl border border-white/10 bg-[#0B1120]/95 p-2 shadow-2xl backdrop-blur">
+                    <button
+                      className="rounded-md px-3 py-2 text-left text-xs text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+                      type="button"
+                      onClick={onExportJson}
+                    >
+                      下载 JSON
+                    </button>
+                    <button
+                      className="rounded-md px-3 py-2 text-left text-xs text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                      disabled={resultDisabled}
+                      type="button"
+                      onClick={onExportOverlay}
+                    >
+                      保存结果图
+                    </button>
+                  </div>
+                </details>
                 <button
-                  aria-pressed={viewMode === "image"}
-                  className={`h-8 rounded-lg px-3 text-xs font-semibold transition-colors ${
-                    viewMode === "image"
-                      ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                      : "text-slate-400 hover:bg-white/5"
-                  }`}
+                  className="h-8 rounded-lg px-3 text-[11px] font-medium text-white/50 transition-colors hover:bg-white/5 hover:text-white"
                   type="button"
-                  onClick={() => onViewModeChange("image")}
+                  onClick={onOpenHistory}
                 >
-                  查看原图
+                  历史记录
                 </button>
                 <button
-                  aria-label="查看结果图"
-                  aria-pressed={viewMode === "result"}
-                  className={`h-8 rounded-lg px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                    viewMode === "result"
-                      ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                      : "text-slate-400 hover:bg-white/5"
-                  }`}
-                  disabled={resultDisabled}
-                  title={
-                    resultDisabled
-                      ? "当前结果没有可切换的结果图"
-                      : "切换到结果图"
-                  }
-                  type="button"
-                  onClick={() => onViewModeChange("result")}
-                >
-                  查看结果图
-                </button>
-                <button
-                  aria-label="查看掩膜图"
-                  aria-pressed={viewMode === "mask"}
-                  className={`h-8 rounded-lg px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                    viewMode === "mask"
-                      ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                      : "text-slate-400 hover:bg-white/5"
-                  }`}
-                  disabled={maskDisabled}
-                  title={
-                    maskDisabled
-                      ? "当前结果未返回掩膜数据"
-                      : "切换到掩膜图"
-                  }
-                  type="button"
-                  onClick={() => onViewModeChange("mask")}
-                >
-                  查看掩膜图
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-              <div className="min-w-0 flex-1 rounded-2xl border border-white/8 bg-white/[0.025] px-4 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/35">
-                  当前文件
-                </p>
-                <p
-                  className="mt-1 truncate text-sm text-white/72"
-                  title={result.image_id}
-                >
-                  {result.image_id}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-                <button
-                  className="h-8 rounded-lg border border-sky-400/30 bg-sky-400/[0.12] px-4 text-xs font-semibold text-sky-100 transition-colors hover:bg-sky-400/[0.2]"
+                  className="ml-2 h-8 rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 text-[11px] font-bold tracking-widest uppercase text-sky-300 transition-colors hover:bg-sky-500/20 hover:text-white"
                   title={primaryActionTitle}
                   type="button"
                   onClick={handlePrimaryAction}
                 >
                   {primaryActionLabel}
                 </button>
-                <button
-                  className="h-8 rounded-lg border border-white/8 bg-black/20 px-3 text-xs font-medium text-white/72 transition-colors hover:bg-white/8 hover:text-white"
-                  type="button"
-                  onClick={onOpenHistory}
-                >
-                  历史记录
-                </button>
-                <details className="relative">
-                  <summary className="flex h-8 cursor-pointer list-none items-center rounded-lg border border-white/8 bg-black/20 px-3 text-xs font-medium text-white/72 transition-colors hover:bg-white/8 hover:text-white">
-                    导出
-                  </summary>
-                  <div className="absolute right-0 top-10 z-20 flex min-w-[160px] flex-col gap-1 rounded-xl border border-white/10 bg-[#0B1120]/95 p-2 shadow-2xl backdrop-blur">
-                    <button
-                      aria-label="导出 JSON"
-                      className="rounded-md px-3 py-2 text-left text-xs text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-                      type="button"
-                      onClick={onExportJson}
-                    >
-                      导出 JSON
-                    </button>
-                    <button
-                      aria-label="导出结果图"
-                      className="rounded-md px-3 py-2 text-left text-xs text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                      disabled={resultDisabled}
-                      title={
-                        resultDisabled
-                          ? "当前结果没有可导出的结果图文件"
-                          : "导出结果图"
-                      }
-                      type="button"
-                      onClick={onExportOverlay}
-                    >
-                      导出结果图
-                    </button>
-                  </div>
-                </details>
               </div>
             </div>
-
             {/* defect metrics HUD (High-level HUD style) */}
-            <div className={`mt-6 transition-all duration-500 overflow-hidden ${current ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'}`}>
-              <div className="rounded-2xl border border-[#00D2FF]/20 bg-[#00D2FF]/5 p-4 flex items-center gap-6 relative group">
+            <div className={`mt-5 overflow-hidden transition-all duration-500 ${current ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'}`}>
+              <div className="relative flex items-center gap-5 rounded-2xl border border-[#00D2FF]/20 bg-[#00D2FF]/5 p-3.5 group">
                 <div className="absolute inset-0 bg-gradient-to-r from-[#00D2FF]/5 via-transparent to-transparent pointer-events-none" />
                 <div className="shrink-0 flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-[#00D2FF]/10 border border-[#00D2FF]/20">
                   <svg className="h-6 w-6 text-[#00D2FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} />
                   </svg>
                 </div>
-                <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid flex-1 grid-cols-2 gap-3 md:grid-cols-4">
                   <div className="space-y-1">
                     <p className="text-[9px] font-bold uppercase tracking-widest text-[#00D2FF]/60">病害类别</p>
                     <p className="text-sm font-semibold text-white">{current ? getDefectLabel(current.category) : "--"}</p>
@@ -515,26 +473,18 @@ export function ResultDashboard({
             </div>
           </div>
 
-          <div className="relative flex-1 bg-[radial-gradient(circle_at_center,rgba(0,210,255,0.05),transparent_70%),linear-gradient(180deg,#05080A,#0B1120)] p-5 md:p-6 overflow-auto z-10 min-h-[550px]">
+          <div className="relative z-10 min-h-[520px] flex-1 overflow-auto bg-[radial-gradient(circle_at_center,rgba(0,210,255,0.05),transparent_70%),linear-gradient(180deg,#05080A,#0B1120)] p-4 md:p-5">
             <div className="mx-auto flex w-full max-w-5xl flex-col rounded-[1.75rem] border border-white/5 bg-[#05080A]/80 shadow-[0_24px_80px_rgba(0,0,0,0.5)]">
-              <div className="flex items-center justify-between gap-3 border-b border-white/6 px-5 py-4">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/35">
-                    预览画面
-                  </p>
-                  <p
-                    className="mt-1 truncate text-sm text-white/72"
-                    title={result.image_id}
-                  >
-                    {result.image_id}
-                  </p>
-                </div>
-                <span className="shrink-0 text-xs font-mono text-white/42">
+              <div className="relative z-20 flex items-center justify-between gap-3 border-b border-white/6 bg-[linear-gradient(to_bottom,currentColor_0%,transparent_100%)] px-4 py-2.5 text-sky-900/10">
+                <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-sky-500/80">
+                  CAMERA FEED
+                </span>
+                <span className="shrink-0 text-[10px] font-mono text-white/40">
                   {formatResultTimestamp(result.created_at)} UTC
                 </span>
               </div>
 
-              <div className="flex-1 px-5 py-5">
+              <div className="flex-1 px-4 py-4">
                 <div
                   ref={frameRef}
                   className="relative mx-auto aspect-[4/3] max-h-full w-full overflow-hidden rounded-[1.25rem] border border-white/8 bg-[#050b16] ring-1 ring-white/6 shadow-2xl"
@@ -664,7 +614,7 @@ export function ResultDashboard({
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/6 px-5 py-4 text-[11px] font-mono text-slate-500">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/6 px-4 py-3 text-[11px] font-mono text-slate-500">
                 <span>
                   {viewMode === "result" ? "结果图视图" : viewMode === "mask" ? "掩膜图视图" : "原图视图"} /{" "}
                   {filteredDetections.length} 个病害
@@ -677,7 +627,7 @@ export function ResultDashboard({
           </div>
 
           {comparisonResult ? (
-            <div className="border-t border-white/5 bg-black/20 p-4">
+            <div className="border-t border-white/5 bg-black/20 p-3.5">
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">
                   图像级对比
@@ -686,8 +636,8 @@ export function ResultDashboard({
                   {viewMode === "result" ? "同步结果图预览" : viewMode === "mask" ? "同步掩膜图预览" : "同步原图预览"}
                 </span>
               </div>
-              <div className="grid gap-4 xl:grid-cols-2">
-                <div className="rounded-2xl border border-white/10 bg-[#0B1120]/70 p-4">
+              <div className="grid gap-3.5 xl:grid-cols-2">
+                <div className="rounded-2xl border border-white/10 bg-[#0B1120]/70 p-3.5">
                   <div className="mb-3 flex items-center justify-between">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
@@ -718,7 +668,7 @@ export function ResultDashboard({
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-sky-500/20 bg-sky-500/[0.05] p-4">
+                <div className="rounded-2xl border border-sky-500/20 bg-sky-500/[0.05] p-3.5">
                   <div className="mb-3 flex items-center justify-between">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-300/70">
@@ -753,95 +703,13 @@ export function ResultDashboard({
           ) : null}
         </div>
 
-        {/* AI Analysis and Physical Metrics (Filling empty space) */}
-        <div className="mt-8 pb-4">
-          <div className="flex flex-col rounded-[2.5rem] border border-[#7FFFD4]/20 bg-[linear-gradient(180deg,rgba(127,255,212,0.05),rgba(5,8,10,0.4))] p-8 relative group overflow-hidden shadow-2xl transition-all hover:bg-[#7FFFD4]/8 hover:border-[#7FFFD4]/30">
-             <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
-              <svg className="h-16 w-16 text-[#7FFFD4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} />
-              </svg>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-3 mb-6">
-              <div className="h-1.5 w-10 rounded-full bg-gradient-to-r from-[#7FFFD4] to-transparent" />
-              <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#7FFFD4]">
-                AI 专家在线深度诊断报告
-              </p>
-              <div className="flex items-center gap-2 ml-3">
-                 <span className="px-2 py-0.5 rounded text-[8px] font-bold bg-[#7FFFD4]/10 text-[#7FFFD4] border border-[#7FFFD4]/20 uppercase tracking-widest">OpenCode AI</span>
-                 <span className="px-2 py-0.5 rounded text-[8px] font-bold bg-[#00D2FF]/10 text-[#00D2FF] border border-[#00D2FF]/20 uppercase tracking-widest">Kimi K2.5</span>
-              </div>
-              {isDiagnosisLoading && (
-                <div className="flex items-center gap-2 ml-auto px-3 py-1 rounded-full bg-[#7FFFD4]/10 border border-[#7FFFD4]/20">
-                  <span className="text-[9px] text-[#7FFFD4] font-medium uppercase animate-pulse">Analyzing</span>
-                  <span className="flex gap-1">
-                    <span className="h-1 w-1 animate-bounce rounded-full bg-[#7FFFD4]" />
-                    <span className="h-1 w-1 animate-bounce rounded-full bg-[#7FFFD4] [animation-delay:-0.15s]" />
-                    <span className="h-1 w-1 animate-bounce rounded-full bg-[#7FFFD4] [animation-delay:-0.3s]" />
-                  </span>
-                </div>
-              )}
-            </div>
-            
-            <div className="flex-1 text-[15px] leading-[1.8] text-[#7FFFD4]/90 font-light select-text min-h-[400px] max-h-[800px] overflow-y-auto prose prose-invert prose-emerald max-w-none pr-6 custom-scrollbar scroll-smooth">
-              {diagnosis ? (
-                <ReactMarkdown
-                  components={{
-                    h3: ({...props}) => <h3 className="text-lg font-bold text-[#7FFFD4] mt-8 mb-4 border-l-4 border-[#7FFFD4] pl-4 bg-[#7FFFD4]/5 py-2 rounded-r" {...props} />,
-                    p: ({...props}) => <p className="mb-6 last:mb-0 leading-relaxed opacity-90" {...props} />,
-                    strong: ({...props}) => <strong className="text-[#00D2FF] font-semibold" {...props} />,
-                    li: ({...props}) => <li className="mb-3 list-none relative pl-6 before:content-['▹'] before:absolute before:left-0 before:text-[#7FFFD4]" {...props} />
-                   }}
-                >
-                  {diagnosis}
-                </ReactMarkdown>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-[350px] gap-6">
-                   <div className="relative">
-                      <div className="w-16 h-16 rounded-full border-2 border-[#7FFFD4]/10 flex items-center justify-center animate-spin-slow" />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                         <div className="w-2 h-2 rounded-full bg-[#7FFFD4] animate-ping" />
-                      </div>
-                      <div className="absolute -inset-4 border border-[#7FFFD4]/5 rounded-full animate-pulse" />
-                   </div>
-                   <div className="text-center space-y-2">
-                     <p className="text-xs text-[#7FFFD4]/60 font-mono tracking-[0.3em] uppercase">
-                       {isDiagnosisLoading ? "Consulting Digital Twin..." : "System Idle"}
-                     </p>
-                     {isDiagnosisLoading && (
-                       <motion.p 
-                         initial={{ opacity: 0, y: 5 }}
-                         animate={{ opacity: 1, y: 0 }}
-                         key={thinkingIndex}
-                         className="text-[11px] text-[#7FFFD4]/30 italic font-light"
-                       >
-                         {thinkingSteps[thinkingIndex]}
-                       </motion.p>
-                     )}
-                   </div>
-                </div>
-              )}
-              {isDiagnosisLoading && <span className="inline-block h-4 w-2 ml-2 bg-[#7FFFD4] animate-pulse align-middle" />}
-            </div>
-            
-            <div className="mt-8 pt-4 border-t border-[#7FFFD4]/10 flex items-center justify-between">
-              <p className="text-[10px] text-[#7FFFD4]/40 italic">
-                Powered by OpenCode Kimi K2.5 • 基于结构化特征与桥梁巡检规范之量化评估报告
-              </p>
-              <div className="flex gap-4">
-                 <span className="h-1 w-8 rounded-full bg-[#7FFFD4]/20" />
-                 <span className="h-1 w-8 rounded-full bg-[#00D2FF]/20" />
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
         {/* 结论区与辅工具栏 */}
-        <aside className="w-full xl:w-[420px] shrink-0 flex flex-col gap-6 relative z-10">
-          <div className="rounded-[2rem] border border-[#00D2FF]/20 bg-[linear-gradient(145deg,rgba(5,8,10,0.95),rgba(5,8,10,0.8))] p-6 shadow-[0_0_40px_rgba(0,210,255,0.1)] backdrop-blur-xl shrink-0 group relative overflow-hidden">
+        <aside className="relative z-10 flex w-full shrink-0 flex-col gap-5 xl:w-[400px]">
+          <div className="relative shrink-0 overflow-hidden rounded-[2rem] border border-[#00D2FF]/20 bg-[linear-gradient(145deg,rgba(5,8,10,0.95),rgba(5,8,10,0.8))] p-5 shadow-[0_0_40px_rgba(0,210,255,0.1)] backdrop-blur-xl group">
             <div className="absolute -inset-[1px] bg-gradient-to-br from-[#00D2FF]/20 to-[#7FFFD4]/0 opacity-50 z-[-1]" />
             
-            <div className="mb-6">
+            <div className="mb-5">
               <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#00D2FF]/60 mb-3">系统运行状态</p>
               <StatusCard 
                 phase={status.phase} 
@@ -853,7 +721,7 @@ export function ResultDashboard({
 
             {/* 性能展现：细粒度耗时拆解 */}
             {result.inference_breakdown && (
-              <div className="mb-8 rounded-2xl border border-white/5 bg-white/[0.02] p-4 group transition-all hover:bg-white/[0.04]">
+              <div className="mb-6 rounded-2xl border border-white/5 bg-white/[0.02] p-3.5 transition-all group hover:bg-white/[0.04]">
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#00D2FF]/60">性能分析仪表盘</p>
                   <span className="font-mono text-[10px] text-[#7FFFD4] border border-[#7FFFD4]/30 px-1.5 py-0.5 rounded leading-none">
@@ -910,56 +778,98 @@ export function ResultDashboard({
               </div>
             )}
 
-            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#00D2FF]/80 mb-3">
-              识别结论
-            </p>
-            <h3 className="text-xl md:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-[#00D2FF] to-[#7FFFD4] font-medium tracking-wide">
-              {primaryFinding}
-            </h3>
-            <p className="mt-3 text-sm text-slate-300 leading-relaxed font-light">
-              {getDetectionSummary(result)}
-            </p>
-            <p className="mt-3 text-sm text-slate-400">
-              {activePreviewUrl
-                ? `当前正在查看${
-                  viewMode === "result"
-                    ? "结果图"
-                    : viewMode === "mask"
-                      ? "掩膜图"
-                      : "原图"
-                }，可继续筛选、导出或重新分析。`
-                : "当前为历史记录回看模式，已恢复结构化结果和病害详情。"}
-            </p>
-            <div className={`mt-3 rounded-xl border px-4 py-3 text-sm ${
-              result.has_masks
-                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-100"
-                : "border-amber-500/20 bg-amber-500/10 text-amber-100"
-            }`}>
-              <p className="font-medium">
-                {result.has_masks
-                  ? `当前结果包含 ${result.mask_detection_count} 处实例掩膜，可切换到“查看掩膜图”。`
-                  : "当前结果未返回实例掩膜数据，仅支持原图定位与结果图回看。"}
-              </p>
+        {/* AI Analysis and Physical Metrics (Filling empty space) */}
+        <div className="mb-8">
+          <div className="relative flex h-[440px] flex-col overflow-hidden rounded-2xl border border-[#7FFFD4]/30 bg-[linear-gradient(180deg,rgba(127,255,212,0.08),rgba(5,8,10,0.6))] p-4 shadow-2xl transition-all group hover:bg-[#7FFFD4]/8 hover:border-[#7FFFD4]/30">
+             <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+              <svg className="h-10 w-10 text-[#7FFFD4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} />
+              </svg>
             </div>
-            <div className="mt-4 rounded-xl border border-sky-500/15 bg-sky-500/[0.06] p-4">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-300/70">
-                建议下一步
+            
+            <div className="mb-3 flex flex-wrap items-center gap-2.5">
+              <div className="h-1.5 w-8 rounded-full bg-gradient-to-r from-[#7FFFD4] to-transparent" />
+              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#7FFFD4]">
+                核心诊断建议
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-slate-200">
-                {resultNextStep}
-              </p>
-              {topPriorityDetection ? (
-                <button
-                  className="mt-4 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs font-semibold text-sky-200 transition-colors hover:bg-sky-500/20"
-                  type="button"
-                  onClick={() => handleFocusDetection(topPriorityDetection)}
-                >
-                  查看最高风险病害
-                </button>
-              ) : null}
+              <div className="ml-2 flex items-center gap-1.5">
+                 <span className="rounded border border-[#7FFFD4]/20 bg-[#7FFFD4]/10 px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-[0.18em] text-[#7FFFD4]">OpenCode AI</span>
+                 <span className="rounded border border-[#00D2FF]/20 bg-[#00D2FF]/10 px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-[0.18em] text-[#00D2FF]">Kimi K2.5</span>
+              </div>
+              {isDiagnosisLoading && (
+                <div className="ml-auto flex items-center gap-2 rounded-full border border-[#7FFFD4]/20 bg-[#7FFFD4]/10 px-2.5 py-1">
+                  <span className="text-[9px] text-[#7FFFD4] font-medium uppercase animate-pulse">Analyzing</span>
+                  <span className="flex gap-1">
+                    <span className="h-1 w-1 animate-bounce rounded-full bg-[#7FFFD4]" />
+                    <span className="h-1 w-1 animate-bounce rounded-full bg-[#7FFFD4] [animation-delay:-0.15s]" />
+                    <span className="h-1 w-1 animate-bounce rounded-full bg-[#7FFFD4] [animation-delay:-0.3s]" />
+                  </span>
+                </div>
+              )}
+            </div>
+            
+            <div className="mb-2 flex items-center justify-between text-[9px] uppercase tracking-[0.14em] text-[#7FFFD4]/35">
+              <span>固定诊断面板</span>
+              <span>滚动查看完整内容</span>
             </div>
 
+            <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-[#7FFFD4]/10 bg-black/10">
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-10 bg-gradient-to-b from-[#071014] to-transparent" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-12 bg-gradient-to-t from-[#071014] to-transparent" />
 
+              <div className="h-full overflow-y-auto px-1 pr-3 text-[13px] font-light leading-[1.75] text-[#7FFFD4]/90 prose prose-invert prose-emerald max-w-none custom-scrollbar scroll-smooth">
+                {diagnosis ? (
+                  <ReactMarkdown
+                    components={{
+                      h3: ({...props}) => <h3 className="mt-6 mb-2 border-l-4 border-[#7FFFD4] bg-[#7FFFD4]/5 py-1.5 pl-3 text-sm font-bold text-[#7FFFD4] rounded-r" {...props} />,
+                      p: ({...props}) => <p className="mb-3 last:mb-0 leading-relaxed opacity-90" {...props} />,
+                      strong: ({...props}) => <strong className="text-[#00D2FF] font-semibold" {...props} />,
+                      li: ({...props}) => <li className="mb-2 list-none relative pl-5 before:content-['▹'] before:absolute before:left-0 before:text-[#7FFFD4]" {...props} />
+                     }}
+                  >
+                    {diagnosis}
+                  </ReactMarkdown>
+                ) : (
+                  <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-6">
+                     <div className="relative">
+                        <div className="w-16 h-16 rounded-full border-2 border-[#7FFFD4]/10 flex items-center justify-center animate-spin-slow" />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                           <div className="w-2 h-2 rounded-full bg-[#7FFFD4] animate-ping" />
+                        </div>
+                        <div className="absolute -inset-4 border border-[#7FFFD4]/5 rounded-full animate-pulse" />
+                     </div>
+                     <div className="text-center space-y-2">
+                       <p className="text-xs text-[#7FFFD4]/60 font-mono tracking-[0.1em] uppercase">
+                         {isDiagnosisLoading ? "Consulting Digital Twin..." : "System Idle"}
+                       </p>
+                       {isDiagnosisLoading && (
+                         <motion.p 
+                           initial={{ opacity: 0, y: 5 }}
+                           animate={{ opacity: 1, y: 0 }}
+                           key={thinkingIndex}
+                           className="text-[11px] text-[#7FFFD4]/30 italic font-light"
+                         >
+                           {thinkingSteps[thinkingIndex]}
+                         </motion.p>
+                       )}
+                     </div>
+                  </div>
+                )}
+                {isDiagnosisLoading && <span className="inline-block h-4 w-2 ml-2 bg-[#7FFFD4] animate-pulse align-middle" />}
+              </div>
+            </div>
+            
+            <div className="mt-4 pt-3 border-t border-[#7FFFD4]/10 flex items-center justify-between">
+              <p className="text-[10px] text-[#7FFFD4]/40 italic">
+                Powered by OpenCode Kimi K2.5 • 基于结构化特征与桥梁巡检规范之量化评估报告
+              </p>
+              <div className="flex gap-4">
+                 <span className="h-1 w-8 rounded-full bg-[#7FFFD4]/20" />
+                 <span className="h-1 w-8 rounded-full bg-[#00D2FF]/20" />
+              </div>
+            </div>
+          </div>
+        </div>
 
             <div className="mt-6">
               <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#00D2FF]/60 mb-4">展示筛选</p>
@@ -1322,7 +1232,7 @@ export function ResultDashboard({
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-y-2 text-xs">
+                    <div className="grid grid-cols-2 gap-y-2 text-xs max-h-0 opacity-0 overflow-hidden transition-all duration-300 group-hover:max-h-40 group-hover:opacity-100 group-hover:mt-3">
                       <div className="flex items-center gap-2">
                         <span className="text-slate-500 truncate w-10">Id</span>
                         <span

@@ -105,7 +105,7 @@ describe("ResultDashboard", () => {
       onViewModeChange: onViewModeChange
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "查看结果图" }));
+    fireEvent.click(screen.getByRole("button", { name: "结果图" }));
 
     expect(onViewModeChange).toHaveBeenCalledWith("result");
   });
@@ -135,7 +135,7 @@ describe("ResultDashboard", () => {
       onSelectDetection
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "查看最高风险病害" }));
+    fireEvent.click(document.querySelector('[data-detection-id="det-crack-001"]') as HTMLElement);
 
     expect(onSelectDetection).toHaveBeenCalledWith(
       expect.objectContaining({ id: "det-crack-001" })

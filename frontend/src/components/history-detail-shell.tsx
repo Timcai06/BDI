@@ -320,9 +320,9 @@ export function HistoryDetailShell({ imageId }: HistoryDetailShellProps) {
       description="右侧摘要保留当前历史记录的核心指标，进入详情页后仍然维持控制台式的信息密度。"
       sections={[
         {
-          title: "当前文件",
-          value: result.image_id,
-          hint: formatModelLabel(result),
+          title: "检测引擎",
+          value: formatModelLabel(result),
+          hint: `耗时 ${result.inference_ms}ms`,
           tone: "sky",
         },
         {
