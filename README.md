@@ -22,7 +22,7 @@
 
 - ⚡ **极速渲染**：基于 Next.js 16 + Webpack 5，首屏 < 1 s
 - 🎨 **极客 UI**：玻璃态、渐变、微动画，打造高科技工作台
-- 🤖 **AI 诊断**：集成 `YOLOv8‑seg`，自动识别桥梁裂缝、剥落等病害
+- 🤖 **AI 诊断**：集成 `YOLOv8‑seg`，支持裂缝、破损、梳齿缺陷、孔洞、钢筋外露与渗水六类病害识别
 - 📊 **多模型对比**：支持模型切换、置信度过滤、一键导出
 - 📁 **历史回看**：上传记录持久化，支持批量导出 JSON 与结果图，并区分 `MASK` / `BBOX ONLY`
 
@@ -90,13 +90,13 @@ graph LR
     FE["前端 (Next.js)"] --> BE["后端 (FastAPI)"]
     BE --> Model["YOLOv8-seg"]
     Model --> BE
-    BE --> DB[("PostgreSQL")]
+    BE --> FS[("Local Artifacts")]
     FE --> UI["React Components"]
 ```
 
 - **前端**：Next.js 16、TailwindCSS、React 19
 - **后端**：FastAPI、Python 3.12、ultralytics YOLOv8‑seg
-- **数据库**：PostgreSQL 用于历史记录与模型元数据
+- **存储**：本地文件产物，用于历史记录、结果图、诊断文本与模型输出管理
 
 ---
 
@@ -119,11 +119,11 @@ graph LR
 
 1. Fork 本仓库
 2. 创建特性分支 `git checkout -b feat/your-feature`
-3. 编写代码并通过 **ESLint、Prettier、TypeScript** 检查
+3. 编写代码并通过 **ESLint、测试与构建** 检查
 4. 提交时遵循 **Conventional Commits**（`feat:`, `fix:` 等）
 5. 发起 Pull Request，CI 将自动运行 lint、test、build
 
-> **代码规范**：使用 `npm run lint`、`npm run format` 保持统一风格。
+> **代码规范**：前端使用 `npm run lint`、`npm run test`、`npm run build`，后端按虚拟环境内的测试与检查命令执行。
 
 ---
 

@@ -54,6 +54,7 @@ uvicorn app.main:app --reload
 - 将 Ultralytics 原始结果转换为统一协议
 - 生成 overlay 与标准 JSON 产物
 - 在统一协议中显式返回 `has_masks` 与 `mask_detection_count`
+- 对模型原始类别名执行六类标准化映射
 - 后端代码已修正为兼容 `Python 3.9`
 - 已验证新增多模型骨架在 `.venv-yolo` 的 `Python 3.9` 环境中可正常 import、测试和编译
 
@@ -74,6 +75,7 @@ uvicorn app.main:app --reload
 - `overlay` 是后端导出的可视化结果图产物
 - `overlay` 不等于实例掩膜
 - 真实掩膜能力应以 `detections[].mask`、`has_masks` 和 `mask_detection_count` 为准
+- 返回给前端的 `category` 已在后端按六类标准值归一化，相关逻辑位于 `app/core/category_mapper.py`
 
 ## 真实模型接入
 
