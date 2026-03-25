@@ -43,6 +43,7 @@ def test_list_results_returns_recent_saved_predictions(tmp_path: Path, monkeypat
     assert payload["items"][0]["image_id"] == second.json()["image_id"]
     assert payload["items"][0]["detection_count"] == len(second.json()["detections"])
     assert payload["items"][0]["categories"]
+    assert payload["items"][0]["has_diagnosis"] is False
 
 
 def test_list_models_returns_registered_catalog(tmp_path: Path, monkeypatch) -> None:
@@ -138,6 +139,62 @@ def test_get_result_returns_not_found_for_unknown_result(tmp_path: Path, monkeyp
     assert response.status_code == 404
     payload = response.json()
     assert payload["error"]["code"] == "RESULT_NOT_FOUND"
+
+
+def test_get_result_diagnosis_returns_missing_when_not_generated(tmp_path: Path, monkeypatch) -> None:
+    client = create_test_client(tmp_path, monkeypatch)
+
+    predict_response = client.post(
+        "/predict",
+        files={"file": ("bridge.jpg", b"fake-jpeg-data", "image/jpeg")},
+    )
+
+    image_id = predict_response.json()["image_id"]
+    response = client.get(f"/results/{image_id}/diagnosis")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["image_id"] == image_id
+    assert payload["exists"] is False
+    assert payload["content"] is None
+
+
+def test_post_result_diagnosis_returns_cached_markdown_without_regeneration(tmp_path: Path, monkeypatch) -> None:
+    client = create_test_client(tmp_path, monkeypatch)
+
+    predict_response = client.post(
+        "/predict",
+        files={"file": ("bridge.jpg", b"fake-jpeg-data", "image/jpeg")},
+    )
+
+    image_id = predict_response.json()["image_id"]
+    diagnosis_path = client.app.state.predict_service.store.diagnoses_dir / f"{image_id}.md"
+    diagnosis_path.write_text("cached diagnosis", encoding="utf-8")
+
+    response = client.post(f"/results/{image_id}/diagnosis")
+
+    assert response.status_code == 200
+    assert response.text == "cached diagnosis"
+
+
+def test_list_results_marks_saved_diagnosis_in_summary(tmp_path: Path, monkeypatch) -> None:
+    client = create_test_client(tmp_path, monkeypatch)
+
+    predict_response = client.post(
+        "/predict",
+        files={"file": ("bridge.jpg", b"fake-jpeg-data", "image/jpeg")},
+        data={"model_version": "mock-v1"},
+    )
+
+    image_id = predict_response.json()["image_id"]
+    client.app.state.result_service.save_diagnosis(image_id=image_id, content="saved report")
+
+    response = client.get("/results")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["items"][0]["image_id"] == image_id
+    assert payload["items"][0]["has_diagnosis"] is True
 
 
 def test_get_result_overlay_returns_png_file(tmp_path: Path, monkeypatch) -> None:

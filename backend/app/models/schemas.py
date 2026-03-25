@@ -83,6 +83,7 @@ class ResultSummary(BaseModel):
     detection_count: int = Field(ge=0)
     has_masks: bool = False
     mask_detection_count: int = Field(default=0, ge=0)
+    has_diagnosis: bool = False
     categories: list[str] = Field(default_factory=list)
     artifacts: ArtifactLinks
 
@@ -137,6 +138,13 @@ class ModelCatalogItem(BaseModel):
 class ModelCatalogResponse(BaseModel):
     active_version: str
     items: list[ModelCatalogItem]
+
+
+class DiagnosisResponse(BaseModel):
+    image_id: str
+    exists: bool
+    content: Optional[str] = None
+    generated_at: Optional[datetime] = None
 
 
 class RawDetection(BaseModel):

@@ -6,6 +6,7 @@ import {
 import type {
   ApiError,
   BatchDeleteResultsResponse,
+  DiagnosisResponse,
   ModelCatalogResponse,
   PredictOptions,
   PredictionHistoryResponse,
@@ -276,14 +277,17 @@ export async function listAllResults(forceFresh: boolean = false): Promise<Predi
   };
 }
 
-export async function getResult(imageId: string): Promise<PredictionResult> {
+export async function getResult(
+  imageId: string,
+  options: { forceFresh?: boolean } = {}
+): Promise<PredictionResult> {
   if (!API_BASE_URL) {
     return demoResult;
   }
 
   const encodedImageId = encodeImageId(imageId);
   const cacheKey = `${API_BASE_URL}/results/${encodedImageId}`;
-  return cachedFetch(cacheKey, async () => {
+  const fetchResult = async () => {
     const response = await fetchWithTimeout(`${API_BASE_URL}/results/${encodedImageId}`);
 
     if (!response.ok) {
@@ -292,7 +296,14 @@ export async function getResult(imageId: string): Promise<PredictionResult> {
     }
 
     return (await response.json()) as PredictionResult;
-  });
+  };
+
+  if (options.forceFresh) {
+    MEMORY_CACHE.delete(cacheKey);
+    return fetchResult();
+  }
+
+  return cachedFetch(cacheKey, fetchResult);
 }
 
 export async function deleteResult(imageId: string): Promise<void> {
@@ -437,20 +448,35 @@ export async function batchExportResults(
   }
 }
 
-export function getOverlayDownloadUrl(imageId: string): string | null {
+function withCacheKey(url: string, cacheKey?: string | number | null): string {
+  if (cacheKey === undefined || cacheKey === null || cacheKey === "") {
+    return url;
+  }
+
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}v=${encodeURIComponent(String(cacheKey))}`;
+}
+
+export function getOverlayDownloadUrl(
+  imageId: string,
+  cacheKey?: string | number | null
+): string | null {
   if (!API_BASE_URL) {
     return demoResult.artifacts.overlay_path ?? null;
   }
 
-  return `${API_BASE_URL}/results/${encodeImageId(imageId)}/overlay`;
+  return withCacheKey(`${API_BASE_URL}/results/${encodeImageId(imageId)}/overlay`, cacheKey);
 }
 
-export function getResultImageUrl(imageId: string): string | null {
+export function getResultImageUrl(
+  imageId: string,
+  cacheKey?: string | number | null
+): string | null {
   if (!API_BASE_URL) {
     return null;
   }
 
-  return `${API_BASE_URL}/results/${encodeImageId(imageId)}/image`;
+  return withCacheKey(`${API_BASE_URL}/results/${encodeImageId(imageId)}/image`, cacheKey);
 }
 
 export async function getResultImageFile(imageId: string): Promise<File> {
@@ -494,7 +520,9 @@ export async function getDiagnosisText(imageId: string): Promise<string> {
     }
 
     const encodedImageId = encodeImageId(imageId);
-    const response = await fetch(`${API_BASE_URL}/results/${encodedImageId}/diagnosis`);
+    const response = await fetch(`${API_BASE_URL}/results/${encodedImageId}/diagnosis`, {
+      method: "POST"
+    });
 
     if (!response.ok || !response.body) {
       throw new Error("无法获取 AI 专家诊断。");
@@ -527,6 +555,27 @@ export async function getDiagnosisText(imageId: string): Promise<string> {
   }
 }
 
+export async function getDiagnosisRecord(imageId: string): Promise<DiagnosisResponse> {
+  if (!API_BASE_URL) {
+    return {
+      image_id: imageId,
+      exists: false,
+      content: null,
+      generated_at: null
+    };
+  }
+
+  const encodedImageId = encodeImageId(imageId);
+  const response = await fetchWithTimeout(`${API_BASE_URL}/results/${encodedImageId}/diagnosis`);
+
+  if (!response.ok) {
+    const payload = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(payload, "专家报告读取失败。"));
+  }
+
+  return (await response.json()) as DiagnosisResponse;
+}
+
 export async function* getDiagnosisStream(imageId: string): AsyncGenerator<string, void, unknown> {
   if (!API_BASE_URL) {
     yield "【演示模式】AI 专家建议：请结合裂缝、破损、梳齿缺陷、孔洞、钢筋外露与渗水等六类病害特征进行复核，并优先关注高风险构件。";
@@ -534,7 +583,9 @@ export async function* getDiagnosisStream(imageId: string): AsyncGenerator<strin
   }
 
   const encodedImageId = encodeImageId(imageId);
-  const response = await fetch(`${API_BASE_URL}/results/${encodedImageId}/diagnosis`);
+  const response = await fetch(`${API_BASE_URL}/results/${encodedImageId}/diagnosis`, {
+    method: "POST"
+  });
 
   if (!response.ok || !response.body) {
     throw new Error("无法获取 AI 专家诊断。");

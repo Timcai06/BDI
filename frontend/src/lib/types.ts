@@ -84,6 +84,7 @@ export interface PredictionHistoryItem {
   detection_count: number;
   has_masks: boolean;
   mask_detection_count: number;
+  has_diagnosis?: boolean;
   categories: string[];
   artifacts: Artifacts;
 }

@@ -12,6 +12,7 @@ from app.models.schemas import (
     BatchDeleteResultItem,
     BatchDeleteResultsResponse,
     DeleteResultResponse,
+    DiagnosisResponse,
     PredictResponse,
     ResultListResponse,
     ResultSummary,
@@ -174,6 +175,7 @@ class ResultService:
             detection_count=len(result.detections),
             has_masks=result.has_masks,
             mask_detection_count=result.mask_detection_count,
+            has_diagnosis=self.store.diagnosis_path(result.image_id).exists(),
             categories=sorted({item.category for item in result.detections}),
             artifacts=result.artifacts,
         )
@@ -185,3 +187,17 @@ class ResultService:
     def save_diagnosis(self, *, image_id: str, content: str) -> str:
         """Persist a completed diagnosis to disk."""
         return self.store.save_diagnosis(image_id=image_id, content=content)
+
+    def get_diagnosis_response(self, *, image_id: str) -> DiagnosisResponse:
+        content = self.store.load_diagnosis(image_id=image_id)
+        if content is None:
+            return DiagnosisResponse(image_id=image_id, exists=False)
+
+        diagnosis_path = self.store.diagnosis_path(image_id)
+        generated_at = datetime.fromtimestamp(diagnosis_path.stat().st_mtime)
+        return DiagnosisResponse(
+            image_id=image_id,
+            exists=True,
+            content=content,
+            generated_at=generated_at,
+        )
