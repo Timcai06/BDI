@@ -4,7 +4,6 @@ import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { DashboardRightRail } from "@/components/dashboard-right-rail";
 import { ResultDashboard } from "@/components/result-dashboard";
 import { getDefectLabel } from "@/lib/defect-visuals";
 import { formatModelLabel } from "@/lib/model-labels";
@@ -70,8 +69,20 @@ export function HistoryDetailShell({ imageId }: HistoryDetailShellProps) {
     let cancelled = false;
 
     async function loadDetail() {
+      startTransition(() => {
+        setResult(null);
+        setComparisonResult(null);
+        setSelectedDetectionId(null);
+        setCategoryFilter("全部");
+        setViewMode("image");
+      });
+      setStatus({
+        phase: "running",
+        message: `正在加载 ${imageId} 的历史详情。`,
+      });
+
       try {
-        const nextResult = await getResult(imageId);
+        const nextResult = await getResult(imageId, { forceFresh: true });
         if (cancelled) return;
         startTransition(() => {
           setResult(nextResult);
@@ -120,6 +131,7 @@ export function HistoryDetailShell({ imageId }: HistoryDetailShellProps) {
   const categories = result
     ? ["全部", ...new Set(result.detections.map((item) => getDefectLabel(item.category)))]
     : ["全部"];
+  const resultAssetVersion = result ? `${result.created_at}-${result.inference_ms}` : null;
   const compareOptions = useMemo(
     () =>
       availableModels
@@ -265,6 +277,7 @@ export function HistoryDetailShell({ imageId }: HistoryDetailShellProps) {
         </div>
 
         <ResultDashboard
+          key={result.image_id}
           result={result}
           comparisonResult={comparisonResult}
           compareStatus={compareStatus}
@@ -272,12 +285,26 @@ export function HistoryDetailShell({ imageId }: HistoryDetailShellProps) {
           compareOptions={compareOptions}
           categoryFilter={deferredCategoryFilter}
           minConfidence={deferredMinConfidence}
-          previewUrl={getResultImageUrl(result.image_id)}
-          overlayPreviewUrl={getOverlayDownloadUrl(result.image_id) ?? result.artifacts.overlay_path ?? null}
-          comparisonPreviewUrl={comparisonResult ? getResultImageUrl(comparisonResult.image_id) : null}
+          previewUrl={getResultImageUrl(result.image_id, resultAssetVersion)}
+          overlayPreviewUrl={
+            getOverlayDownloadUrl(result.image_id, resultAssetVersion) ??
+            result.artifacts.overlay_path ??
+            null
+          }
+          comparisonPreviewUrl={
+            comparisonResult
+              ? getResultImageUrl(
+                  comparisonResult.image_id,
+                  `${comparisonResult.created_at}-${comparisonResult.inference_ms}`,
+                )
+              : null
+          }
           comparisonOverlayPreviewUrl={
             comparisonResult
-              ? getOverlayDownloadUrl(comparisonResult.image_id) ??
+              ? getOverlayDownloadUrl(
+                  comparisonResult.image_id,
+                  `${comparisonResult.created_at}-${comparisonResult.inference_ms}`,
+                ) ??
                 comparisonResult.artifacts.overlay_path ??
                 null
               : null
@@ -310,6 +337,7 @@ export function HistoryDetailShell({ imageId }: HistoryDetailShellProps) {
           onCategoryFilterChange={setCategoryFilter}
           onMinConfidenceChange={setMinConfidence}
           categories={categories}
+          diagnosisMode="cached"
           showHistoryButton={false}
           showPrimaryActionButton={false}
         />
