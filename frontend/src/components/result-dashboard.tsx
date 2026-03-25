@@ -10,7 +10,7 @@ import {
   getDetectionMaskPolygonPoints,
   getDetectionOverlayStyle,
 } from "@/lib/result-utils";
-import { getDiagnosisText } from "@/lib/predict-client";
+import { getDiagnosisRecord, getDiagnosisText } from "@/lib/predict-client";
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Detection, PredictionResult, PredictState } from "@/lib/types";
@@ -53,6 +53,7 @@ interface ResultDashboardProps {
   onCategoryFilterChange: (category: string) => void;
   onMinConfidenceChange: (confidence: number) => void;
   categories: string[];
+  diagnosisMode?: "auto" | "cached";
   showHistoryButton?: boolean;
   showPrimaryActionButton?: boolean;
 }
@@ -172,6 +173,7 @@ export function ResultDashboard({
   onCategoryFilterChange,
   onMinConfidenceChange,
   categories,
+  diagnosisMode = "auto",
   showHistoryButton = true,
   showPrimaryActionButton = true
 }: ResultDashboardProps) {
@@ -182,6 +184,7 @@ export function ResultDashboard({
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const [diagnosis, setDiagnosis] = useState<string>("");
   const [isDiagnosisLoading, setIsDiagnosisLoading] = useState(false);
+  const [hasStoredDiagnosis, setHasStoredDiagnosis] = useState<boolean | null>(null);
   const [showComparisonDetails, setShowComparisonDetails] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
@@ -192,16 +195,27 @@ export function ResultDashboard({
       if (!result.image_id) return;
       
       setDiagnosis("");
+      setHasStoredDiagnosis(null);
       setIsDiagnosisLoading(true);
       
       try {
-        const content = await getDiagnosisText(result.image_id);
-        if (!cancelled) {
-          setDiagnosis(content);
+        if (diagnosisMode === "cached") {
+          const record = await getDiagnosisRecord(result.image_id);
+          if (!cancelled) {
+            setDiagnosis(record.content ?? "");
+            setHasStoredDiagnosis(record.exists);
+          }
+        } else {
+          const content = await getDiagnosisText(result.image_id);
+          if (!cancelled) {
+            setDiagnosis(content);
+            setHasStoredDiagnosis(true);
+          }
         }
       } catch (error) {
         if (!cancelled) {
           setDiagnosis("无法加载 AI 专家评估建议。");
+          setHasStoredDiagnosis(true);
           console.error(error);
         }
       } finally {
@@ -216,7 +230,28 @@ export function ResultDashboard({
     return () => {
       cancelled = true;
     };
-  }, [result.image_id]);
+  }, [diagnosisMode, result.image_id]);
+
+  async function handleGenerateDiagnosis() {
+    if (!result.image_id || isDiagnosisLoading) {
+      return;
+    }
+
+    setIsDiagnosisLoading(true);
+    setDiagnosis("");
+
+    try {
+      const content = await getDiagnosisText(result.image_id);
+      setDiagnosis(content);
+      setHasStoredDiagnosis(true);
+    } catch (error) {
+      setDiagnosis("无法生成 AI 专家评估建议。");
+      setHasStoredDiagnosis(true);
+      console.error(error);
+    } finally {
+      setIsDiagnosisLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!comparisonResult) {
@@ -1244,6 +1279,34 @@ export function ResultDashboard({
               >
                 {diagnosis}
               </ReactMarkdown>
+            ) : diagnosisMode === "cached" && hasStoredDiagnosis === false && !isDiagnosisLoading ? (
+              <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-5 px-6 text-center">
+                <div className="relative">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#7FFFD4]/15 bg-[#7FFFD4]/5" />
+                  <div className="absolute inset-0 flex items-center justify-center text-[#7FFFD4]">
+                    <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-mono uppercase tracking-[0.12em] text-[#7FFFD4]/65">
+                    尚未生成专家报告
+                  </p>
+                  <p className="text-[12px] leading-relaxed text-[#7FFFD4]/40">
+                    当前历史记录已有识别结果，但还没有保存过大模型诊断报告。
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-xl border border-[#7FFFD4]/30 bg-[#7FFFD4]/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#7FFFD4] transition-colors hover:bg-[#7FFFD4]/15"
+                  onClick={() => {
+                    void handleGenerateDiagnosis();
+                  }}
+                >
+                  生成专家报告
+                </button>
+              </div>
             ) : (
               <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-6">
                  <div className="relative">
@@ -1276,7 +1339,9 @@ export function ResultDashboard({
 
         <div className="mt-4 flex items-center justify-between border-t border-[#7FFFD4]/10 pt-3">
           <p className="text-[10px] italic text-[#7FFFD4]/40">
-            Powered by OpenCode Kimi K2.5 • 基于结构化特征与桥梁巡检规范之量化评估报告
+            {diagnosisMode === "cached" && hasStoredDiagnosis === false
+              ? "历史详情页默认只读取已保存报告，避免进入页面时重复生成。"
+              : "Powered by OpenCode Kimi K2.5 • 基于结构化特征与桥梁巡检规范之量化评估报告"}
           </p>
           <div className="flex gap-4">
              <span className="h-1 w-8 rounded-full bg-[#7FFFD4]/20" />
