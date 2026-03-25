@@ -2,49 +2,39 @@
 
 import {
   startTransition,
-  useCallback,
   useDeferredValue,
   useEffect,
   useState
 } from "react";
 import { useRouter } from "next/navigation";
 
-import { AdaptiveImage } from "@/components/adaptive-image";
 import { DashboardRightRail } from "@/components/dashboard-right-rail";
 import { classifyError, ErrorMessage, type ErrorType } from "@/components/error-message";
 import { ValidationErrorList, type ValidationError } from "@/components/file-validator";
 import { ResultDashboard } from "@/components/result-dashboard";
 import { ScanAnimation } from "@/components/scan-animation";
 import { StatusCard } from "@/components/status-card";
+import { useActionNotices } from "@/hooks/use-action-notices";
+import { useHistorySummary } from "@/hooks/use-history-summary";
+import { useModelCatalog } from "@/hooks/use-model-catalog";
 import { getDefectLabel } from "@/lib/defect-visuals";
 import { formatModelLabel } from "@/lib/model-labels";
 import {
   getOverlayDownloadUrl,
   getResultImageFile,
   getResultImageUrl,
-  listAllResults,
-  listModels,
   predictImage
 } from "@/lib/predict-client";
 import {
   MAX_UPLOAD_SIZE_MB,
   getUploadSizeError
 } from "@/lib/upload-validation";
-import type { ModelCatalogItem, PredictState, PredictionResult } from "@/lib/types";
+import type { PredictState, PredictionResult } from "@/lib/types";
 
 const initialState: PredictState = {
   phase: "idle",
   message: "选择一张桥梁巡检图像后，即可触发单图识别与结果展示。"
 };
-
-type ActionNoticeTone = "success" | "error";
-
-interface ActionNotice {
-  id: number;
-  title: string;
-  message: string;
-  tone: ActionNoticeTone;
-}
 
 function downloadTextFile(filename: string, content: string, type: string) {
   const blob = new Blob([content], { type });
@@ -85,28 +75,21 @@ export function HomeShell() {
   }, [selectedFile]);
 
   const [exportOverlay, setExportOverlay] = useState(true);
-  const [availableModels, setAvailableModels] = useState<ModelCatalogItem[]>([]);
-  const [selectedModelVersion, setSelectedModelVersion] = useState<string | null>(null);
-  const [modelsLoading, setModelsLoading] = useState(false);
-  const [modelsError, setModelsError] = useState<string | null>(null);
   const [result, setResult] = useState<PredictionResult | null>(null);
   const [comparisonResult, setComparisonResult] = useState<PredictionResult | null>(null);
-  const [compareModelVersion, setCompareModelVersion] = useState<string | null>(null);
   const [compareStatus, setCompareStatus] = useState<PredictState>({
     phase: "idle",
     message: "选择一个次模型后，可对同一张本地图片执行快速对比。"
   });
-  const [historyTotal, setHistoryTotal] = useState(0);
   const [status, setStatus] = useState<PredictState>(initialState);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [scanPhase, setScanPhase] = useState<"uploading" | "analyzing" | "detecting" | "complete">("uploading");
-  const [actionNotices, setActionNotices] = useState<ActionNotice[]>([]);
+  const { actionNotices, pushActionNotice } = useActionNotices();
   
   // Error handling states
   const [lastError, setLastError] = useState<{
     type: ErrorType;
     message: string;
-    timestamp: number;
   } | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
@@ -116,6 +99,39 @@ export function HomeShell() {
   const [selectedDetectionId, setSelectedDetectionId] = useState<string | null>(null);
   const [resultViewMode, setResultViewMode] = useState<"image" | "result" | "mask">("image");
   const [pixelsPerMm, setPixelsPerMm] = useState(10.0);
+  const {
+    availableModels,
+    compareModelVersion,
+    modelsError,
+    modelsLoading,
+    selectedModelVersion,
+    setCompareModelVersion,
+    setSelectedModelVersion,
+  } = useModelCatalog();
+  const { historyTotal, loadHistory } = useHistorySummary({
+    onLoadError: (message) => {
+      setStatus({
+        phase: "error",
+        message
+      });
+      pushActionNotice("历史加载失败", message, "error");
+    },
+    onLoadSuccess: (history, options) => {
+      if (options.silent) {
+        return;
+      }
+
+      setStatus({
+        phase: "success",
+        message: `历史结果已刷新，当前共 ${history.total} 条记录。`
+      });
+      pushActionNotice("历史已刷新", `当前共 ${history.total} 条记录。`, "success");
+    }
+  });
+
+  useEffect(() => {
+    void loadHistory({ silent: true });
+  }, [loadHistory]);
 
   const deferredCategoryFilter = useDeferredValue(categoryFilter);
   const deferredMinConfidence = useDeferredValue(minConfidence);
@@ -181,120 +197,6 @@ export function HomeShell() {
           hint: status.message,
         },
       ];
-
-  useEffect(() => {
-    if (actionNotices.length === 0) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setActionNotices((current) => current.slice(1));
-    }, 3200);
-
-    return () => window.clearTimeout(timer);
-  }, [actionNotices]);
-
-  const pushActionNotice = useCallback((
-    title: string,
-    message: string,
-    tone: ActionNoticeTone
-  ) => {
-    setActionNotices((current) => [
-      ...current,
-      {
-        id: Date.now() + current.length,
-        title,
-        message,
-        tone
-      }
-    ]);
-  }, []);
-
-  const loadHistory = useCallback(async (
-    {
-      silent = false,
-      forceFresh = false
-    }: { silent?: boolean; forceFresh?: boolean } = {}
-  ) => {
-    try {
-      const history = await listAllResults(forceFresh);
-      setHistoryTotal(history.total);
-      if (!silent) {
-        setStatus({
-          phase: "success",
-          message: `历史结果已刷新，当前共 ${history.total} 条记录。`
-        });
-        pushActionNotice("历史已刷新", `当前共 ${history.total} 条记录。`, "success");
-      }
-      return history;
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "历史结果读取失败，请稍后重试。";
-      setStatus({
-        phase: "error",
-        message
-      });
-      pushActionNotice("历史加载失败", message, "error");
-      return null;
-    }
-  }, [pushActionNotice]);
-
-  useEffect(() => {
-    void loadHistory({ silent: true });
-  }, [loadHistory]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadModels() {
-      setModelsLoading(true);
-      setModelsError(null);
-
-      try {
-        const catalog = await listModels();
-        if (cancelled) {
-          return;
-        }
-        setAvailableModels(catalog.items);
-        setSelectedModelVersion((current) => {
-          if (current) {
-            return current;
-          }
-          const preferred =
-            catalog.items.find(
-              (item) => item.model_version === catalog.active_version && item.is_available
-            ) ?? catalog.items.find((item) => item.is_available);
-          return preferred?.model_version ?? null;
-        });
-        setCompareModelVersion((current) => {
-          if (current) {
-            return current;
-          }
-          const fallback = catalog.items.find(
-            (item) => item.model_version !== catalog.active_version && item.is_available
-          );
-          return fallback?.model_version ?? null;
-        });
-      } catch (error) {
-        if (cancelled) {
-          return;
-        }
-        const message =
-          error instanceof Error ? error.message : "模型列表加载失败，请稍后重试。";
-        setModelsError(message);
-      } finally {
-        if (!cancelled) {
-          setModelsLoading(false);
-        }
-      }
-    }
-
-    void loadModels();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   function handleExportJson() {
     if (!result) {
@@ -581,8 +483,7 @@ export function HomeShell() {
       const errorType = classifyError(error);
       setLastError({
         type: errorType,
-        message,
-        timestamp: Date.now()
+        message
       });
 
       setStatus({
