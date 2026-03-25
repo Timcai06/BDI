@@ -109,17 +109,35 @@ export function HistoryCard({
         {/* Content Overlay */}
         <div className={`absolute inset-0 flex flex-col justify-between pointer-events-none ${isBatchMode ? "p-2.5" : "p-4"}`}>
           {/* Top Metadata */}
-          {isBatchMode ? (
+        {isBatchMode ? (
             <div className="flex justify-end">
-              <span className="rounded-full border border-white/10 bg-black/55 px-1.5 py-0.5 text-[8px] font-mono text-white/65 backdrop-blur-md leading-none">
-                {item.inference_ms}ms
-              </span>
+              <div className="flex items-center gap-1">
+                <span className={`rounded-full border px-1.5 py-0.5 text-[8px] font-semibold backdrop-blur-md leading-none ${
+                  item.has_diagnosis
+                    ? "border-[#7FFFD4]/25 bg-[#7FFFD4]/10 text-[#7FFFD4]"
+                    : "border-white/10 bg-black/55 text-white/55"
+                }`}>
+                  {item.has_diagnosis ? "报告已存" : "未生成报告"}
+                </span>
+                <span className="rounded-full border border-white/10 bg-black/55 px-1.5 py-0.5 text-[8px] font-mono text-white/65 backdrop-blur-md leading-none">
+                  {item.inference_ms}ms
+                </span>
+              </div>
             </div>
           ) : (
             <div className="flex justify-between items-start">
-              <span className="rounded-lg bg-black/50 backdrop-blur-md px-2.5 py-1 text-[10px] font-medium text-sky-400 border border-white/10">
-                {formatModelLabel(item)}
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-lg bg-black/50 backdrop-blur-md px-2.5 py-1 text-[10px] font-medium text-sky-400 border border-white/10">
+                  {formatModelLabel(item)}
+                </span>
+                <span className={`rounded-lg border px-2.5 py-1 text-[10px] font-medium backdrop-blur-md ${
+                  item.has_diagnosis
+                    ? "border-[#7FFFD4]/25 bg-[#7FFFD4]/10 text-[#7FFFD4]"
+                    : "border-white/10 bg-black/50 text-white/45"
+                }`}>
+                  {item.has_diagnosis ? "专家报告已保存" : "未生成专家报告"}
+                </span>
+              </div>
               <span className="rounded-lg bg-black/50 backdrop-blur-md px-2 py-1 text-[10px] font-mono text-white/60 border border-white/10">
                 {item.inference_ms}ms
               </span>

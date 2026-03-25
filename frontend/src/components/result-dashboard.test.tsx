@@ -17,13 +17,36 @@ vi.mock("next/image", () => ({
   }
 }));
 
+const {
+  getDiagnosisRecordMock,
+  getDiagnosisTextMock
+} = vi.hoisted(() => ({
+  getDiagnosisTextMock: vi.fn(async () => "mock diagnosis"),
+  getDiagnosisRecordMock: vi.fn(async () => ({
+    image_id: "bridge-deck-demo.jpg",
+    exists: true,
+    content: "mock diagnosis",
+    generated_at: "2026-03-25T00:00:00Z"
+  }))
+}));
+
 vi.mock("@/lib/predict-client", () => ({
-  getDiagnosisText: vi.fn(async () => "mock diagnosis")
+  getDiagnosisText: getDiagnosisTextMock,
+  getDiagnosisRecord: getDiagnosisRecordMock
 }));
 
 describe("ResultDashboard", () => {
   beforeEach(() => {
     Element.prototype.scrollIntoView = vi.fn();
+    getDiagnosisTextMock.mockClear();
+    getDiagnosisRecordMock.mockClear();
+    getDiagnosisTextMock.mockResolvedValue("mock diagnosis");
+    getDiagnosisRecordMock.mockResolvedValue({
+      image_id: "bridge-deck-demo.jpg",
+      exists: true,
+      content: "mock diagnosis",
+      generated_at: "2026-03-25T00:00:00Z"
+    });
   });
 
   const baseProps = {
@@ -142,5 +165,22 @@ describe("ResultDashboard", () => {
       expect.objectContaining({ id: "det-crack-001" })
     );
     expect(screen.getByText("优先查看")).toBeInTheDocument();
+  });
+
+  it("shows generate report action in cached diagnosis mode when no saved report exists", async () => {
+    getDiagnosisRecordMock.mockResolvedValueOnce({
+      image_id: "bridge-deck-demo.jpg",
+      exists: false,
+      content: null,
+      generated_at: null
+    });
+
+    await renderDashboard({
+      diagnosisMode: "cached"
+    });
+
+    expect(screen.getByText("尚未生成专家报告")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "生成专家报告" })).toBeInTheDocument();
+    expect(getDiagnosisTextMock).not.toHaveBeenCalled();
   });
 });
