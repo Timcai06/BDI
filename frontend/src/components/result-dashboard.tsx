@@ -12,7 +12,7 @@ import {
 } from "@/lib/result-utils";
 import { getDiagnosisText } from "@/lib/predict-client";
 import ReactMarkdown from 'react-markdown';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { Detection, PredictionResult, PredictState } from "@/lib/types";
 
 interface ResultDashboardProps {
@@ -53,6 +53,8 @@ interface ResultDashboardProps {
   onCategoryFilterChange: (category: string) => void;
   onMinConfidenceChange: (confidence: number) => void;
   categories: string[];
+  showHistoryButton?: boolean;
+  showPrimaryActionButton?: boolean;
 }
 
 function calculateTotalMetrics(result: PredictionResult) {
@@ -169,7 +171,9 @@ export function ResultDashboard({
   uploadProgress,
   onCategoryFilterChange,
   onMinConfidenceChange,
-  categories
+  categories,
+  showHistoryButton = true,
+  showPrimaryActionButton = true
 }: ResultDashboardProps) {
   const frameRef = useRef<HTMLDivElement>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
@@ -179,6 +183,7 @@ export function ResultDashboard({
   const [diagnosis, setDiagnosis] = useState<string>("");
   const [isDiagnosisLoading, setIsDiagnosisLoading] = useState(false);
   const [showComparisonDetails, setShowComparisonDetails] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -392,43 +397,37 @@ export function ResultDashboard({
               </div>
 
               <div className="flex items-center gap-2">
-                <details className="relative">
-                  <summary className="flex h-8 cursor-pointer list-none items-center rounded-lg px-3 text-[11px] font-medium text-white/50 transition-colors hover:bg-white/5 hover:text-white">
-                    导出与下载
-                  </summary>
-                  <div className="absolute right-0 top-10 z-20 flex min-w-[160px] flex-col gap-1 rounded-xl border border-white/10 bg-[#0B1120]/95 p-2 shadow-2xl backdrop-blur">
-                    <button
-                      className="rounded-md px-3 py-2 text-left text-xs text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-                      type="button"
-                      onClick={onExportJson}
-                    >
-                      下载 JSON
-                    </button>
-                    <button
-                      className="rounded-md px-3 py-2 text-left text-xs text-white/80 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed"
-                      disabled={resultDisabled}
-                      type="button"
-                      onClick={onExportOverlay}
-                    >
-                      保存结果图
-                    </button>
-                  </div>
-                </details>
                 <button
-                  className="h-8 rounded-lg px-3 text-[11px] font-medium text-white/50 transition-colors hover:bg-white/5 hover:text-white"
+                  className="flex h-8 items-center rounded-lg bg-white/5 px-3 text-[11px] font-medium text-white/70 transition-all hover:bg-white/10 hover:text-white border border-white/5"
                   type="button"
-                  onClick={onOpenHistory}
+                  onClick={() => setIsExportModalOpen(true)}
                 >
-                  历史记录
+                  <svg className="mr-2 h-3.5 w-3.5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  导出与下载
                 </button>
-                <button
-                  className="ml-2 h-8 rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 text-[11px] font-bold tracking-widest uppercase text-sky-300 transition-colors hover:bg-sky-500/20 hover:text-white"
-                  title={primaryActionTitle}
-                  type="button"
-                  onClick={handlePrimaryAction}
-                >
-                  {primaryActionLabel}
-                </button>
+                
+                {showHistoryButton && (
+                  <button
+                    className="h-8 rounded-lg px-3 text-[11px] font-medium text-white/50 transition-colors hover:bg-white/5 hover:text-white"
+                    type="button"
+                    onClick={onOpenHistory}
+                  >
+                    历史记录
+                  </button>
+                )}
+
+                {showPrimaryActionButton && (
+                  <button
+                    className="ml-2 h-8 rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 text-[11px] font-bold tracking-widest uppercase text-sky-300 transition-colors hover:bg-sky-500/20 hover:text-white"
+                    title={primaryActionTitle}
+                    type="button"
+                    onClick={handlePrimaryAction}
+                  >
+                    {primaryActionLabel}
+                  </button>
+                )}
               </div>
             </div>
             {/* defect metrics HUD (High-level HUD style) */}
@@ -696,57 +695,6 @@ export function ResultDashboard({
               </div>
             </div>
           ) : null}
-        </div>
-
-        <div className="rounded-[1.5rem] border border-white/10 bg-[#05080A]/80 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-xl group">
-          <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="group/card relative flex flex-col justify-between overflow-hidden rounded-xl border border-white/5 bg-[linear-gradient(145deg,rgba(5,8,10,0.95),rgba(11,17,32,0.8))] p-4 transition-all duration-300 hover:bg-white/[0.03] hover:border-[#00D2FF]/30 hover:shadow-[0_0_20px_rgba(0,210,255,0.1)]">
-              <div className="absolute -inset-[1px] bg-gradient-to-br from-[#00D2FF]/10 to-transparent opacity-0 transition-opacity duration-300 group-hover/card:opacity-100" />
-              <div className="relative mb-2 flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-[#00D2FF]/60 drop-shadow-sm">主病害</span>
-                <span className="h-1.5 w-1.5 rounded-full bg-[#00D2FF]/60 shadow-[0_0_8px_#00D2FF]" />
-              </div>
-              <div className="relative mt-2 text-2xl font-light tracking-wide text-white drop-shadow-md">
-                {current ? getDefectLabel(current.category) : "暂无"}
-              </div>
-            </div>
-
-            <div className="group/card relative flex flex-col justify-between overflow-hidden rounded-xl border border-white/5 bg-[linear-gradient(145deg,rgba(5,8,10,0.95),rgba(11,17,32,0.8))] p-4 transition-all duration-300 hover:bg-white/[0.03] hover:border-[#7FFFD4]/30 hover:shadow-[0_0_20px_rgba(127,255,212,0.1)]">
-              <div className="absolute -inset-[1px] bg-gradient-to-br from-[#7FFFD4]/10 to-transparent opacity-0 transition-opacity duration-300 group-hover/card:opacity-100" />
-              <div className="relative mb-2 flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-[#7FFFD4]/60 drop-shadow-sm">掩膜能力</span>
-                <span className={`h-1.5 w-1.5 rounded-full ${result.has_masks ? "bg-[#7FFFD4]" : "bg-white/20"} shadow-[0_0_8px_#7FFFD4]`} />
-              </div>
-              <div className="relative mt-2 text-2xl font-light tracking-wide text-white drop-shadow-md">
-                {result.has_masks ? `${result.mask_detection_count} 处 MASK` : "BBOX ONLY"}
-              </div>
-            </div>
-
-            <div className="group/card relative flex flex-col justify-between overflow-hidden rounded-xl border border-white/5 bg-[linear-gradient(145deg,rgba(5,8,10,0.95),rgba(11,17,32,0.8))] p-4 transition-all duration-300 hover:bg-white/[0.03] hover:border-amber-400/30 hover:shadow-[0_0_20px_rgba(251,191,36,0.1)]">
-              <div className="absolute -inset-[1px] bg-gradient-to-br from-amber-400/10 to-transparent opacity-0 transition-opacity duration-300 group-hover/card:opacity-100" />
-              <div className="relative mb-2 flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-amber-400/60 drop-shadow-sm">推理耗时</span>
-                <span className="h-[2px] w-4 rounded-full bg-amber-400/60 animate-pulse shadow-[0_0_8px_#FBBF24]" />
-              </div>
-              <div className="relative mt-2 text-2xl font-mono text-white drop-shadow-md">
-                {result.inference_ms}<span className="text-xs font-sans text-amber-400/40 ml-1">ms</span>
-              </div>
-            </div>
-
-            <div className="group/card relative flex flex-col justify-between overflow-hidden rounded-xl border border-white/5 bg-[linear-gradient(145deg,rgba(5,8,10,0.95),rgba(11,17,32,0.8))] p-4 transition-all duration-300 hover:bg-white/[0.03] hover:border-[#00D2FF]/30 hover:shadow-[0_0_20px_rgba(0,210,255,0.1)]">
-              <div className="absolute -inset-[1px] bg-gradient-to-br from-[#00D2FF]/10 to-transparent opacity-0 transition-opacity duration-300 group-hover/card:opacity-100" />
-              <div className="relative mb-2 flex items-center justify-between">
-                <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-[#00D2FF]/60 drop-shadow-sm">当前视图</span>
-                <svg className="w-3.5 h-3.5 text-[#00D2FF]/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              </div>
-              <div className="relative mt-2 text-2xl font-light tracking-wide text-white drop-shadow-md">
-                {viewMode === "result" ? "结果图" : viewMode === "mask" ? "掩膜图" : "原图"}
-              </div>
-            </div>
-          </div>
         </div>
 
         <div className="rounded-[1.5rem] border border-white/10 bg-[#05080A]/60 shadow-lg backdrop-blur">
@@ -1101,7 +1049,41 @@ export function ResultDashboard({
           <div className="relative shrink-0 overflow-hidden rounded-[2rem] border border-[#00D2FF]/20 bg-[linear-gradient(145deg,rgba(5,8,10,0.95),rgba(5,8,10,0.8))] p-5 shadow-[0_0_40px_rgba(0,210,255,0.1)] backdrop-blur-xl group">
             <div className="absolute -inset-[1px] bg-gradient-to-br from-[#00D2FF]/20 to-[#7FFFD4]/0 opacity-50 z-[-1]" />
             
-            <div className="mb-5">
+            <div className="mb-6">
+              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#00D2FF]/60 mb-4">核心数据指标</p>
+              <div className="grid grid-cols-2 gap-3">
+                {/* 主病害 */}
+                <div className="relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.03] p-3 transition-all hover:bg-white/[0.06]">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-[#00D2FF]/50 mb-1">主病害</p>
+                  <p className="text-sm font-medium text-white truncate">
+                    {current ? getDefectLabel(current.category) : "暂无"}
+                  </p>
+                </div>
+                {/* 掩膜能力 */}
+                <div className="relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.03] p-3 transition-all hover:bg-white/[0.06]">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-[#7FFFD4]/50 mb-1">掩膜能力</p>
+                  <p className="text-sm font-medium text-white">
+                    {result.has_masks ? "INSTANCE" : "BBOX ONLY"}
+                  </p>
+                </div>
+                {/* 推理耗时 */}
+                <div className="relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.03] p-3 transition-all hover:bg-white/[0.06]">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-amber-400/50 mb-1">推理速度</p>
+                  <p className="text-sm font-mono font-medium text-white">
+                    {result.inference_ms}ms
+                  </p>
+                </div>
+                {/* 当前视图 */}
+                <div className="relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.03] p-3 transition-all hover:bg-white/[0.06]">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-[#00D2FF]/50 mb-1">当前展示</p>
+                  <p className="text-sm font-medium text-white">
+                    {viewMode === "result" ? "结果图" : viewMode === "mask" ? "掩膜图" : "原图"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-6">
               <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#00D2FF]/60 mb-3">系统运行状态</p>
               <StatusCard 
                 phase={status.phase} 
@@ -1127,11 +1109,13 @@ export function ResultDashboard({
                       <span>前处理 (I/O & Pre)</span>
                       <span className="font-mono">{result.inference_breakdown.pre}ms</span>
                     </div>
-                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden relative">
                       <div 
-                        className="h-full bg-slate-500 transition-all duration-1000" 
+                        className="h-full bg-slate-500 transition-all duration-1000 relative overflow-hidden" 
                         style={{ width: `${(result.inference_breakdown.pre / result.inference_ms) * 100}%` }} 
-                      />
+                      >
+                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_4s_infinite]" />
+                      </div>
                     </div>
                   </div>
 
@@ -1140,11 +1124,13 @@ export function ResultDashboard({
                       <span className="font-semibold">核心推理 (YOLO Engine)</span>
                       <span className="font-mono">{result.inference_breakdown.model}ms</span>
                     </div>
-                    <div className="h-1.5 w-full bg-[#00D2FF]/10 rounded-full overflow-hidden shadow-[0_0_10px_rgba(0,210,255,0.2)]">
+                    <div className="h-1.5 w-full bg-[#00D2FF]/10 rounded-full overflow-hidden shadow-[0_0_10px_rgba(0,210,255,0.2)] relative">
                       <div 
-                        className="h-full bg-gradient-to-r from-[#00D2FF] to-[#7FFFD4] transition-all duration-1000" 
+                        className="h-full bg-gradient-to-r from-[#00D2FF] to-[#7FFFD4] transition-all duration-1000 relative overflow-hidden" 
                         style={{ width: `${(result.inference_breakdown.model / result.inference_ms) * 100}%` }} 
-                      />
+                      >
+                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                      </div>
                     </div>
                   </div>
 
@@ -1153,11 +1139,13 @@ export function ResultDashboard({
                       <span>后处理 (Metrics & Result Image)</span>
                       <span className="font-mono">{result.inference_breakdown.post}ms</span>
                     </div>
-                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden relative">
                       <div 
-                        className="h-full bg-slate-500 transition-all duration-1000" 
+                        className="h-full bg-slate-500 transition-all duration-1000 relative overflow-hidden" 
                         style={{ width: `${(result.inference_breakdown.post / result.inference_ms) * 100}%` }} 
-                      />
+                      >
+                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_4s_infinite]" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1296,6 +1284,109 @@ export function ResultDashboard({
           </div>
         </div>
       </div>
+      {/* Export Modal */}
+      <AnimatePresence>
+        {isExportModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md"
+              onClick={() => setIsExportModalOpen(false)}
+            />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-white/10 bg-[#0B1120]/90 p-8 shadow-[0_32px_128px_rgba(0,0,0,0.8)] backdrop-blur-2xl"
+            >
+              <div className="absolute -right-24 -top-24 h-48 w-48 rounded-full bg-sky-500/10 blur-[64px]" />
+              <div className="absolute -left-24 -bottom-24 h-48 w-48 rounded-full bg-indigo-500/10 blur-[64px]" />
+              
+              <div className="relative">
+                <div className="mb-8 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-light tracking-tight text-white/90">
+                      数据导出与下载
+                    </h3>
+                    <p className="mt-1 text-xs text-white/40">
+                      选择所需的文件格式进行推理结果导出
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setIsExportModalOpen(false)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/30 transition-colors hover:bg-white/10 hover:text-white"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <button
+                    onClick={() => {
+                      onExportJson();
+                      setIsExportModalOpen(false);
+                    }}
+                    className="group relative flex w-full items-center gap-5 rounded-2xl border border-white/5 bg-white/[0.03] p-5 text-left transition-all hover:border-sky-500/30 hover:bg-sky-500/5"
+                  >
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20 transition-transform group-hover:scale-110">
+                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-white/80 group-hover:text-white">JSON 数据</h4>
+                      <p className="mt-0.5 text-xs text-white/40 leading-relaxed">
+                        包含完整的检测元数据及像素级坐标，适用于开发者二次开发。
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    disabled={resultDisabled}
+                    onClick={() => {
+                      onExportOverlay();
+                      setIsExportModalOpen(false);
+                    }}
+                    className="group relative flex w-full items-center gap-5 rounded-2xl border border-white/5 bg-white/[0.03] p-5 text-left transition-all hover:border-emerald-500/30 hover:bg-emerald-500/5 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 transition-transform group-hover:scale-110">
+                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-white/80 group-hover:text-white">合成结果图</h4>
+                      <p className="mt-0.5 text-xs text-white/40 leading-relaxed">
+                        包含可视化检测框与掩膜的合成图像，适用于报告文档演示。
+                      </p>
+                    </div>
+                    {!resultDisabled && (
+                      <div className="ml-auto opacity-0 transition-opacity group-hover:opacity-100">
+                        <svg className="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-white/5">
+                  <button
+                    onClick={() => setIsExportModalOpen(false)}
+                    className="w-full rounded-xl bg-white/5 py-2.5 text-xs font-medium text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

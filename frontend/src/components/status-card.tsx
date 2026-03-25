@@ -36,8 +36,13 @@ export function StatusCard({
 
   if (variant === "compact") {
     return (
-      <div className={`flex flex-col gap-2 rounded-lg border border-white/5 bg-white/[0.01] p-3 transition-all duration-300 ${phaseStyleMap[phase]}`}>
-        <div className="flex items-center justify-between gap-3">
+      <div className={`group relative flex flex-col gap-2 rounded-lg border border-white/5 bg-white/[0.01] p-3 transition-all duration-300 ${phaseStyleMap[phase]} overflow-hidden`}>
+        {/* Shimmer overlay */}
+        <div className="absolute inset-0 z-0 pointer-events-none opacity-20">
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-[shimmer_3s_infinite]" />
+        </div>
+        
+        <div className="relative z-10 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <div className="relative flex h-2 w-2">
               {phase !== "idle" && phase !== "error" && (
@@ -53,15 +58,17 @@ export function StatusCard({
         </div>
         
         {showProgress && (
-          <div className="h-1 w-full bg-black/40 rounded-full overflow-hidden">
+          <div className="relative z-10 h-1 w-full bg-black/40 rounded-full overflow-hidden">
             <div 
-              className="h-full rounded-full bg-current transition-all duration-500 ease-out"
+              className="h-full rounded-full bg-current transition-all duration-500 ease-out relative overflow-hidden"
               style={{ width: `${progressPercent}%` }}
-            />
+            >
+               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
+            </div>
           </div>
         )}
         
-        <p className="text-[10px] leading-relaxed text-current/60 line-clamp-1 group-hover:line-clamp-none transition-all">{message}</p>
+        <p className="relative z-10 text-[10px] leading-relaxed text-current/60 line-clamp-1 group-hover:line-clamp-none transition-all">{message}</p>
       </div>
     );
   }

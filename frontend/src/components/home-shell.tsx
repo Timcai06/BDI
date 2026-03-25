@@ -797,16 +797,14 @@ export function HomeShell() {
           )}
         </div>
       </section>
-      <DashboardRightRail
-        eyebrow="Dashboard / Status"
-        title="运行状态"
-        description={
-          result
-            ? "右侧显示当前识别会话的核心信息，避免主视图区承载过多状态说明。"
-            : "右侧显示工作台当前模型、历史规模与运行状态，帮助你在开始分析前确认环境。"
-        }
-        sections={rightRailSections}
-      />
+      {!result && (
+        <DashboardRightRail
+          eyebrow="Dashboard / Status"
+          title="运行状态"
+          description="右侧显示工作台当前模型、历史规模与运行状态，帮助你在开始分析前确认环境。"
+          sections={rightRailSections}
+        />
+      )}
 
       {/* 右侧边栏已移除，避免弹窗关闭切到 ResultDashboard 时发生重心剧烈跳跃 */}
 

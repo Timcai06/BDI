@@ -310,34 +310,13 @@ export function HistoryDetailShell({ imageId }: HistoryDetailShellProps) {
           onCategoryFilterChange={setCategoryFilter}
           onMinConfidenceChange={setMinConfidence}
           categories={categories}
+          showHistoryButton={false}
+          showPrimaryActionButton={false}
         />
       </div>
       </div>
     </section>
-    <DashboardRightRail
-      eyebrow="History / Detail"
-      title="记录摘要"
-      description="右侧摘要保留当前历史记录的核心指标，进入详情页后仍然维持控制台式的信息密度。"
-      sections={[
-        {
-          title: "检测引擎",
-          value: formatModelLabel(result),
-          hint: `耗时 ${result.inference_ms}ms`,
-          tone: "sky",
-        },
-        {
-          title: "病害结果",
-          value: `${result.detections.length} 处`,
-          hint: result.has_masks ? `包含 ${result.mask_detection_count} 处掩膜。` : "当前记录仅返回边界框。",
-          tone: result.has_masks ? "emerald" : "amber",
-        },
-        {
-          title: "页面状态",
-          value: status.phase.toUpperCase(),
-          hint: status.message,
-        },
-      ]}
-    />
+    {/* DashboardRightRail removed here to consolidate into ResultsDashboard sidebar */}
     </>
   );
 }
