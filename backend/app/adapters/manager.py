@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import time
 from collections import OrderedDict
-from typing import Any, Optional
+from typing import Any
 
 from app.adapters.base import ModelRunner
 from app.adapters.factory import load_runner_for_spec
@@ -39,10 +39,8 @@ class RunnerManager:
             allow_fallback=self.allow_fallback,
         )
 
-        if spec.model_version in self._runners:
-            runner = self._runners[spec.model_version]
-            # Touch on read to keep LRU order fresh.
-            self._runners.move_to_end(spec.model_version, last=True)
+        runner = self._get_cached_runner(spec.model_version)
+        if runner is not None:
             self._record_resolution(
                 requested_version=requested_version,
                 resolved_version=spec.model_version,
@@ -67,9 +65,8 @@ class RunnerManager:
             fallback_from = spec.model_version
             fallback_spec = self.registry.get("mock-v1")
             spec = fallback_spec
-            if spec.model_version in self._runners:
-                runner = self._runners[spec.model_version]
-                self._runners.move_to_end(spec.model_version, last=True)
+            runner = self._get_cached_runner(spec.model_version)
+            if runner is not None:
                 self._record_resolution(
                     requested_version=requested_version,
                     resolved_version=spec.model_version,
@@ -86,9 +83,7 @@ class RunnerManager:
         except Exception:
             pass
 
-        self._runners[spec.model_version] = runner
-        self._runners.move_to_end(spec.model_version, last=True)
-        self._evict_lru_if_needed()
+        self._store_runner(spec.model_version, runner)
         self._record_resolution(
             requested_version=requested_version,
             resolved_version=spec.model_version,
@@ -107,11 +102,16 @@ class RunnerManager:
             )
         return load_runner_for_spec(spec)
 
-    def _resolve_spec(self, model_version: Optional[str]) -> ModelSpec:
-        if model_version is None:
-            return self.registry.resolve_active(allow_fallback=self.allow_fallback)
+    def _get_cached_runner(self, model_version: str) -> ModelRunner | None:
+        runner = self._runners.get(model_version)
+        if runner is not None:
+            self._runners.move_to_end(model_version, last=True)
+        return runner
 
-        return self.registry.get(model_version)
+    def _store_runner(self, model_version: str, runner: ModelRunner) -> None:
+        self._runners[model_version] = runner
+        self._runners.move_to_end(model_version, last=True)
+        self._evict_lru_if_needed()
 
     def _evict_lru_if_needed(self) -> None:
         while len(self._runners) > self.max_cached_runners:

@@ -1,19 +1,31 @@
-from typing import List, AsyncGenerator
+from __future__ import annotations
+
+import logging
+from typing import AsyncGenerator
+
 from openai import AsyncOpenAI
+
 from app.core.config import Settings
 from app.models.schemas import PredictResponse
+
+logger = logging.getLogger(__name__)
+
+_SYSTEM_PROMPT = "你是一名精准、专业的桥梁工程健康监测专家助手。"
+
 
 class LLMService:
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.client = None
+        self.client: AsyncOpenAI | None = None
         if settings.llm_api_key:
-            import logging
-            self.logger = logging.getLogger(__name__)
-            self.logger.info(f"Initializing LLMService with base_url: {settings.llm_base_url}, model: {settings.llm_model_name}")
+            logger.info(
+                "Initializing LLMService with base_url=%s model=%s",
+                settings.llm_base_url,
+                settings.llm_model_name,
+            )
             self.client = AsyncOpenAI(
                 api_key=settings.llm_api_key,
-                base_url=settings.llm_base_url
+                base_url=settings.llm_base_url,
             )
 
     async def generate_diagnosis_stream(self, result: PredictResponse) -> AsyncGenerator[str, None]:
@@ -21,22 +33,29 @@ class LLMService:
             yield "错误：未配置 LLM API Key，请检查后端 .env 配置。"
             return
 
-        # 整理检测数据摘要
-        detection_summary = []
-        for i, d in enumerate(result.detections):
-            metrics = d.metrics
-            info = f"- 病害{i+1}: {d.category} (置信度: {d.confidence:.2f})"
-            if metrics.length_mm:
-                info += f", 估计长度: {metrics.length_mm:.1f}mm"
-            if metrics.width_mm:
-                info += f", 估计宽度: {metrics.width_mm:.2f}mm"
-            if metrics.area_mm2:
-                info += f", 面积: {metrics.area_mm2:.1f}mm²"
-            detection_summary.append(info)
+        prompt = self._build_prompt(result)
 
-        summary_text = "\n".join(detection_summary) if detection_summary else "未发现明确病害。"
+        try:
+            stream = await self.client.chat.completions.create(
+                model=self.settings.llm_model_name,
+                messages=[
+                    {"role": "system", "content": _SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                ],
+                stream=True,
+            )
 
-        prompt = f"""
+            async for chunk in stream:
+                delta = chunk.choices[0].delta.content
+                if delta:
+                    yield delta
+        except Exception as exc:
+            logger.error("LLM diagnosis error: %s", exc, exc_info=True)
+            yield self._format_error_message(str(exc))
+
+    def _build_prompt(self, result: PredictResponse) -> str:
+        summary_text = self._build_detection_summary(result)
+        return f"""
 你是一名资深桥梁巡检专家。请根据以下无人机桥梁初检识别出的结构化数据，给出一段专业的病情评估和养护建议。
 
 本系统重点识别六类典型病害：Crack（裂缝）、Breakage（破损）、Comb（梳齿缺陷）、Hole（孔洞）、Reinforcement（钢筋外露）、Seepage（渗水）。
@@ -68,28 +87,26 @@ class LLMService:
 6. 直接输出诊断内容，不要任何开场白或结尾套话。
 """
 
-        try:
-            stream = await self.client.chat.completions.create(
-                model=self.settings.llm_model_name,
-                messages=[
-                    {"role": "system", "content": "你是一名精准、专业的桥梁工程健康监测专家助手。"},
-                    {"role": "user", "content": prompt}
-                ],
-                stream=True
-            )
+    def _build_detection_summary(self, result: PredictResponse) -> str:
+        lines: list[str] = []
+        for index, detection in enumerate(result.detections, start=1):
+            metrics = detection.metrics
+            line = f"- 病害{index}: {detection.category} (置信度: {detection.confidence:.2f})"
+            if metrics.length_mm is not None:
+                line += f", 估计长度: {metrics.length_mm:.1f}mm"
+            if metrics.width_mm is not None:
+                line += f", 估计宽度: {metrics.width_mm:.2f}mm"
+            if metrics.area_mm2 is not None:
+                line += f", 面积: {metrics.area_mm2:.1f}mm²"
+            lines.append(line)
+        return "\n".join(lines) if lines else "未发现明确病害。"
 
-            async for chunk in stream:
-                if chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
-        except Exception as e:
-            self.logger.error(f"LLM Diagnosis Error: {str(e)}", exc_info=True)
-            error_text = str(e)
-            if "invalid_api_key" in error_text or "Incorrect API key provided" in error_text:
-                yield (
-                    "诊断生成失败: 当前 API Key 对该接口地址无效。"
-                    f" 现在使用的 BaseURL 是 {self.settings.llm_base_url}。"
-                    " 如果这是第三方 OpenAI 兼容服务的 Key，请在后端 .env 中同时配置正确的 "
-                    "BDI_LLM_BASE_URL 和 BDI_LLM_MODEL_NAME。"
-                )
-                return
-            yield f"诊断生成失败: {error_text} (BaseURL: {self.settings.llm_base_url})"
+    def _format_error_message(self, error_text: str) -> str:
+        if "invalid_api_key" in error_text or "Incorrect API key provided" in error_text:
+            return (
+                "诊断生成失败: 当前 API Key 对该接口地址无效。"
+                f" 现在使用的 BaseURL 是 {self.settings.llm_base_url}。"
+                " 如果这是第三方 OpenAI 兼容服务的 Key，请在后端 .env 中同时配置正确的 "
+                "BDI_LLM_BASE_URL 和 BDI_LLM_MODEL_NAME。"
+            )
+        return f"诊断生成失败: {error_text} (BaseURL: {self.settings.llm_base_url})"

@@ -73,6 +73,13 @@ def _with_source(
     ]
 
 
+def _group_by_category(detections: Iterable[RawDetection]) -> Dict[str, List[RawDetection]]:
+    grouped: Dict[str, List[RawDetection]] = {}
+    for detection in detections:
+        grouped.setdefault(detection.category, []).append(detection)
+    return grouped
+
+
 _CATEGORY_COLORS = {
     "crack": "#00D2FF",
     "breakage": "#FF8A00",
@@ -145,6 +152,73 @@ class FusionRunner:
             self._component_runners[version] = runner
         return component_spec, runner
 
+    def _validate_fusion_spec(self) -> set[str]:
+        if self.spec.primary_model_version is None or self.spec.specialist_model_version is None:
+            raise RuntimeError("Fusion runner requires primary and specialist model versions.")
+
+        specialist_categories = set(self.spec.specialist_categories)
+        if not specialist_categories:
+            raise RuntimeError("Fusion runner requires at least one specialist category.")
+        return specialist_categories
+
+    def _run_component_prediction(
+        self,
+        *,
+        image_bytes: bytes,
+        image_name: str,
+        options: PredictOptions,
+        model_version: str,
+    ) -> tuple[ModelSpec, RawPrediction]:
+        component_spec, component_runner = self._resolve_component_runner(model_version)
+        component_options = options.model_copy(update={"model_version": component_spec.model_version})
+        result = component_runner.predict(
+            image_bytes=image_bytes,
+            image_name=image_name,
+            options=component_options,
+        )
+        return component_spec, result
+
+    def _select_detections(
+        self,
+        *,
+        primary_detections: List[RawDetection],
+        specialist_detections: List[RawDetection],
+        specialist_categories: set[str],
+    ) -> List[RawDetection]:
+        selected: List[RawDetection] = []
+        primary_by_category = _group_by_category(primary_detections)
+        specialist_by_category = _group_by_category(specialist_detections)
+
+        for category, detections in primary_by_category.items():
+            if category not in specialist_categories:
+                selected.extend(detections)
+
+        for category in specialist_categories:
+            specialist_hits = specialist_by_category.get(category, [])
+            if specialist_hits:
+                selected.extend(specialist_hits)
+            else:
+                selected.extend(primary_by_category.get(category, []))
+
+        return _dedupe_by_category(selected)
+
+    def _build_metadata(
+        self,
+        *,
+        image_name: str,
+        primary_spec: ModelSpec,
+        specialist_spec: ModelSpec,
+        specialist_categories: set[str],
+    ) -> dict:
+        return {
+            "source_image": image_name,
+            "fusion": {
+                "primary_model_version": primary_spec.model_version,
+                "specialist_model_version": specialist_spec.model_version,
+                "specialist_categories": sorted(specialist_categories),
+            },
+        }
+
     def predict(
         self,
         *,
@@ -152,37 +226,20 @@ class FusionRunner:
         image_name: str,
         options: PredictOptions,
     ) -> RawPrediction:
-        if self.spec.primary_model_version is None or self.spec.specialist_model_version is None:
-            raise RuntimeError("Fusion runner requires primary and specialist model versions.")
+        specialist_categories = self._validate_fusion_spec()
 
-        specialist_categories = set(self.spec.specialist_categories)
-        if not specialist_categories:
-            raise RuntimeError("Fusion runner requires at least one specialist category.")
-
-        primary_spec, primary_runner = self._resolve_component_runner(self.spec.primary_model_version)
-        specialist_spec, specialist_runner = self._resolve_component_runner(
-            self.spec.specialist_model_version
-        )
-
-        primary_options = options.model_copy(update={"model_version": primary_spec.model_version})
-        specialist_options = options.model_copy(
-            update={"model_version": specialist_spec.model_version}
-        )
-
-        primary_result = primary_runner.predict(
+        primary_spec, primary_result = self._run_component_prediction(
             image_bytes=image_bytes,
             image_name=image_name,
-            options=primary_options,
+            options=options,
+            model_version=self.spec.primary_model_version,
         )
-        specialist_result = specialist_runner.predict(
+        specialist_spec, specialist_result = self._run_component_prediction(
             image_bytes=image_bytes,
             image_name=image_name,
-            options=specialist_options,
+            options=options,
+            model_version=self.spec.specialist_model_version,
         )
-
-        selected: List[RawDetection] = []
-        primary_by_category: Dict[str, List[RawDetection]] = {}
-        specialist_by_category: Dict[str, List[RawDetection]] = {}
 
         primary_detections = _with_source(
             primary_result.detections,
@@ -196,25 +253,11 @@ class FusionRunner:
             model_name=specialist_spec.model_name,
             model_version=specialist_spec.model_version,
         )
-
-        for detection in primary_detections:
-            primary_by_category.setdefault(detection.category, []).append(detection)
-
-        for detection in specialist_detections:
-            specialist_by_category.setdefault(detection.category, []).append(detection)
-
-        for category, detections in primary_by_category.items():
-            if category not in specialist_categories:
-                selected.extend(detections)
-
-        for category in specialist_categories:
-            specialist_hits = specialist_by_category.get(category, [])
-            if specialist_hits:
-                selected.extend(specialist_hits)
-            else:
-                selected.extend(primary_by_category.get(category, []))
-
-        merged_detections = _dedupe_by_category(selected)
+        merged_detections = self._select_detections(
+            primary_detections=primary_detections,
+            specialist_detections=specialist_detections,
+            specialist_categories=specialist_categories,
+        )
         breakdown = {
             "primary_model": primary_result.inference_ms,
             "specialist_model": specialist_result.inference_ms,
@@ -230,14 +273,12 @@ class FusionRunner:
             inference_ms=sum(breakdown.values()),
             inference_breakdown=breakdown,
             detections=merged_detections,
-            metadata={
-                "source_image": image_name,
-                "fusion": {
-                    "primary_model_version": primary_spec.model_version,
-                    "specialist_model_version": specialist_spec.model_version,
-                    "specialist_categories": sorted(specialist_categories),
-                },
-            },
+            metadata=self._build_metadata(
+                image_name=image_name,
+                primary_spec=primary_spec,
+                specialist_spec=specialist_spec,
+                specialist_categories=specialist_categories,
+            ),
             overlay_png=overlay_bytes,
         )
 
