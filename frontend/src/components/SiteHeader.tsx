@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 
 export function SiteHeader() {
@@ -9,12 +9,6 @@ export function SiteHeader() {
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   
-  const { scrollY } = useScroll();
-  
-  // 背景模糊程度随滚动增加
-  const backdropBlur = useTransform(scrollY, [0, 100], [0, 12]);
-  const backgroundOpacity = useTransform(scrollY, [0, 100], [0, 0.8]);
-
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;

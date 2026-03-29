@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type ScanPhase = "uploading" | "analyzing" | "detecting" | "complete";
 
@@ -10,17 +10,13 @@ interface ScanAnimationProps {
 }
 
 export function ScanAnimation({ phase, progress = 0 }: ScanAnimationProps) {
-  const [particles, setParticles] = useState<Array<{ id: number; x: number; delay: number }>>([]);
-
-  useEffect(() => {
-    // Generate random scan line particles
-    const newParticles = Array.from({ length: 20 }, (_, i) => ({
+  const [particles] = useState<Array<{ id: number; x: number; delay: number }>>(() =>
+    Array.from({ length: 20 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
       delay: Math.random() * 2
-    }));
-    setParticles(newParticles);
-  }, []);
+    }))
+  );
 
   const phaseConfig = {
     uploading: {

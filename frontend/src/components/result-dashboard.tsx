@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useMemo, type SyntheticEvent } from "react";
 
-import { AdaptiveImage } from "@/components/adaptive-image";
 import { StatusCard } from "@/components/status-card";
 import { getDefectColorHex, getDefectLabel } from "@/lib/defect-visuals";
 import { formatDetectionSourceLabel, formatModelLabel } from "@/lib/model-labels";
@@ -14,6 +13,15 @@ import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Detection, PredictionResult, PredictState } from "@/lib/types";
 import { useComparison } from "@/hooks/use-comparison";
+
+const COMPARISON_VIEW_MODES: Array<{
+  id: "master" | "comparison" | "diff";
+  label: string;
+}> = [
+  { id: "master", label: "主模型视图" },
+  { id: "comparison", label: "对比模型视图" },
+  { id: "diff", label: "差异叠加模式" },
+];
 
 interface ResultDashboardProps {
   result: PredictionResult;
@@ -146,8 +154,6 @@ export function ResultDashboard({
     "正在生成结构化诊断建议…",
   ];
   const frameRef = useRef<HTMLDivElement>(null);
-  const comparisonPrimaryFrameRef = useRef<HTMLDivElement>(null);
-  const comparisonSecondaryFrameRef = useRef<HTMLDivElement>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
   const detectionItemRefs = useRef<Record<string, HTMLElement | null>>({});
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
@@ -158,7 +164,6 @@ export function ResultDashboard({
   const [showComparisonDetails, setShowComparisonDetails] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [comparisonViewMode, setComparisonViewMode] = useState<"master" | "comparison" | "diff">("master");
-  const [showOnlyDiffs, setShowOnlyDiffs] = useState(false);
   const [thinkingIndex, setThinkingIndex] = useState(0);
 
   // Use the new comparison hook
@@ -272,12 +277,10 @@ export function ResultDashboard({
   );
 
   const prioritizedDetections = useMemo(() => {
-    let list = [...filteredDetections];
-    if (showOnlyDiffs && comp) {
-      list = list.filter(d => !comp.matchedPrimaryIds.has(d.id));
-    }
-    return list.sort((left, right) => getDetectionPriorityScore(right) - getDetectionPriorityScore(left));
-  }, [filteredDetections, showOnlyDiffs, comp]);
+    return [...filteredDetections].sort(
+      (left, right) => getDetectionPriorityScore(right) - getDetectionPriorityScore(left),
+    );
+  }, [filteredDetections]);
 
   const activePreviewUrl = useMemo(() => {
     if (comp && comparisonViewMode === "comparison") {
@@ -538,7 +541,6 @@ export function ResultDashboard({
                                 );
                               })}
                               {secondaryDetections.map((item) => {
-                                const colorCode = getDefectColorHex(item.category);
                                 const overlayStyle = getDetectionOverlayStyle(item.bbox, imageSize, frameSize);
                                 return (
                                   <div
@@ -749,11 +751,7 @@ export function ResultDashboard({
 
               {comp && (
                 <div className="flex rounded-xl border border-white/8 bg-white/5 p-1.5 backdrop-blur-md">
-                  {[
-                    { id: "master", label: "主模型视图" },
-                    { id: "comparison", label: "对比模型视图" },
-                    { id: "diff", label: "差异叠加模式" },
-                  ].map((mode) => (
+                  {COMPARISON_VIEW_MODES.map((mode) => (
                     <button
                       key={mode.id}
                       className={`px-4 py-2 text-[11px] font-bold tracking-wider uppercase transition-all rounded-lg ${
@@ -761,7 +759,7 @@ export function ResultDashboard({
                           ? "bg-[#00D2FF] text-[#05080A] shadow-[0_0_20px_rgba(0,210,255,0.4)]"
                           : "text-white/40 hover:text-white/70 hover:bg-white/5"
                       }`}
-                      onClick={() => setComparisonViewMode(mode.id as any)}
+                      onClick={() => setComparisonViewMode(mode.id)}
                     >
                       {mode.label}
                     </button>
@@ -861,7 +859,7 @@ export function ResultDashboard({
                         <h4 className="text-sm font-bold uppercase tracking-wider text-[#7FFFD4]">专家决策建议</h4>
                       </div>
                       <p className="text-sm leading-relaxed text-[#7FFFD4]/90 italic">
-                        " {comparisonRecommendation} "
+                        &ldquo;{comparisonRecommendation}&rdquo;
                       </p>
                     </div>
 

@@ -33,8 +33,11 @@ export function LazyLoad({
   const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
-    if (isInView && !hasLoaded) {
-      setHasLoaded(true);
+    if (!hasLoaded && isInView) {
+      const frame = window.requestAnimationFrame(() => {
+        setHasLoaded(true);
+      });
+      return () => window.cancelAnimationFrame(frame);
     }
   }, [isInView, hasLoaded]);
 

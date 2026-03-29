@@ -3,6 +3,7 @@
 import {
   useDeferredValue,
   useEffect,
+  useRef,
   useState
 } from "react";
 import { useRouter } from "next/navigation";
@@ -58,20 +59,11 @@ export function HomeShell() {
   const router = useRouter();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const previewUrlRef = useRef<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [confidence, setConfidence] = useState(0.45);
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
-
-  useEffect(() => {
-    if (!selectedFile) {
-      setPreviewUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(selectedFile);
-    setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [selectedFile]);
 
   const [exportOverlay, setExportOverlay] = useState(true);
   const [result] = useState<PredictionResult | null>(null);
@@ -238,6 +230,10 @@ export function HomeShell() {
   }
 
   function handleResetToUploader() {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
     setSelectedFile(null);
     setPreviewUrl(null);
     setResultViewMode("image");
@@ -311,13 +307,24 @@ export function HomeShell() {
       setValidationErrors([]);
       setLastError(null);
       setRetryCount(0);
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+      }
+      const objectUrl = URL.createObjectURL(file);
+      previewUrlRef.current = objectUrl;
       setSelectedFile(file);
+      setPreviewUrl(objectUrl);
       setStatus(initialState);
     }
   }
 
   function handleClearFile() {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
     setSelectedFile(null);
+    setPreviewUrl(null);
     setStatus(initialState);
     setValidationErrors([]);
     setLastError(null);
@@ -371,15 +378,6 @@ export function HomeShell() {
   const selectedModelSupportsOverlay = selectedModel?.supports_overlay ?? true;
   const selectedModelSupportsSlicedInference =
     selectedModel?.supports_sliced_inference ?? false;
-
-  useEffect(() => {
-    if (selectedModelSupportsOverlay || !exportOverlay) {
-      return;
-    }
-
-    setExportOverlay(false);
-    pushActionNotice("模型能力提示", "当前模型不支持结果图导出，已自动关闭该选项。", "error");
-  }, [selectedModelSupportsOverlay, exportOverlay, pushActionNotice]);
 
   async function handleRerunCurrentImage() {
     if (!selectedFile) {
@@ -755,7 +753,12 @@ export function HomeShell() {
                     const nextFile = event.target.files?.[0] ?? null;
                     
                     if (!nextFile) {
+                      if (previewUrlRef.current) {
+                        URL.revokeObjectURL(previewUrlRef.current);
+                        previewUrlRef.current = null;
+                      }
                       setSelectedFile(null);
+                      setPreviewUrl(null);
                       return;
                     }
                     
@@ -763,7 +766,12 @@ export function HomeShell() {
                     const errors = validateDroppedFile(nextFile);
                     if (errors.length > 0) {
                       setValidationErrors(errors);
+                      if (previewUrlRef.current) {
+                        URL.revokeObjectURL(previewUrlRef.current);
+                        previewUrlRef.current = null;
+                      }
                       setSelectedFile(null);
+                      setPreviewUrl(null);
                       setStatus({
                         phase: "error",
                         message: `文件验证失败: ${errors.map(e => e.message).join(", ")}`
@@ -775,7 +783,13 @@ export function HomeShell() {
                     setValidationErrors([]);
                     setLastError(null);
                     setRetryCount(0);
+                    if (previewUrlRef.current) {
+                      URL.revokeObjectURL(previewUrlRef.current);
+                    }
+                    const objectUrl = URL.createObjectURL(nextFile);
+                    previewUrlRef.current = objectUrl;
                     setSelectedFile(nextFile);
+                    setPreviewUrl(objectUrl);
                     setStatus(initialState);
                   }}
                 />
@@ -939,7 +953,15 @@ export function HomeShell() {
                       className="w-full rounded-lg border border-white/10 bg-black px-3 py-2 text-sm text-white/80 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-60"
                       value={selectedModelVersion ?? ""}
                       disabled={modelsLoading || availableModels.length === 0}
-                      onChange={(event) => setSelectedModelVersion(event.target.value || null)}
+                      onChange={(event) => {
+                        const nextVersion = event.target.value || null;
+                        const nextModel =
+                          availableModels.find((model) => model.model_version === nextVersion) ?? null;
+                        if (!nextModel?.supports_overlay && exportOverlay) {
+                          pushActionNotice("模型能力提示", "当前模型不支持结果图导出，已自动关闭该选项。", "error");
+                        }
+                        setSelectedModelVersion(nextVersion);
+                      }}
                     >
                       {availableModels.map((model) => (
                         <option
@@ -1039,9 +1061,15 @@ export function HomeShell() {
                         <input
                           type="checkbox"
                           className="hidden"
-                          checked={exportOverlay}
+                          checked={exportOverlay && selectedModelSupportsOverlay}
                           disabled={!selectedModelSupportsMasks}
-                          onChange={() => setExportOverlay(!exportOverlay)}
+                          onChange={() => {
+                            if (!selectedModelSupportsOverlay) {
+                              pushActionNotice("模型能力提示", "当前模型不支持结果图导出。", "error");
+                              return;
+                            }
+                            setExportOverlay(!exportOverlay);
+                          }}
                         />
                       </label>
 

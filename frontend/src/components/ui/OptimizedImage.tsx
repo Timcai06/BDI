@@ -151,8 +151,6 @@ export function ResponsiveImage({
 // 图片对比滑块组件（用于展示 AI 识别前后对比）
 // ============================================
 
-"use client";
-
 import { useState as useStateReact, useCallback } from "react";
 
 interface CompareSliderProps {
@@ -179,7 +177,7 @@ export function CompareSlider({
       const percent = Math.max(0, Math.min((x / rect.width) * 100, 100));
       setSliderPosition(percent);
     },
-    []
+    [setSliderPosition]
   );
 
   const handleMouseMove = useCallback(
