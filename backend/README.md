@@ -79,6 +79,40 @@ uvicorn app.main:app --reload
 
 ## 真实模型接入
 
+建议不要继续把不同版本权重都命名为 `best.pt`。
+
+推荐把“用途”和“来源”直接写进文件名与模型版本：
+
+- 老版本通用模型：`legacy-general-best.pt`
+- 渗水专项模型：`seepage-specialist-best-20260328.pt`
+- `PRNET-main` 导出的通用模型：`prnet-general-best-20260328.pt`
+
+推荐目录约定：
+
+```text
+backend/models/
+  legacy-general-best.pt
+  seepage-specialist-best-20260328.pt
+  prnet-general-best-20260328.pt
+```
+
+推荐版本名约定：
+
+- `v1-legacy-general`
+- `v2-seepage-specialist`
+- `v3-prnet-general`
+- `fusion-v1`
+
+其中 `PRNET-main/` 应视为模型工程目录，而不是最终权重命名方式。只有导出的可推理权重文件才进入 `backend/models/`。
+
+如果你要立即做“双模型融合”，推荐把融合模型本身也注册成一个独立版本，而不是新开 API。
+
+推荐职责划分：
+
+- `v1-legacy-general` 或 `v3-prnet-general` 负责通用病害
+- `v2-seepage-specialist` 只负责 `seepage`
+- `fusion-v1` 作为最终对外使用的融合版本
+
 如果你已经有本地 `YOLOv8-seg` 权重，可以通过环境变量切换到真实 runner：
 
 ```bash
@@ -86,10 +120,35 @@ python3.9 -m venv .venv-yolo
 source .venv-yolo/bin/activate
 python3 -m pip install -r requirements-dev.txt
 python3 -m pip install -r requirements-yolo.txt
-export BDI_MODEL_WEIGHTS_PATH=/absolute/path/to/your-model.pt
-export BDI_MODEL_VERSION=v1-real
+export BDI_MODEL_WEIGHTS_PATH=/absolute/path/to/repo/backend/models/legacy-general-best.pt
+export BDI_MODEL_VERSION=v1-legacy-general
 export BDI_MODEL_DEVICE=cpu
-export BDI_EXTRA_MODELS='[{"model_version":"mock-v2","backend":"mock","runner_kind":"mock"},{"model_version":"v2-real","backend":"pytorch","weights_path":"/absolute/path/to/your-second-model.pt"}]'
+export BDI_EXTRA_MODELS='[
+  {"model_version":"mock-v2","backend":"mock","runner_kind":"mock"},
+  {
+    "model_version":"v2-seepage-specialist",
+    "backend":"pytorch",
+    "weights_path":"/absolute/path/to/repo/backend/models/seepage-specialist-best-20260328.pt",
+    "supports_masks":false
+  },
+  {
+    "model_version":"v3-prnet-general",
+    "backend":"pytorch",
+    "weights_path":"/absolute/path/to/repo/backend/models/prnet-general-best-20260328.pt",
+    "supports_masks":false
+  },
+  {
+    "model_version":"fusion-v1",
+    "model_name":"dual-model-fusion",
+    "backend":"fusion",
+    "runner_kind":"fusion",
+    "primary_model_version":"v3-prnet-general",
+    "specialist_model_version":"v2-seepage-specialist",
+    "specialist_categories":["seepage"],
+    "supports_masks":false,
+    "supports_sliced_inference":false
+  }
+]'
 ```
 
 推荐使用 `Python 3.9` 到 `Python 3.12` 的虚拟环境安装 `ultralytics`。
@@ -118,11 +177,47 @@ python3 -m pip install -r requirements-yolo.txt
 ```bash
 export BDI_EXTRA_MODELS='[
   {"model_version":"mock-v2","backend":"mock","runner_kind":"mock"},
-  {"model_version":"v2-real","backend":"pytorch","weights_path":"/absolute/path/to/your-second-model.pt"}
+  {
+    "model_version":"v2-seepage-specialist",
+    "backend":"pytorch",
+    "weights_path":"/absolute/path/to/repo/backend/models/seepage-specialist-best-20260328.pt",
+    "supports_masks":false
+  },
+  {
+    "model_version":"v3-prnet-general",
+    "backend":"pytorch",
+    "weights_path":"/absolute/path/to/repo/backend/models/prnet-general-best-20260328.pt",
+    "supports_masks":false
+  },
+  {
+    "model_version":"fusion-v1",
+    "model_name":"dual-model-fusion",
+    "backend":"fusion",
+    "runner_kind":"fusion",
+    "primary_model_version":"v3-prnet-general",
+    "specialist_model_version":"v2-seepage-specialist",
+    "specialist_categories":["seepage"],
+    "supports_masks":false,
+    "supports_sliced_inference":false
+  }
 ]'
 ```
 
 当前前端可通过 `GET /models` 读取可选模型版本列表，并在发起 `/predict` 时传入 `model_version`。
+
+后续在系统里区分模型时，应优先依赖 `model_version` 和 `weights_path`，不要再依赖模糊的 `best.pt` 文件名。
+
+当前融合逻辑采用“类别级接管”：
+
+- 通用模型保留非 `seepage` 结果
+- `seepage` 优先使用专项模型结果
+- 如果专项模型没有检出 `seepage`，则回退到通用模型的 `seepage`
+
+需要注意：
+
+- 你现在手头这批权重是 `detect`，不是 `segment`
+- 因此建议在配置里显式写 `supports_masks=false`
+- 当前 `fusion-v1` 主要服务于框级识别融合，不承担真实掩膜输出
 
 本轮兼容性验证补充结论：
 

@@ -85,6 +85,7 @@ async def list_models(request: Request) -> ModelCatalogResponse:
             model_version=spec.model_version,
             backend=spec.backend,
             supports_masks=spec.supports_masks,
+            supports_overlay=spec.supports_overlay,
             supports_sliced_inference=spec.supports_sliced_inference,
             is_active=spec.model_version == active_model_version,
             is_available=spec.is_available,

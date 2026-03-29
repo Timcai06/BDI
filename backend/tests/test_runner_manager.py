@@ -2,6 +2,7 @@ from pathlib import Path
 
 from app.adapters.manager import RunnerManager
 from app.adapters.registry import ModelRegistry
+from app.adapters.fusion_runner import FusionRunner
 from app.adapters.mock_runner import MockRunner
 from app.core.config import ConfiguredModel, Settings
 
@@ -120,3 +121,37 @@ def test_runner_manager_uses_lru_eviction_policy(monkeypatch) -> None:
     assert created["mock-v1"].closed is False
     assert created["mock-v3"].closed is False
     assert list(manager._runners.keys()) == ["mock-v1", "mock-v3"]
+
+
+def test_runner_manager_builds_fusion_runner() -> None:
+    settings = Settings(
+        model_version="v1-general",
+        model_backend="pytorch",
+        model_weights_path=Path("/tmp/general.pt"),
+        extra_models=[
+            ConfiguredModel(
+                model_version="v2-seepage-specialist",
+                backend="pytorch",
+                weights_path=Path("/tmp/seepage.pt"),
+                supports_masks=False,
+            ),
+            ConfiguredModel(
+                model_version="fusion-v1",
+                model_name="dual-model-fusion",
+                backend="fusion",
+                runner_kind="fusion",
+                primary_model_version="v1-general",
+                specialist_model_version="v2-seepage-specialist",
+                specialist_categories=["seepage"],
+                supports_masks=False,
+            ),
+        ],
+        allow_mock_fallback=False,
+    )
+    registry = ModelRegistry.from_settings(settings)
+    manager = RunnerManager(registry=registry, allow_fallback=False)
+
+    spec, runner = manager.resolve("fusion-v1")
+
+    assert spec.model_version == "fusion-v1"
+    assert isinstance(runner, FusionRunner)

@@ -85,3 +85,57 @@ def test_model_registry_registers_extra_models() -> None:
     registry = ModelRegistry.from_settings(settings)
 
     assert registry.get("mock-v2").runner_kind == "mock"
+
+
+def test_model_registry_registers_fusion_model() -> None:
+    settings = Settings(
+        extra_models=[
+            ConfiguredModel(
+                model_version="v2-seepage-specialist",
+                backend="pytorch",
+                weights_path=Path("/tmp/seepage.pt"),
+                supports_masks=False,
+            ),
+            ConfiguredModel(
+                model_version="fusion-v1",
+                model_name="dual-model-fusion",
+                backend="fusion",
+                runner_kind="fusion",
+                primary_model_version="v1",
+                specialist_model_version="v2-seepage-specialist",
+                specialist_categories=["渗水"],
+                supports_masks=False,
+            ),
+        ]
+    )
+
+    registry = ModelRegistry.from_settings(settings)
+    fusion_spec = registry.get("fusion-v1")
+
+    assert fusion_spec.runner_kind == "fusion"
+    assert fusion_spec.primary_model_version == "v1"
+    assert fusion_spec.specialist_model_version == "v2-seepage-specialist"
+    assert fusion_spec.specialist_categories == ["seepage"]
+
+
+def test_model_registry_uses_active_model_version_when_pointing_to_extra_model() -> None:
+    settings = Settings(
+        model_version="v1-general",
+        active_model_version="fusion-v1",
+        extra_models=[
+            ConfiguredModel(
+                model_version="fusion-v1",
+                model_name="dual-model-fusion",
+                backend="fusion",
+                runner_kind="fusion",
+                primary_model_version="v1-general",
+                specialist_model_version="v2-seepage-specialist",
+                specialist_categories=["seepage"],
+                supports_masks=False,
+            )
+        ],
+    )
+
+    registry = ModelRegistry.from_settings(settings)
+
+    assert registry.active_version == "fusion-v1"

@@ -12,17 +12,27 @@ class ModelSpec(BaseModel):
     model_name: str
     model_version: str
     backend: str
-    runner_kind: Literal["mock", "ultralytics"]
+    runner_kind: Literal["mock", "ultralytics", "fusion"]
     weights_path: Optional[Path] = None
     device: str = "cpu"
     imgsz: int = 1280
     supports_masks: bool = True
+    supports_overlay: bool = True
     supports_sliced_inference: bool = False
+    primary_model_version: Optional[str] = None
+    specialist_model_version: Optional[str] = None
+    specialist_categories: List[str] = Field(default_factory=list)
 
     @property
     def is_available(self) -> bool:
         if self.runner_kind == "mock":
             return True
+        if self.runner_kind == "fusion":
+            return (
+                self.primary_model_version is not None
+                and self.specialist_model_version is not None
+                and bool(self.specialist_categories)
+            )
         return self.weights_path is not None and self.weights_path.exists()
 
 
@@ -76,11 +86,15 @@ class ModelRegistry(BaseModel):
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "ModelRegistry":
-        registry = cls(active_version=settings.model_version)
-        registry.register(cls._build_primary_spec(settings), make_active=True)
+        active_version = settings.active_model_version or settings.model_version
+        registry = cls(active_version=active_version)
+        registry.register(cls._build_primary_spec(settings))
 
         for configured_model in settings.extra_models:
             registry.register(cls._build_extra_spec(settings, configured_model))
+
+        if active_version not in registry.specs:
+            registry.active_version = settings.model_version
 
         if settings.allow_mock_fallback:
             registry.register(
@@ -92,6 +106,7 @@ class ModelRegistry(BaseModel):
                     device=settings.model_device,
                     imgsz=settings.model_imgsz,
                     supports_masks=True,
+                    supports_overlay=True,
                     supports_sliced_inference=True,
                 )
             )
@@ -108,8 +123,9 @@ class ModelRegistry(BaseModel):
             weights_path=settings.model_weights_path,
             device=settings.model_device,
             imgsz=settings.model_imgsz,
-            supports_masks=True,
-            supports_sliced_inference=True,
+            supports_masks=settings.model_supports_masks,
+            supports_overlay=settings.model_supports_overlay,
+            supports_sliced_inference=settings.model_supports_sliced_inference,
         )
 
     @staticmethod
@@ -127,5 +143,9 @@ class ModelRegistry(BaseModel):
             device=configured_model.device or settings.model_device,
             imgsz=configured_model.imgsz or settings.model_imgsz,
             supports_masks=configured_model.supports_masks,
+            supports_overlay=configured_model.supports_overlay,
             supports_sliced_inference=configured_model.supports_sliced_inference,
+            primary_model_version=configured_model.primary_model_version,
+            specialist_model_version=configured_model.specialist_model_version,
+            specialist_categories=configured_model.specialist_categories,
         )

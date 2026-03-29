@@ -3,8 +3,9 @@ import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { AdaptiveImage } from "@/components/adaptive-image";
 import { StatusCard } from "@/components/status-card";
 import { getDefectColorHex, getDefectLabel } from "@/lib/defect-visuals";
-import { formatModelLabel } from "@/lib/model-labels";
+import { formatDetectionSourceLabel, formatModelLabel } from "@/lib/model-labels";
 import {
+  alignDetectionsByInstance,
   buildDetectionCategoryDiff,
   filterDetections,
   getDetectionMaskPolygonPoints,
@@ -80,11 +81,33 @@ function calculateTotalMetrics(result: PredictionResult) {
   return totals;
 }
 
+function calculateAverageConfidence(result: PredictionResult): number {
+  if (result.detections.length === 0) {
+    return 0;
+  }
+
+  const total = result.detections.reduce((sum, detection) => sum + detection.confidence, 0);
+  return total / result.detections.length;
+}
+
+function buildSourceBreakdown(result: PredictionResult): Array<{ label: string; count: number }> {
+  const counts = result.detections.reduce<Record<string, number>>((acc, detection) => {
+    const label = formatDetectionSourceLabel(detection.source_role) ?? "当前模型";
+    acc[label] = (acc[label] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  return Object.entries(counts)
+    .map(([label, count]) => ({ label, count }))
+    .sort((left, right) => right.count - left.count);
+}
+
 function getComparisonRecommendation(
   result: PredictionResult,
   comparisonResult: PredictionResult,
   detectionDelta: number,
   categoryDiffItems: ReturnType<typeof buildDetectionCategoryDiff>,
+  alignmentSummary: { matched: number; primaryOnly: number; comparisonOnly: number },
 ): string {
   const inferenceDelta = comparisonResult.inference_ms - result.inference_ms;
   const strongestDiff =
@@ -93,6 +116,10 @@ function getComparisonRecommendation(
     )[0] ?? null;
 
   if (detectionDelta === 0) {
+    if (alignmentSummary.matched > 0 && (alignmentSummary.primaryOnly > 0 || alignmentSummary.comparisonOnly > 0)) {
+      return `两版总检出数量接近，但实例级对齐后仍有位置差异，建议重点复核未对齐目标。`;
+    }
+
     if (inferenceDelta < 0) {
       return `两版识别结果接近，建议优先保留更快的 ${formatModelLabel(comparisonResult)}。`;
     }
@@ -106,12 +133,12 @@ function getComparisonRecommendation(
 
   if (detectionDelta > 0) {
     return strongestDiff
-      ? `${formatModelLabel(comparisonResult)} 识别到更多病害，尤其是 ${strongestDiff.category}，但耗时${inferenceDelta > 0 ? "更高" : "更低"}。`
+      ? `${formatModelLabel(comparisonResult)} 识别到更多病害，尤其是 ${strongestDiff.category}；实例级对齐显示新增 ${alignmentSummary.comparisonOnly} 处候选目标，但耗时${inferenceDelta > 0 ? "更高" : "更低"}。`
       : `${formatModelLabel(comparisonResult)} 识别到更多病害，适合继续做复核。`;
   }
 
   return strongestDiff
-    ? `${formatModelLabel(result)} 检出的病害更多，尤其是 ${strongestDiff.category}，当前主模型更适合作为默认版本。`
+    ? `${formatModelLabel(result)} 检出的病害更多，尤其是 ${strongestDiff.category}；实例级对齐显示主模型独有 ${alignmentSummary.primaryOnly} 处目标，当前主模型更适合作为默认版本。`
     : `${formatModelLabel(result)} 检出的病害更多，建议优先保留当前主模型。`;
 }
 
@@ -138,6 +165,26 @@ function formatResultTimestamp(createdAt: string): string {
     hour12: false,
     timeZone: "UTC",
   }).format(date);
+}
+
+function formatBreakdownLabel(key: string): string {
+  const labels: Record<string, string> = {
+    pre: "前处理 (I/O & Pre)",
+    model: "核心推理 (YOLO Engine)",
+    post: "后处理 (Metrics & Result Image)",
+    primary_model: "通用模型推理",
+    specialist_model: "专项模型推理",
+    fusion_post: "融合后处理",
+  };
+
+  return labels[key] ?? key.replace(/_/g, " ");
+}
+
+function getBreakdownTone(key: string): "accent" | "muted" {
+  if (key === "model" || key === "primary_model" || key === "specialist_model") {
+    return "accent";
+  }
+  return "muted";
 }
 
 export function ResultDashboard({
@@ -178,15 +225,27 @@ export function ResultDashboard({
   showPrimaryActionButton = true
 }: ResultDashboardProps) {
   const frameRef = useRef<HTMLDivElement>(null);
+  const comparisonPrimaryFrameRef = useRef<HTMLDivElement>(null);
+  const comparisonSecondaryFrameRef = useRef<HTMLDivElement>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
   const detectionItemRefs = useRef<Record<string, HTMLElement | null>>({});
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
+  const [comparisonPrimaryFrameSize, setComparisonPrimaryFrameSize] = useState({ width: 0, height: 0 });
+  const [comparisonSecondaryFrameSize, setComparisonSecondaryFrameSize] = useState({ width: 0, height: 0 });
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const [diagnosis, setDiagnosis] = useState<string>("");
   const [isDiagnosisLoading, setIsDiagnosisLoading] = useState(false);
   const [hasStoredDiagnosis, setHasStoredDiagnosis] = useState<boolean | null>(null);
   const [showComparisonDetails, setShowComparisonDetails] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const averageConfidence = calculateAverageConfidence(result);
+  const comparisonAverageConfidence = comparisonResult
+    ? calculateAverageConfidence(comparisonResult)
+    : 0;
+  const sourceBreakdown = buildSourceBreakdown(result);
+  const comparisonSourceBreakdown = comparisonResult
+    ? buildSourceBreakdown(comparisonResult)
+    : [];
 
   useEffect(() => {
     let cancelled = false;
@@ -288,6 +347,9 @@ export function ResultDashboard({
   const categoryDiffItems = comparisonResult
     ? buildDetectionCategoryDiff(result, comparisonResult)
     : [];
+  const instanceAlignment = comparisonResult
+    ? alignDetectionsByInstance(result.detections, comparisonResult.detections, 0.3)
+    : null;
   
   // -- Thinking messages logic --
   const thinkingSteps = [
@@ -314,10 +376,17 @@ export function ResultDashboard({
           comparisonResult,
           detectionDelta,
           categoryDiffItems,
+          {
+            matched: instanceAlignment?.matched.length ?? 0,
+            primaryOnly: instanceAlignment?.primaryOnly.length ?? 0,
+            comparisonOnly: instanceAlignment?.comparisonOnly.length ?? 0,
+          },
         )
       : null;
   const mainMetrics = calculateTotalMetrics(result);
   const comparisonMetrics = comparisonResult ? calculateTotalMetrics(comparisonResult) : null;
+  const matchedPrimaryIds = new Set(instanceAlignment?.matched.map((item) => item.primary.id) ?? []);
+  const matchedComparisonIds = new Set(instanceAlignment?.matched.map((item) => item.comparison.id) ?? []);
   const primaryActionLabel = rerunDisabled ? "新建分析" : "重新检测当前图片";
   const primaryActionTitle = rerunDisabled
     ? "选择新图片开始下一次检测"
@@ -349,6 +418,43 @@ export function ResultDashboard({
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    const primaryNode = comparisonPrimaryFrameRef.current;
+    const secondaryNode = comparisonSecondaryFrameRef.current;
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => {
+      if (primaryNode) {
+        const rect = primaryNode.getBoundingClientRect();
+        setComparisonPrimaryFrameSize({ width: rect.width, height: rect.height });
+      }
+      if (secondaryNode) {
+        const rect = secondaryNode.getBoundingClientRect();
+        setComparisonSecondaryFrameSize({ width: rect.width, height: rect.height });
+      }
+    });
+
+    const updateFallbackSizes = () => {
+      if (primaryNode) {
+        const rect = primaryNode.getBoundingClientRect();
+        setComparisonPrimaryFrameSize({ width: rect.width, height: rect.height });
+      }
+      if (secondaryNode) {
+        const rect = secondaryNode.getBoundingClientRect();
+        setComparisonSecondaryFrameSize({ width: rect.width, height: rect.height });
+      }
+    };
+
+    updateFallbackSizes();
+
+    if (observer) {
+      if (primaryNode) observer.observe(primaryNode);
+      if (secondaryNode) observer.observe(secondaryNode);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener("resize", updateFallbackSizes);
+    return () => window.removeEventListener("resize", updateFallbackSizes);
+  }, [comparisonResult]);
 
   function handleImageLoad(event: SyntheticEvent<HTMLImageElement>) {
     const target = event.currentTarget;
@@ -490,6 +596,12 @@ export function ResultDashboard({
                   <div className="space-y-1">
                     <p className="text-[9px] font-bold uppercase tracking-widest text-[#00D2FF]/60">预估面积 (cm²)</p>
                     <p className="text-sm font-mono text-[#7FFFD4] font-bold">{current?.metrics.area_mm2 ? (current.metrics.area_mm2 / 100).toFixed(1) : "--"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-[#00D2FF]/60">检测来源</p>
+                    <p className="text-sm font-semibold text-white">
+                      {formatDetectionSourceLabel(current?.source_role) ?? "当前模型"}
+                    </p>
                   </div>
                 </div>
                 <div className="hidden md:flex flex-col items-end gap-1 shrink-0 ml-auto border-l border-white/10 pl-6">
@@ -683,12 +795,45 @@ export function ResultDashboard({
                   </div>
                   <div className="relative aspect-video overflow-hidden rounded-xl border border-white/5 bg-black">
                     {activePreviewUrl ? (
-                      <AdaptiveImage
-                        alt={`${result.model_version} preview`}
-                        className="object-contain opacity-90"
-                        src={activePreviewUrl}
-                        sizes="(min-width: 1280px) 35vw, 100vw"
-                      />
+                      <div ref={comparisonPrimaryFrameRef} className="absolute inset-0">
+                        <AdaptiveImage
+                          alt={`${result.model_version} preview`}
+                          className="object-contain opacity-90"
+                          src={activePreviewUrl}
+                          sizes="(min-width: 1280px) 35vw, 100vw"
+                          onLoad={handleImageLoad}
+                        />
+                        <div className="absolute inset-0">
+                          {result.detections.map((item) => {
+                            const overlayStyle = getDetectionOverlayStyle(
+                              item.bbox,
+                              imageSize,
+                              comparisonPrimaryFrameSize,
+                            );
+                            const isMatched = matchedPrimaryIds.has(item.id);
+                            const borderColor = isMatched ? "#34D399" : "#F59E0B";
+                            const badgeLabel = isMatched ? "命中" : "主模型独有";
+
+                            return (
+                              <div
+                                key={`primary-compare-${item.id}`}
+                                className="absolute rounded-md border-2 shadow-[0_0_18px_rgba(0,0,0,0.28)]"
+                                style={{
+                                  ...overlayStyle,
+                                  borderColor,
+                                }}
+                              >
+                                <span
+                                  className="absolute left-0 top-0 -translate-y-[calc(100%+4px)] rounded-md px-2 py-1 text-[10px] font-semibold text-black"
+                                  style={{ backgroundColor: borderColor }}
+                                >
+                                  {badgeLabel}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-500">
                         无可用预览
@@ -714,12 +859,45 @@ export function ResultDashboard({
                   </div>
                   <div className="relative aspect-video overflow-hidden rounded-xl border border-white/5 bg-black">
                     {activeComparisonPreviewUrl ? (
-                      <AdaptiveImage
-                        alt={`${comparisonResult.model_version} preview`}
-                        className="object-contain opacity-90"
-                        src={activeComparisonPreviewUrl}
-                        sizes="(min-width: 1280px) 35vw, 100vw"
-                      />
+                      <div ref={comparisonSecondaryFrameRef} className="absolute inset-0">
+                        <AdaptiveImage
+                          alt={`${comparisonResult.model_version} preview`}
+                          className="object-contain opacity-90"
+                          src={activeComparisonPreviewUrl}
+                          sizes="(min-width: 1280px) 35vw, 100vw"
+                          onLoad={handleImageLoad}
+                        />
+                        <div className="absolute inset-0">
+                          {comparisonResult.detections.map((item) => {
+                            const overlayStyle = getDetectionOverlayStyle(
+                              item.bbox,
+                              imageSize,
+                              comparisonSecondaryFrameSize,
+                            );
+                            const isMatched = matchedComparisonIds.has(item.id);
+                            const borderColor = isMatched ? "#34D399" : "#38BDF8";
+                            const badgeLabel = isMatched ? "命中" : "对比模型独有";
+
+                            return (
+                              <div
+                                key={`comparison-compare-${item.id}`}
+                                className="absolute rounded-md border-2 shadow-[0_0_18px_rgba(0,0,0,0.28)]"
+                                style={{
+                                  ...overlayStyle,
+                                  borderColor,
+                                }}
+                              >
+                                <span
+                                  className="absolute left-0 top-0 -translate-y-[calc(100%+4px)] rounded-md px-2 py-1 text-[10px] font-semibold text-black"
+                                  style={{ backgroundColor: borderColor }}
+                                >
+                                  {badgeLabel}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center text-xs text-slate-500">
                         无可用预览
@@ -772,6 +950,11 @@ export function ResultDashboard({
                       {isHighestPriority ? (
                         <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-200">
                           优先查看
+                        </span>
+                      ) : null}
+                      {formatDetectionSourceLabel(item.source_role) ? (
+                        <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-100">
+                          {formatDetectionSourceLabel(item.source_role)}
                         </span>
                       ) : null}
                     </div>
@@ -898,6 +1081,12 @@ export function ResultDashboard({
                         {result.inference_ms}ms
                       </span>
                     </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">平均置信度</span>
+                      <span className="font-mono text-white">
+                        {(averageConfidence * 100).toFixed(1)}%
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -922,6 +1111,12 @@ export function ResultDashboard({
                       <span className="text-slate-400">耗时</span>
                       <span className="font-mono text-white">
                         {comparisonResult.inference_ms}ms
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400">平均置信度</span>
+                      <span className="font-mono text-white">
+                        {(comparisonAverageConfidence * 100).toFixed(1)}%
                       </span>
                     </div>
                   </div>
@@ -964,6 +1159,88 @@ export function ResultDashboard({
                 </div>
               </div>
 
+              {instanceAlignment ? (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/[0.05] p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-200/70">
+                      实例级命中
+                    </p>
+                    <div className="mt-3 text-2xl font-mono text-white">
+                      {instanceAlignment.matched.length}
+                    </div>
+                    <p className="mt-2 text-xs text-slate-300">
+                      同类别且位置重叠的目标，代表两版结果在同一区域达成一致。
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-amber-500/15 bg-amber-500/[0.05] p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200/70">
+                      主模型独有
+                    </p>
+                    <div className="mt-3 text-2xl font-mono text-white">
+                      {instanceAlignment.primaryOnly.length}
+                    </div>
+                    <p className="mt-2 text-xs text-slate-300">
+                      这些目标未在对比模型中找到同位置匹配项，适合重点检查是否漏检。
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-sky-500/20 bg-sky-500/[0.06] p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-300/70">
+                      对比模型独有
+                    </p>
+                    <div className="mt-3 text-2xl font-mono text-white">
+                      {instanceAlignment.comparisonOnly.length}
+                    </div>
+                    <p className="mt-2 text-xs text-slate-300">
+                      这些目标是对比模型新增检出区域，适合结合原图做二次确认。
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="grid gap-3 xl:grid-cols-2">
+                <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
+                    主模型来源分布
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {sourceBreakdown.length > 0 ? (
+                      sourceBreakdown.map((item) => (
+                        <span
+                          key={item.label}
+                          className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-slate-200"
+                        >
+                          {item.label} {item.count}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-slate-500">当前结果未提供来源拆分。</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-sky-500/20 bg-sky-500/[0.05] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-sky-300/70">
+                    对比模型来源分布
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {comparisonSourceBreakdown.length > 0 ? (
+                      comparisonSourceBreakdown.map((item) => (
+                        <span
+                          key={item.label}
+                          className="rounded-full border border-sky-500/20 bg-sky-500/[0.08] px-3 py-1 text-xs text-sky-100"
+                        >
+                          {item.label} {item.count}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-slate-400">对比结果未提供来源拆分。</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 text-sm text-slate-300">
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -988,7 +1265,7 @@ export function ResultDashboard({
                   </div>
                 ) : null}
 
-                {showComparisonDetails ? (
+                    {showComparisonDetails ? (
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-lg bg-black/20 px-3 py-3">
                       <div className="text-xs text-slate-500">主模型长度/面积</div>
@@ -1002,6 +1279,18 @@ export function ResultDashboard({
                       <div className="mt-1 font-mono text-white">
                         {comparisonMetrics && comparisonMetrics.totalLength > 0 ? `${(comparisonMetrics.totalLength / 10).toFixed(1)}cm` : "--"} /{" "}
                         {comparisonMetrics && comparisonMetrics.totalArea > 0 ? `${(comparisonMetrics.totalArea / 100).toFixed(1)}cm²` : "--"}
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-black/20 px-3 py-3">
+                      <div className="text-xs text-slate-500">主模型类别覆盖</div>
+                      <div className="mt-1 font-mono text-white">
+                        {new Set(result.detections.map((item) => item.category)).size} 类
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-black/20 px-3 py-3">
+                      <div className="text-xs text-slate-500">对比模型类别覆盖</div>
+                      <div className="mt-1 font-mono text-white">
+                        {new Set(comparisonResult.detections.map((item) => item.category)).size} 类
                       </div>
                     </div>
                     {mainMetrics.totalLength > 0 && comparisonMetrics && comparisonMetrics.totalLength > 0 && (
@@ -1071,6 +1360,63 @@ export function ResultDashboard({
                         })}
                       </div>
                     </div>
+
+                    {instanceAlignment ? (
+                      <div className="rounded-lg border border-white/5 bg-black/20 px-3 py-3 text-sm text-slate-300 sm:col-span-2">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/45">
+                          实例级对齐
+                        </p>
+                        <p className="mt-2 text-xs text-slate-400">
+                          这里按“同类别 + 边界框 IoU≥0.3”判断是否是同一处病害，用来区分一致命中、主模型独有和对比模型独有。
+                        </p>
+                        <div className="mt-4 grid gap-3 xl:grid-cols-3">
+                          <div className="rounded-lg bg-emerald-500/[0.06] px-3 py-3">
+                            <div className="text-xs text-emerald-200/80">一致命中</div>
+                            <div className="mt-2 space-y-2">
+                              {instanceAlignment.matched.length > 0 ? (
+                                instanceAlignment.matched.slice(0, 4).map((pair) => (
+                                  <div key={`${pair.primary.id}-${pair.comparison.id}`} className="text-xs text-slate-100">
+                                    {getDefectLabel(pair.primary.category)} · IoU {(pair.iou * 100).toFixed(0)}%
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="text-xs text-slate-400">暂无一致命中</div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="rounded-lg bg-amber-500/[0.06] px-3 py-3">
+                            <div className="text-xs text-amber-200/80">主模型独有</div>
+                            <div className="mt-2 space-y-2">
+                              {instanceAlignment.primaryOnly.length > 0 ? (
+                                instanceAlignment.primaryOnly.slice(0, 4).map((item) => (
+                                  <div key={item.id} className="text-xs text-slate-100">
+                                    {getDefectLabel(item.category)} · {(item.confidence * 100).toFixed(1)}%
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="text-xs text-slate-400">无独有目标</div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="rounded-lg bg-sky-500/[0.06] px-3 py-3">
+                            <div className="text-xs text-sky-200/80">对比模型独有</div>
+                            <div className="mt-2 space-y-2">
+                              {instanceAlignment.comparisonOnly.length > 0 ? (
+                                instanceAlignment.comparisonOnly.slice(0, 4).map((item) => (
+                                  <div key={item.id} className="text-xs text-slate-100">
+                                    {getDefectLabel(item.category)} · {(item.confidence * 100).toFixed(1)}%
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="text-xs text-slate-400">无新增目标</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -1139,50 +1485,49 @@ export function ResultDashboard({
                 </div>
                 
                 <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-[10px] text-slate-400">
-                      <span>前处理 (I/O & Pre)</span>
-                      <span className="font-mono">{result.inference_breakdown.pre}ms</span>
-                    </div>
-                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden relative">
-                      <div 
-                        className="h-full bg-slate-500 transition-all duration-1000 relative overflow-hidden" 
-                        style={{ width: `${(result.inference_breakdown.pre / result.inference_ms) * 100}%` }} 
-                      >
-                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_4s_infinite]" />
-                      </div>
-                    </div>
-                  </div>
+                  {Object.entries(result.inference_breakdown).map(([key, value]) => {
+                    const tone = getBreakdownTone(key);
+                    const width = result.inference_ms > 0 ? (value / result.inference_ms) * 100 : 0;
 
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-[10px] text-[#00D2FF]">
-                      <span className="font-semibold">核心推理 (YOLO Engine)</span>
-                      <span className="font-mono">{result.inference_breakdown.model}ms</span>
-                    </div>
-                    <div className="h-1.5 w-full bg-[#00D2FF]/10 rounded-full overflow-hidden shadow-[0_0_10px_rgba(0,210,255,0.2)] relative">
-                      <div 
-                        className="h-full bg-gradient-to-r from-[#00D2FF] to-[#7FFFD4] transition-all duration-1000 relative overflow-hidden" 
-                        style={{ width: `${(result.inference_breakdown.model / result.inference_ms) * 100}%` }} 
-                      >
-                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                    return (
+                      <div key={key} className="space-y-1.5">
+                        <div
+                          className={`flex items-center justify-between text-[10px] ${
+                            tone === "accent" ? "text-[#00D2FF]" : "text-slate-400"
+                          }`}
+                        >
+                          <span className={tone === "accent" ? "font-semibold" : ""}>
+                            {formatBreakdownLabel(key)}
+                          </span>
+                          <span className="font-mono">{value}ms</span>
+                        </div>
+                        <div
+                          className={`w-full rounded-full overflow-hidden relative ${
+                            tone === "accent"
+                              ? "h-1.5 bg-[#00D2FF]/10 shadow-[0_0_10px_rgba(0,210,255,0.2)]"
+                              : "h-1 bg-white/5"
+                          }`}
+                        >
+                          <div
+                            className={`h-full transition-all duration-1000 relative overflow-hidden ${
+                              tone === "accent"
+                                ? "bg-gradient-to-r from-[#00D2FF] to-[#7FFFD4]"
+                                : "bg-slate-500"
+                            }`}
+                            style={{ width: `${width}%` }}
+                          >
+                            <div
+                              className={`absolute inset-0 bg-gradient-to-r ${
+                                tone === "accent"
+                                  ? "from-transparent via-white/20 to-transparent animate-[shimmer_2s_infinite]"
+                                  : "from-transparent via-white/5 to-transparent animate-[shimmer_4s_infinite]"
+                              } -translate-x-full`}
+                            />
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-[10px] text-slate-400">
-                      <span>后处理 (Metrics & Result Image)</span>
-                      <span className="font-mono">{result.inference_breakdown.post}ms</span>
-                    </div>
-                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden relative">
-                      <div 
-                        className="h-full bg-slate-500 transition-all duration-1000 relative overflow-hidden" 
-                        style={{ width: `${(result.inference_breakdown.post / result.inference_ms) * 100}%` }} 
-                      >
-                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_4s_infinite]" />
-                      </div>
-                    </div>
-                  </div>
+                    );
+                  })}
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-white/5">

@@ -35,6 +35,7 @@ def create_app() -> FastAPI:
     runner_manager = RunnerManager(
         registry=registry,
         allow_fallback=settings.allow_mock_fallback,
+        pixels_per_mm=settings.pixels_per_mm,
     )
 
     try:

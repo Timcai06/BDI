@@ -7,6 +7,7 @@ from typing import Any, Optional
 
 from app.adapters.base import ModelRunner
 from app.adapters.factory import load_runner_for_spec
+from app.adapters.fusion_runner import FusionRunner
 from app.adapters.registry import ModelRegistry, ModelSpec
 
 logger = logging.getLogger(__name__)
@@ -19,10 +20,12 @@ class RunnerManager:
         registry: ModelRegistry,
         allow_fallback: bool,
         max_cached_runners: int = 2,
+        pixels_per_mm: float = 10.0,
     ) -> None:
         self.registry = registry
         self.allow_fallback = allow_fallback
         self.max_cached_runners = max(1, max_cached_runners)
+        self.pixels_per_mm = pixels_per_mm
         self._runners: OrderedDict[str, ModelRunner] = OrderedDict()
         self.last_resolution: dict[str, Any] = {}
 
@@ -50,7 +53,7 @@ class RunnerManager:
             return spec, runner
 
         try:
-            runner = load_runner_for_spec(spec)
+            runner = self._load_runner(spec)
         except Exception as exc:
             if not self.allow_fallback or spec.runner_kind == "mock":
                 raise
@@ -76,7 +79,7 @@ class RunnerManager:
                 )
                 return spec, runner
 
-            runner = load_runner_for_spec(spec)
+            runner = self._load_runner(spec)
 
         try:
             runner.warmup()
@@ -94,6 +97,15 @@ class RunnerManager:
             load_ms=int((time.perf_counter() - start) * 1000),
         )
         return spec, runner
+
+    def _load_runner(self, spec: ModelSpec) -> ModelRunner:
+        if spec.runner_kind == "fusion":
+            return FusionRunner(
+                spec=spec,
+                registry=self.registry,
+                pixels_per_mm=self.pixels_per_mm,
+            )
+        return load_runner_for_spec(spec)
 
     def _resolve_spec(self, model_version: Optional[str]) -> ModelSpec:
         if model_version is None:

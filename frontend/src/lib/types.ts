@@ -38,6 +38,9 @@ export interface Detection {
   bbox: BoundingBox;
   mask?: DetectionMask | null;
   metrics: DetectionMetrics;
+  source_role?: string | null;
+  source_model_name?: string | null;
+  source_model_version?: string | null;
 }
 
 export interface Artifacts {
@@ -50,11 +53,7 @@ export interface PredictResponse {
   schema_version: string;
   image_id: string;
   inference_ms: number;
-  inference_breakdown?: {
-    pre: number;
-    model: number;
-    post: number;
-  };
+  inference_breakdown?: Record<string, number>;
   model_name: string;
   model_version: string;
   backend: string;
@@ -76,11 +75,7 @@ export interface PredictionHistoryItem {
   backend: string;
   inference_mode: string;
   inference_ms: number;
-  inference_breakdown?: {
-    pre: number;
-    model: number;
-    post: number;
-  };
+  inference_breakdown?: Record<string, number>;
   detection_count: number;
   has_masks: boolean;
   mask_detection_count: number;
@@ -100,6 +95,7 @@ export interface ModelCatalogItem {
   model_version: string;
   backend: string;
   supports_masks: boolean;
+  supports_overlay: boolean;
   supports_sliced_inference: boolean;
   is_active: boolean;
   is_available: boolean;

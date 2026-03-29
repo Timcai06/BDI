@@ -61,6 +61,46 @@ export interface DetectionCategoryDiffItem {
   delta: number;
 }
 
+export interface DetectionAlignmentPair {
+  primary: Detection;
+  comparison: Detection;
+  iou: number;
+}
+
+export interface DetectionAlignmentResult {
+  matched: DetectionAlignmentPair[];
+  primaryOnly: Detection[];
+  comparisonOnly: Detection[];
+}
+
+function getBoundingBoxIou(left: Detection["bbox"], right: Detection["bbox"]): number {
+  const leftX2 = left.x + left.width;
+  const leftY2 = left.y + left.height;
+  const rightX2 = right.x + right.width;
+  const rightY2 = right.y + right.height;
+
+  const interX1 = Math.max(left.x, right.x);
+  const interY1 = Math.max(left.y, right.y);
+  const interX2 = Math.min(leftX2, rightX2);
+  const interY2 = Math.min(leftY2, rightY2);
+
+  const interWidth = Math.max(0, interX2 - interX1);
+  const interHeight = Math.max(0, interY2 - interY1);
+  const intersection = interWidth * interHeight;
+  if (intersection <= 0) {
+    return 0;
+  }
+
+  const leftArea = Math.max(0, left.width) * Math.max(0, left.height);
+  const rightArea = Math.max(0, right.width) * Math.max(0, right.height);
+  const union = leftArea + rightArea - intersection;
+  if (union <= 0) {
+    return 0;
+  }
+
+  return intersection / union;
+}
+
 export function buildDetectionCategoryDiff(
   primary: PredictionResult,
   comparison: PredictionResult
@@ -87,6 +127,55 @@ export function buildDetectionCategoryDiff(
         delta: comparisonCount - primaryCount
       };
     });
+}
+
+export function alignDetectionsByInstance(
+  primary: Detection[],
+  comparison: Detection[],
+  iouThreshold: number = 0.3
+): DetectionAlignmentResult {
+  const matched: DetectionAlignmentPair[] = [];
+  const usedComparison = new Set<string>();
+
+  for (const primaryDetection of primary) {
+    let bestMatch: Detection | null = null;
+    let bestIou = 0;
+
+    for (const comparisonDetection of comparison) {
+      if (usedComparison.has(comparisonDetection.id)) {
+        continue;
+      }
+
+      if (normalizeCategory(primaryDetection.category) !== normalizeCategory(comparisonDetection.category)) {
+        continue;
+      }
+
+      const iou = getBoundingBoxIou(primaryDetection.bbox, comparisonDetection.bbox);
+      if (iou >= iouThreshold && iou > bestIou) {
+        bestMatch = comparisonDetection;
+        bestIou = iou;
+      }
+    }
+
+    if (bestMatch) {
+      matched.push({
+        primary: primaryDetection,
+        comparison: bestMatch,
+        iou: bestIou,
+      });
+      usedComparison.add(bestMatch.id);
+    }
+  }
+
+  const matchedPrimaryIds = new Set(matched.map((item) => item.primary.id));
+  const primaryOnly = primary.filter((item) => !matchedPrimaryIds.has(item.id));
+  const comparisonOnly = comparison.filter((item) => !usedComparison.has(item.id));
+
+  return {
+    matched,
+    primaryOnly,
+    comparisonOnly,
+  };
 }
 
 export function filterDetections(

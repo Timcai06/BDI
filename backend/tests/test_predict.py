@@ -181,7 +181,7 @@ def test_predict_returns_model_output_invalid_when_runner_output_is_bad() -> Non
     assert payload["error"]["code"] == "MODEL_OUTPUT_INVALID"
 
 
-def test_predict_rejects_overlay_for_model_without_mask_capability() -> None:
+def test_predict_rejects_overlay_for_model_without_overlay_capability() -> None:
     client = TestClient(create_app())
 
     class DummyRunner:
@@ -193,7 +193,7 @@ def test_predict_rejects_overlay_for_model_without_mask_capability() -> None:
             raise AssertionError("predict should not be called when capability check fails")
 
     spec = client.app.state.model_registry.get("mock-v1").model_copy(
-        update={"supports_masks": False}
+        update={"supports_overlay": False}
     )
     client.app.state.predict_service.runner_manager.resolve = lambda *_: (spec, DummyRunner())
 

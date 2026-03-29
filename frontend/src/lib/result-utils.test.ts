@@ -1,5 +1,6 @@
 import { demoResult } from "@/lib/mock-data";
 import {
+  alignDetectionsByInstance,
   buildDetectionCategoryDiff,
   filterDetections,
   formatConfidence,
@@ -60,5 +61,33 @@ describe("result-utils", () => {
         delta: -1
       }
     ]);
+  });
+
+  it("aligns matched detections by category and bbox overlap", () => {
+    const aligned = alignDetectionsByInstance(
+      demoResult.detections,
+      [
+        {
+          ...demoResult.detections[0],
+          id: "cmp-crack",
+          confidence: 0.89,
+        },
+        {
+          ...demoResult.detections[1],
+          id: "cmp-new-hole",
+          category: "hole",
+          bbox: { x: 700, y: 220, width: 80, height: 80 },
+        },
+      ],
+      0.3
+    );
+
+    expect(aligned.matched).toHaveLength(1);
+    expect(aligned.matched[0]?.primary.id).toBe("det-crack-001");
+    expect(aligned.matched[0]?.comparison.id).toBe("cmp-crack");
+    expect(aligned.primaryOnly).toHaveLength(1);
+    expect(aligned.primaryOnly[0]?.id).toBe("det-spall-002");
+    expect(aligned.comparisonOnly).toHaveLength(1);
+    expect(aligned.comparisonOnly[0]?.id).toBe("cmp-new-hole");
   });
 });

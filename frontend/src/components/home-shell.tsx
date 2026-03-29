@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  startTransition,
   useDeferredValue,
   useEffect,
   useState
@@ -75,7 +74,7 @@ export function HomeShell() {
   }, [selectedFile]);
 
   const [exportOverlay, setExportOverlay] = useState(true);
-  const [result, setResult] = useState<PredictionResult | null>(null);
+  const [result] = useState<PredictionResult | null>(null);
   const [comparisonResult, setComparisonResult] = useState<PredictionResult | null>(null);
   const [compareStatus, setCompareStatus] = useState<PredictState>({
     phase: "idle",
@@ -369,17 +368,18 @@ export function HomeShell() {
   const selectedModel =
     availableModels.find((model) => model.model_version === selectedModelVersion) ?? null;
   const selectedModelSupportsMasks = selectedModel?.supports_masks ?? true;
+  const selectedModelSupportsOverlay = selectedModel?.supports_overlay ?? true;
   const selectedModelSupportsSlicedInference =
     selectedModel?.supports_sliced_inference ?? false;
 
   useEffect(() => {
-    if (selectedModelSupportsMasks || !exportOverlay) {
+    if (selectedModelSupportsOverlay || !exportOverlay) {
       return;
     }
 
     setExportOverlay(false);
     pushActionNotice("模型能力提示", "当前模型不支持结果图导出，已自动关闭该选项。", "error");
-  }, [selectedModelSupportsMasks, exportOverlay, pushActionNotice]);
+  }, [selectedModelSupportsOverlay, exportOverlay, pushActionNotice]);
 
   async function handleRerunCurrentImage() {
     if (!selectedFile) {
@@ -431,12 +431,14 @@ export function HomeShell() {
       setUploadProgress(40);
       setStatus({
         phase: "running",
-        message: "正在请求后端执行 YOLOv8-seg 推理..."
+        message: `正在请求后端执行 ${
+          selectedModel ? formatModelLabel(selectedModel) : "当前模型"
+        } 推理...`
       });
 
       const prediction = await predictImage(selectedFile, {
         confidence,
-        exportOverlay: exportOverlay && selectedModelSupportsMasks,
+        exportOverlay: exportOverlay && selectedModelSupportsOverlay,
         modelVersion: selectedModelVersion,
         pixelsPerMm
       });
@@ -451,30 +453,14 @@ export function HomeShell() {
       setUploadProgress(100);
       setScanPhase("complete");
 
-      startTransition(() => {
-        setResult(prediction);
-        setComparisonResult(null);
-        setCategoryFilter("全部");
-        setSelectedDetectionId(prediction.detections[0]?.id ?? null);
-        setResultViewMode("image");
-      });
-      setCompareStatus({
-        phase: "idle",
-        message: "主结果已生成，可继续选择其他模型版本做快速对比。"
-      });
-
       void loadHistory({ forceFresh: true });
       setAnalysisModalOpen(false);
-
-      setStatus({
-        phase: "success",
-        message: `识别完成，已返回 ${prediction.detections.length} 条病害结果。`
-      });
       pushActionNotice(
         "识别完成",
         `${prediction.detections.length} 条病害结果已生成。`,
         "success"
       );
+      router.push(`/dashboard/history/${prediction.image_id}`);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "识别失败，请检查服务状态后重试。";
@@ -521,7 +507,7 @@ export function HomeShell() {
         selectedFile ?? (await getResultImageFile(result.image_id));
       const nextComparison = await predictImage(sourceFile, {
         confidence,
-        exportOverlay: exportOverlay && selectedModelSupportsMasks,
+        exportOverlay: exportOverlay && selectedModelSupportsOverlay,
         modelVersion: compareModelVersion,
         pixelsPerMm
       });

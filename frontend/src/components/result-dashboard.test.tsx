@@ -147,6 +147,8 @@ describe("ResultDashboard", () => {
     fireEvent.click(screen.getByRole("button", { name: "展开明细" }));
     expect(screen.getByText("病害差异")).toBeInTheDocument();
     expect(screen.getByText("主模型更多")).toBeInTheDocument();
+    expect(screen.getAllByText("命中").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("主模型独有").length).toBeGreaterThan(0);
     expect(screen.getAllByText(/v1-demo/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/mock-v2/i).length).toBeGreaterThan(0);
   });
@@ -165,6 +167,7 @@ describe("ResultDashboard", () => {
       expect.objectContaining({ id: "det-crack-001" })
     );
     expect(screen.getByText("优先查看")).toBeInTheDocument();
+    expect(screen.getAllByText("通用模型").length).toBeGreaterThan(0);
   });
 
   it("shows generate report action in cached diagnosis mode when no saved report exists", async () => {

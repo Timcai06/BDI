@@ -4,7 +4,7 @@ export const demoResult: PredictionResult = {
   schema_version: "1.0.0",
   image_id: "bridge-deck-demo.jpg",
   inference_ms: 284,
-  model_name: "yolov8-seg",
+  model_name: "桥梁病害分割演示模型",
   model_version: "v1-demo",
   backend: "mock",
   inference_mode: "direct",
@@ -32,7 +32,10 @@ export const demoResult: PredictionResult = {
         length_mm: 326.4,
         width_mm: 4.8,
         area_mm2: 1472.3
-      }
+      },
+      source_role: "general",
+      source_model_name: "桥梁病害分割演示模型",
+      source_model_version: "v1-demo"
     },
     {
       id: "det-spall-002",
@@ -54,7 +57,10 @@ export const demoResult: PredictionResult = {
         length_mm: null,
         width_mm: null,
         area_mm2: 8294.2
-      }
+      },
+      source_role: "general",
+      source_model_name: "桥梁病害分割演示模型",
+      source_model_version: "v1-demo"
     }
   ],
   artifacts: {
@@ -68,19 +74,21 @@ export const demoModelCatalog: ModelCatalogResponse = {
   active_version: "v1-demo",
   items: [
     {
-      model_name: "yolov8-seg",
+      model_name: "桥梁病害分割演示模型",
       model_version: "v1-demo",
       backend: "mock",
       supports_masks: true,
+      supports_overlay: true,
       supports_sliced_inference: true,
       is_active: true,
       is_available: true
     },
     {
-      model_name: "yolov8-seg",
+      model_name: "桥梁病害快速演示模型",
       model_version: "mock-v2",
       backend: "mock",
       supports_masks: true,
+      supports_overlay: true,
       supports_sliced_inference: false,
       is_active: false,
       is_available: true

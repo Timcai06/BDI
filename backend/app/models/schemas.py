@@ -42,6 +42,9 @@ class Detection(BaseModel):
     bbox: BoundingBox
     mask: Optional[MaskPayload] = None
     metrics: DetectionMetrics = Field(default_factory=DetectionMetrics)
+    source_role: Optional[str] = None
+    source_model_name: Optional[str] = None
+    source_model_version: Optional[str] = None
 
     @field_validator("category", mode="before")
     @classmethod
@@ -130,6 +133,7 @@ class ModelCatalogItem(BaseModel):
     model_version: str
     backend: str
     supports_masks: bool = True
+    supports_overlay: bool = True
     supports_sliced_inference: bool = False
     is_active: bool = False
     is_available: bool = True
@@ -153,6 +157,9 @@ class RawDetection(BaseModel):
     bbox: BoundingBox
     mask: Optional[MaskPayload] = None
     metrics: DetectionMetrics = Field(default_factory=DetectionMetrics)
+    source_role: Optional[str] = None
+    source_model_name: Optional[str] = None
+    source_model_version: Optional[str] = None
 
     @field_validator("category", mode="before")
     @classmethod

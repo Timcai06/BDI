@@ -17,6 +17,12 @@ ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 ALLOWED_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 
 
+def _format_metric(value: float | None, unit: str) -> str:
+    if value is None:
+        return "n/a"
+    return f"{value:.2f}{unit}"
+
+
 def classify_runtime_error(exc: Exception) -> tuple[str, str, int]:
     if isinstance(exc, TimeoutError):
         return (
@@ -126,14 +132,14 @@ class PredictService:
                 details={"model_version": options.model_version},
             ) from exc
 
-        if options.return_overlay and not model_spec.supports_masks:
+        if options.return_overlay and not model_spec.supports_overlay:
             raise AppError(
                 code="MODEL_CAPABILITY_UNSUPPORTED",
                 message="Selected model does not support overlay output.",
                 status_code=status.HTTP_400_BAD_REQUEST,
                 details={
                     "model_version": model_spec.model_version,
-                    "capability": "supports_masks",
+                    "capability": "supports_overlay",
                 },
             )
 
@@ -209,6 +215,9 @@ class PredictService:
                     bbox=item.bbox,
                     mask=item.mask,
                     metrics=item.metrics,
+                    source_role=item.source_role,
+                    source_model_name=item.source_model_name,
+                    source_model_version=item.source_model_version,
                 )
                 for index, item in enumerate(raw_prediction.detections)
             ],
@@ -216,6 +225,40 @@ class PredictService:
         )
         response.mask_detection_count = sum(1 for item in response.detections if item.mask is not None)
         response.has_masks = response.mask_detection_count > 0
+        measured_detections = [
+            detection
+            for detection in response.detections
+            if any(
+                metric is not None
+                for metric in (
+                    detection.metrics.length_mm,
+                    detection.metrics.width_mm,
+                    detection.metrics.area_mm2,
+                )
+            )
+        ]
+
+        logger.info(
+            "Physical metrics summary: image=%s pixels_per_mm=%.4f measured=%d/%d",
+            file.filename,
+            normalized_options.pixels_per_mm,
+            len(measured_detections),
+            len(response.detections),
+        )
+        for detection in measured_detections:
+            logger.info(
+                (
+                    "Detection metrics: image=%s detection=%s category=%s confidence=%.3f "
+                    "length_mm=%s width_mm=%s area_mm2=%s"
+                ),
+                file.filename,
+                detection.id,
+                detection.category,
+                detection.confidence,
+                _format_metric(detection.metrics.length_mm, "mm"),
+                _format_metric(detection.metrics.width_mm, "mm"),
+                _format_metric(detection.metrics.area_mm2, "mm2"),
+            )
 
         if normalized_options.return_overlay and raw_prediction.overlay_png:
             overlay_path = self.store.save_overlay(
