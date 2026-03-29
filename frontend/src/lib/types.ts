@@ -106,6 +106,13 @@ export interface ModelCatalogResponse {
   items: ModelCatalogItem[];
 }
 
+export interface DiagnosisResponse {
+  image_id: string;
+  exists: boolean;
+  content: string | null;
+  generated_at: string | null;
+}
+
 export interface ApiError {
   error: {
     code: string;
