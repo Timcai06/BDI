@@ -115,7 +115,7 @@ class ModelRegistry(BaseModel):
 
     @staticmethod
     def _build_primary_spec(settings: Settings) -> ModelSpec:
-        return ModelSpec(
+        return ModelRegistry._build_spec(
             model_name=settings.model_name,
             model_version=settings.model_version,
             backend=settings.model_backend,
@@ -134,7 +134,7 @@ class ModelRegistry(BaseModel):
         if runner_kind is None:
             runner_kind = "mock" if configured_model.backend == "mock" else "ultralytics"
 
-        return ModelSpec(
+        return ModelRegistry._build_spec(
             model_name=configured_model.model_name or settings.model_name,
             model_version=configured_model.model_version,
             backend=configured_model.backend or settings.model_backend,
@@ -148,4 +148,37 @@ class ModelRegistry(BaseModel):
             primary_model_version=configured_model.primary_model_version,
             specialist_model_version=configured_model.specialist_model_version,
             specialist_categories=configured_model.specialist_categories,
+        )
+
+    @staticmethod
+    def _build_spec(
+        *,
+        model_name: str,
+        model_version: str,
+        backend: str,
+        runner_kind: Literal["mock", "ultralytics", "fusion"],
+        weights_path: Optional[Path] = None,
+        device: str = "cpu",
+        imgsz: int = 1280,
+        supports_masks: bool = True,
+        supports_overlay: bool = True,
+        supports_sliced_inference: bool = False,
+        primary_model_version: Optional[str] = None,
+        specialist_model_version: Optional[str] = None,
+        specialist_categories: Optional[List[str]] = None,
+    ) -> ModelSpec:
+        return ModelSpec(
+            model_name=model_name,
+            model_version=model_version,
+            backend=backend,
+            runner_kind=runner_kind,
+            weights_path=weights_path,
+            device=device,
+            imgsz=imgsz,
+            supports_masks=supports_masks,
+            supports_overlay=supports_overlay,
+            supports_sliced_inference=supports_sliced_inference,
+            primary_model_version=primary_model_version,
+            specialist_model_version=specialist_model_version,
+            specialist_categories=specialist_categories or [],
         )

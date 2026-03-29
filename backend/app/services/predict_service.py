@@ -3,12 +3,15 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
+from typing import Tuple
 
 from fastapi import UploadFile, status
 
 from app.adapters.manager import RunnerManager
+from app.adapters.base import ModelRunner
+from app.adapters.registry import ModelSpec
 from app.core.errors import AppError
-from app.models.schemas import ArtifactLinks, Detection, PredictOptions, PredictResponse
+from app.models.schemas import ArtifactLinks, Detection, PredictOptions, PredictResponse, RawPrediction
 from app.storage.local import LocalArtifactStore
 
 logger = logging.getLogger(__name__)
@@ -58,6 +61,38 @@ class PredictService:
         self.max_upload_size_bytes = max_upload_size_bytes
 
     async def predict(self, *, file: UploadFile, options: PredictOptions) -> PredictResponse:
+        content = await self._read_upload(file)
+        image_id, upload_path = self._persist_upload(file=file, content=content)
+        model_spec, runner = self._resolve_runner(options.model_version)
+        self._validate_model_capabilities(model_spec=model_spec, options=options)
+        normalized_options = options.model_copy(update={"model_version": model_spec.model_version})
+
+        raw_prediction = await self._run_prediction(
+            file=file,
+            content=content,
+            model_spec=model_spec,
+            runner=runner,
+            options=normalized_options,
+        )
+        response = self._build_response(
+            image_id=image_id,
+            upload_path=upload_path,
+            raw_prediction=raw_prediction,
+        )
+        self._log_detection_metrics(
+            file=file,
+            options=normalized_options,
+            response=response,
+        )
+        self._persist_prediction_artifacts(
+            image_id=image_id,
+            options=normalized_options,
+            raw_prediction=raw_prediction,
+            response=response,
+        )
+        return response
+
+    async def _read_upload(self, file: UploadFile) -> bytes:
         if not file.filename:
             raise AppError(
                 code="MISSING_FILENAME",
@@ -101,19 +136,23 @@ class PredictService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 details={"max_upload_size_bytes": self.max_upload_size_bytes},
             )
+        return content
 
+    def _persist_upload(self, *, file: UploadFile, content: bytes) -> Tuple[str, str]:
         image_id = self.store.build_image_id(file.filename)
         upload_path = self.store.save_upload(image_id=image_id, content=content)
+        return image_id, upload_path
 
+    def _resolve_runner(self, model_version: str | None) -> tuple[ModelSpec, ModelRunner]:
         try:
-            model_spec, runner = self.runner_manager.resolve(options.model_version)
+            return self.runner_manager.resolve(model_version)
         except KeyError as exc:
-            logger.warning("Unknown model version requested: %s", options.model_version)
+            logger.warning("Unknown model version requested: %s", model_version)
             raise AppError(
                 code="UNKNOWN_MODEL_VERSION",
                 message="Requested model version is not registered.",
                 status_code=status.HTTP_400_BAD_REQUEST,
-                details={"model_version": options.model_version},
+                details={"model_version": model_version},
             ) from exc
         except (ImportError, ModuleNotFoundError) as exc:
             logger.warning("Model load failed: %s", exc)
@@ -121,17 +160,23 @@ class PredictService:
                 code="MODEL_LOAD_FAILED",
                 message="Model dependencies are missing or failed to load.",
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                details={"model_version": options.model_version, "reason": str(exc)},
+                details={"model_version": model_version, "reason": str(exc)},
             ) from exc
         except RuntimeError as exc:
-            logger.warning("Model unavailable: %s – %s", options.model_version, exc)
+            logger.warning("Model unavailable: %s – %s", model_version, exc)
             raise AppError(
                 code="MODEL_UNAVAILABLE",
                 message=str(exc),
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                details={"model_version": options.model_version},
+                details={"model_version": model_version},
             ) from exc
 
+    def _validate_model_capabilities(
+        self,
+        *,
+        model_spec: ModelSpec,
+        options: PredictOptions,
+    ) -> None:
         if options.return_overlay and not model_spec.supports_overlay:
             raise AppError(
                 code="MODEL_CAPABILITY_UNSUPPORTED",
@@ -154,8 +199,15 @@ class PredictService:
                 },
             )
 
-        normalized_options = options.model_copy(update={"model_version": model_spec.model_version})
-
+    async def _run_prediction(
+        self,
+        *,
+        file: UploadFile,
+        content: bytes,
+        model_spec: ModelSpec,
+        runner: ModelRunner,
+        options: PredictOptions,
+    ) -> RawPrediction:
         logger.info(
             "Starting inference: image=%s model=%s:%s",
             file.filename,
@@ -170,7 +222,7 @@ class PredictService:
                 lambda: runner.predict(
                     image_bytes=content,
                     image_name=file.filename,
-                    options=normalized_options,
+                    options=options,
                 ),
             )
         except Exception as exc:
@@ -198,7 +250,15 @@ class PredictService:
             raw_prediction.inference_ms,
             len(raw_prediction.detections),
         )
+        return raw_prediction
 
+    def _build_response(
+        self,
+        *,
+        image_id: str,
+        upload_path: str,
+        raw_prediction: RawPrediction,
+    ) -> PredictResponse:
         response = PredictResponse(
             image_id=image_id,
             inference_ms=raw_prediction.inference_ms,
@@ -225,6 +285,15 @@ class PredictService:
         )
         response.mask_detection_count = sum(1 for item in response.detections if item.mask is not None)
         response.has_masks = response.mask_detection_count > 0
+        return response
+
+    def _log_detection_metrics(
+        self,
+        *,
+        file: UploadFile,
+        options: PredictOptions,
+        response: PredictResponse,
+    ) -> None:
         measured_detections = [
             detection
             for detection in response.detections
@@ -241,7 +310,7 @@ class PredictService:
         logger.info(
             "Physical metrics summary: image=%s pixels_per_mm=%.4f measured=%d/%d",
             file.filename,
-            normalized_options.pixels_per_mm,
+            options.pixels_per_mm,
             len(measured_detections),
             len(response.detections),
         )
@@ -260,7 +329,15 @@ class PredictService:
                 _format_metric(detection.metrics.area_mm2, "mm2"),
             )
 
-        if normalized_options.return_overlay and raw_prediction.overlay_png:
+    def _persist_prediction_artifacts(
+        self,
+        *,
+        image_id: str,
+        options: PredictOptions,
+        raw_prediction: RawPrediction,
+        response: PredictResponse,
+    ) -> None:
+        if options.return_overlay and raw_prediction.overlay_png:
             overlay_path = self.store.save_overlay(
                 image_id=image_id,
                 content=raw_prediction.overlay_png,
@@ -272,4 +349,3 @@ class PredictService:
             payload=response.model_dump(mode="json"),
         )
         response.artifacts.json_path = json_path
-        return response

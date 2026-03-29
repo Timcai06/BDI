@@ -125,25 +125,13 @@ class ResultService:
 
         with ZipFile(archive, mode="w", compression=ZIP_DEFLATED) as zip_file:
             for image_id in image_ids:
-                if asset_type == "json":
-                    payload = self.store.load_result(image_id=image_id)
-                    if payload is None:
-                        skipped_count += 1
-                        continue
-
-                    normalized_payload = PredictResponse.model_validate(payload).model_dump_json(
-                        indent=2
-                    )
-                    zip_file.writestr(f"{image_id}.json", normalized_payload)
-                    exported_count += 1
-                    continue
-
-                source_path = self.store.overlay_path(image_id)
-                if not source_path.exists():
+                export_item = self._resolve_export_item(image_id=image_id, asset_type=asset_type)
+                if export_item is None:
                     skipped_count += 1
                     continue
 
-                zip_file.writestr(source_path.name, source_path.read_bytes())
+                filename, content = export_item
+                zip_file.writestr(filename, content)
                 exported_count += 1
 
         if exported_count == 0:
@@ -161,6 +149,19 @@ class ResultService:
         timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
         filename = f"history-{asset_type}-export-{timestamp}.zip"
         return archive.getvalue(), filename, exported_count, skipped_count
+
+    def _resolve_export_item(self, *, image_id: str, asset_type: str) -> tuple[str, str | bytes] | None:
+        if asset_type == "json":
+            payload = self.store.load_result(image_id=image_id)
+            if payload is None:
+                return None
+            normalized_payload = PredictResponse.model_validate(payload).model_dump_json(indent=2)
+            return f"{image_id}.json", normalized_payload
+
+        source_path = self.store.overlay_path(image_id)
+        if not source_path.exists():
+            return None
+        return source_path.name, source_path.read_bytes()
 
     def _build_summary(self, result: PredictResponse) -> ResultSummary:
         return ResultSummary(

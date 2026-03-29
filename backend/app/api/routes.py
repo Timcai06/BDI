@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import FileResponse, Response
 
+from app.core.runtime_state import refresh_runtime_state
 from app.models.schemas import (
     BatchDeleteResultsRequest,
     BatchDeleteResultsResponse,
@@ -29,26 +29,39 @@ def _refresh_runtime_state(request: Request):
     try:
         spec, runner = predict_service.runner_manager.resolve()
         resolution = getattr(predict_service.runner_manager, "last_resolution", {})
-        details = {}
-        if hasattr(runner, "health_check"):
-            details = runner.health_check()
-
-        changed = runtime_state.active_model_version != spec.model_version
-        runtime_state.active_model_version = spec.model_version
-        runtime_state.active_runner = f"{runner.name}:{spec.model_version}"
-        runtime_state.active_backend = spec.backend
-        runtime_state.ready = runner.ready
-        runtime_state.details = details
-        runtime_state.fallback_from = resolution.get("fallback_from")
-        runtime_state.last_load_ms = resolution.get("load_ms")
-        runtime_state.cache_hit = resolution.get("cache_hit")
-        if changed:
-            runtime_state.last_transition_at = datetime.now(timezone.utc).isoformat()
-        runtime_state.last_error = None
+        refresh_runtime_state(
+            runtime_state=runtime_state,
+            spec=spec,
+            runner=runner,
+            resolution=resolution,
+        )
     except Exception as exc:
         runtime_state.last_error = str(exc)
 
     return runtime_state
+
+
+def _build_export_response(
+    request: Request,
+    *,
+    image_ids: list[str],
+    asset_type: str,
+) -> Response:
+    content, filename, exported_count, skipped_count = (
+        request.app.state.result_service.export_results_archive(
+            image_ids=image_ids,
+            asset_type=asset_type,
+        )
+    )
+    return Response(
+        content=content,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Exported-Count": str(exported_count),
+            "X-Skipped-Count": str(skipped_count),
+        },
+    )
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -162,18 +175,10 @@ async def batch_export_result_json(
     request: Request,
     payload: BatchDeleteResultsRequest,
 ) -> Response:
-    content, filename, exported_count, skipped_count = request.app.state.result_service.export_results_archive(
+    return _build_export_response(
+        request,
         image_ids=payload.image_ids,
         asset_type="json",
-    )
-    return Response(
-        content=content,
-        media_type="application/zip",
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
-            "X-Exported-Count": str(exported_count),
-            "X-Skipped-Count": str(skipped_count),
-        },
     )
 
 
@@ -182,18 +187,10 @@ async def batch_export_result_overlay(
     request: Request,
     payload: BatchDeleteResultsRequest,
 ) -> Response:
-    content, filename, exported_count, skipped_count = request.app.state.result_service.export_results_archive(
+    return _build_export_response(
+        request,
         image_ids=payload.image_ids,
         asset_type="overlay",
-    )
-    return Response(
-        content=content,
-        media_type="application/zip",
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
-            "X-Exported-Count": str(exported_count),
-            "X-Skipped-Count": str(skipped_count),
-        },
     )
 
 
