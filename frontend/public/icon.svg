@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="BDI icon">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00d2ff"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="24" fill="#070b12"/>
+  <rect x="12" y="12" width="104" height="104" rx="20" fill="none" stroke="url(#g)" stroke-width="4"/>
+  <path d="M38 34h22c14 0 24 10 24 24s-10 24-24 24H38zM52 48v20h7c6 0 11-4 11-10s-5-10-11-10z" fill="url(#g)"/>
+  <path d="M90 36h8v56h-8z" fill="#93c5fd"/>
+</svg>

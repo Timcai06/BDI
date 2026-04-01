@@ -14,6 +14,7 @@ export const viewport: Viewport = {
 
 // 元数据配置
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
   title: {
     default: "BDI Nexus | 桥梁病害智能判读系统",
     template: "%s | BDI Nexus"
@@ -70,13 +71,7 @@ export const metadata: Metadata = {
 
   // 图标
   icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon.svg", type: "image/svg+xml" },
-    ],
-    apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180" },
-    ],
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
   },
 
   // 其他
