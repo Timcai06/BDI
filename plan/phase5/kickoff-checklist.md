@@ -1,43 +1,58 @@
 # Phase 5 开工清单
 
-> **阶段核心目标**: 算法降维打击与服务闭环。详见同目录下的 `overall-goals.md` (赛题冲刺策略)。
+> 阶段核心目标：把项目从单图识别 demo 转到可支撑真实巡检业务流程的系统原型。
 
 ## 开工确认
 
-- [x] `Phase 4` 多模型对比与骨架基础已通过验证
-- [x] 前端 Dashboard 组件重构完成，流体美学极客风格规范统一
-- [x] 确定选用的大模型 API 平台及计费方式 (已集成 OpenCode Kimi K2.5)
+- [x] `Phase 4` 多模型骨架与双模型融合路径已建立
+- [x] 单图识别、结果展示、历史查看和导出能力已落地
+- [x] 已确认下一阶段主语切换为 `batch workflow`
+- [x] 已确认正式系统目标数据库为 `PostgreSQL`，本地开发兼容 `SQLite`
 
-## 智能分析引擎 (LLM 接入)
+## 后端领域模型
 
-- [x] 申请外部 LLM API Key 并通过本地开发环境验证
-- [x] 后端增加 `/results/{image_id}/diagnosis` AI 专家分析流式接口
-- [x] 根据 YOLO 输出信息动态生成诊断 Prompt (含类别、长度、面积等)
-- [x] 实现 LLM 文本流式返回 (Streaming) 
-- [x] 前端 `result-dashboard.tsx` 侧边栏增加大模型诊断展示区
-- [x] 前端实现类似打字机的流式文本渲染与科技感 UI 包装
+- [x] 明确 `bridges` 表结构
+- [x] 明确 `inspection_batches` 表结构
+- [x] 明确 `media_assets` 表结构
+- [x] 明确 `batch_items` 表结构
+- [x] 明确 `inference_tasks` 表结构
+- [x] 明确 `inference_results` 表结构
+- [x] 明确 `detections` 表结构
+- [x] 明确 `review_records` 表结构
+- [x] 明确 `alert_events` 表结构
 
-## 赛题硬骨头啃取：像素量化与抗干扰
+## API 与任务流转
 
-- [x] 增加 `pixel_to_mm_ratio` (GSD) 转换参数的前后端流转机制
-- [x] 后端支持通过 OpenCV/MetricsCalculator 获取分割多边形的实际长度和宽度，乘以转换系数
-- [x] 前端增设交互式调参控件：动态修改相机的物理换算比例，实时刷新物理计算结果
-- [ ] 前后端协作实现类似“病害面积与检测面积占比”估算逻辑
-- [ ] **可视化加分**：降低拦截阈值返回“干扰项”（如接缝/树叶），并在图上用低亮度/半透明标注，标明为“已过滤干扰项”
+- [x] 明确 `/api/v1/bridges` 相关接口
+- [x] 明确 `/api/v1/batches` 相关接口
+- [x] 明确 `/api/v1/tasks` 相关接口
+- [x] 明确 `/api/v1/batch-items` 相关接口
+- [x] 明确 `/api/v1/detections` 相关接口
+- [x] 明确 `/api/v1/reviews` 相关接口
+- [x] 明确 `/api/v1/alerts` 相关接口
+- [x] 明确批次、任务、结果状态流转
+- [x] 明确预警状态流转
 
-## 性能展现与数据可视化
+## 数据与执行层
 
-- [x] 修改 FastAPI 数据结构：拆分 `inference_ms` 为前处理、模型执行、后处理三个维度
-- [x] 前后端联动，在性能面板中显式证明单帧处理能够符合 `< 200ms` 要求
+- [x] 引入数据库层与 ORM
+- [x] 实现图片批次上传后的自动入队
+- [x] 实现本地 worker 轮询与任务锁定
+- [x] 实现识别结果与检测记录事务落库
+- [x] 实现失败任务重试机制
+- [x] 实现批次聚合统计
 
-## 工程闭环：一键汇报系统
+## 前端业务化改造
 
-- [ ] 调研并引入前端文档生成方案（如 html2pdf / jsPDF / window.print() 优化）
-- [ ] 增加【生成专家检验报告】核心按钮入口
-- [ ] 编写专用于打印输出格式排版的页面样式（合并原图、掩膜叠层、LLM 智能鉴定语、数据表格）
+- [x] 明确批次列表页结构
+- [x] 明确批次详情页结构
+- [x] 明确单张图片详情页结构
+- [x] 明确病害检索与预警页结构
+- [x] 明确人工复核交互路径
 
 ## 文档同步
 
-- [ ] `AGENTS/04-memory/009-progress.md` 标记 Phase 5 开启
-- [ ] `README.md` 更新 Phase 5 阶段目标并突出赛道战略特点
-- [ ] `plan/README.md` 指向 Phase 5
+- [x] `AGENTS/03-execution/008-implementation-plan.md` 同步新阶段目标
+- [x] `AGENTS/04-memory/009-progress.md` 同步当前重点转为业务流程系统化
+- [x] `AGENTS/00-entry/AGENTS.md` 同步当前判断与阶段重点
+- [x] `plan/README.md` 已改为新的 Phase 5 定位

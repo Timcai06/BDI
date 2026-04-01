@@ -62,6 +62,15 @@ class Settings(BaseModel):
     llm_api_key: Optional[str] = None
     llm_base_url: str = "https://api.openai.com/v1"
     llm_model_name: str = "gpt-3.5-turbo"
+    database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/bdi"
+    database_echo: bool = False
+    task_worker_enabled: bool = False
+    task_worker_interval_seconds: float = 1.0
+    task_max_attempts: int = 3
+    alert_auto_enabled: bool = True
+    alert_count_threshold: int = 3
+    alert_category_watchlist: list[str] = Field(default_factory=lambda: ["seepage"])
+    alert_category_confidence_threshold: float = 0.8
 
 
 def _env_flag(name: str, default: str) -> bool:
@@ -97,6 +106,14 @@ def _load_cors_origins(raw_value: str | None) -> list[str]:
     ]
 
 
+def _load_category_watchlist(raw_value: str | None) -> list[str]:
+    if raw_value:
+        items = [normalize_defect_category(item.strip()) for item in raw_value.split(",") if item.strip()]
+        if items:
+            return items
+    return ["seepage"]
+
+
 def get_settings() -> Settings:
     cors_origins = os.getenv("BDI_CORS_ALLOW_ORIGINS")
     artifact_root = os.getenv("BDI_ARTIFACT_ROOT")
@@ -123,4 +140,18 @@ def get_settings() -> Settings:
         llm_api_key=os.getenv("BDI_LLM_API_KEY"),
         llm_base_url=os.getenv("BDI_LLM_BASE_URL", "https://api.openai.com/v1"),
         llm_model_name=os.getenv("BDI_LLM_MODEL_NAME", "gpt-3.5-turbo"),
+        database_url=os.getenv(
+            "BDI_DATABASE_URL",
+            "postgresql+psycopg://postgres:postgres@localhost:5432/bdi",
+        ),
+        database_echo=_env_flag("BDI_DATABASE_ECHO", "false"),
+        task_worker_enabled=_env_flag("BDI_TASK_WORKER_ENABLED", "false"),
+        task_worker_interval_seconds=float(os.getenv("BDI_TASK_WORKER_INTERVAL_SECONDS", "1.0")),
+        task_max_attempts=int(os.getenv("BDI_TASK_MAX_ATTEMPTS", "3")),
+        alert_auto_enabled=_env_flag("BDI_ALERT_AUTO_ENABLED", "true"),
+        alert_count_threshold=int(os.getenv("BDI_ALERT_COUNT_THRESHOLD", "3")),
+        alert_category_watchlist=_load_category_watchlist(os.getenv("BDI_ALERT_CATEGORY_WATCHLIST")),
+        alert_category_confidence_threshold=float(
+            os.getenv("BDI_ALERT_CATEGORY_CONFIDENCE_THRESHOLD", "0.8")
+        ),
     )

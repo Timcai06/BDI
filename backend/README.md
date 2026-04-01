@@ -20,6 +20,29 @@ python3 -m pip install -r requirements-dev.txt
 uvicorn app.main:app --reload
 ```
 
+## 数据库（Phase 5）
+
+后端已接入 `PostgreSQL + SQLAlchemy + Alembic` 基础骨架，后续批次任务系统将以数据库为主存储结构化数据。
+
+常用命令：
+
+```bash
+alembic revision --autogenerate -m "init phase5 schema"
+alembic upgrade head
+```
+
+关键环境变量：
+
+- `BDI_DATABASE_URL`（示例：`postgresql+psycopg://postgres:postgres@localhost:5432/bdi`）
+- `BDI_DATABASE_ECHO`（`true/false`）
+- `BDI_TASK_WORKER_ENABLED`（`true/false`）
+- `BDI_TASK_WORKER_INTERVAL_SECONDS`（默认 `1.0`）
+- `BDI_TASK_MAX_ATTEMPTS`（单个批次项最大尝试次数，默认 `3`）
+- `BDI_ALERT_AUTO_ENABLED`（是否启用识别后自动预警，默认 `true`）
+- `BDI_ALERT_COUNT_THRESHOLD`（单图病害数阈值，默认 `3`）
+- `BDI_ALERT_CATEGORY_WATCHLIST`（重点病害类别，逗号分隔，默认 `seepage`）
+- `BDI_ALERT_CATEGORY_CONFIDENCE_THRESHOLD`（重点病害置信度阈值，默认 `0.8`）
+
 ## 当前接口
 
 - `GET /health`
@@ -30,6 +53,26 @@ uvicorn app.main:app --reload
 - `GET /results/{image_id}/overlay`
 - `GET /results/{image_id}/image`
 - `DELETE /results/{image_id}`
+- `POST /api/v1/bridges`
+- `GET /api/v1/bridges`
+- `GET /api/v1/bridges/{bridge_id}`
+- `POST /api/v1/batches`
+- `GET /api/v1/batches`
+- `GET /api/v1/batches/{batch_id}`
+- `POST /api/v1/batches/{batch_id}/items`
+- `GET /api/v1/batches/{batch_id}/items`
+- `GET /api/v1/batches/{batch_id}/stats`
+- `GET /api/v1/batch-items/{batch_item_id}`
+- `GET /api/v1/batch-items/{batch_item_id}/result`
+- `GET /api/v1/tasks/{task_id}`
+- `POST /api/v1/tasks/process-next`
+- `POST /api/v1/tasks/{task_id}/retry`
+- `GET /api/v1/detections`
+- `POST /api/v1/reviews`
+- `GET /api/v1/reviews`
+- `POST /api/v1/alerts`
+- `GET /api/v1/alerts`
+- `POST /api/v1/alerts/{alert_id}/status`
 
 ## 当前状态
 
@@ -41,7 +84,7 @@ uvicorn app.main:app --reload
 
 - `GET /health` 可返回 `200`
 - `POST /predict` mock 路径测试通过
-- `pytest` 17/17 通过
+- `pytest` Phase 5 核心后端测试 19 通过，1 跳过（未配置集成 PostgreSQL）
 - `ruff check .` 通过
 - `.venv-yolo` 中 `ultralytics + torch` 可正常导入
 - 真实 `YOLOv8-seg` 单图推理链路已完成联调验证

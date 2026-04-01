@@ -11,6 +11,15 @@ def test_get_settings_parses_boolean_and_path_flags(monkeypatch) -> None:
     monkeypatch.setenv("BDI_MODEL_SUPPORTS_OVERLAY", "yes")
     monkeypatch.setenv("BDI_MODEL_SUPPORTS_SLICED_INFERENCE", "1")
     monkeypatch.setenv("BDI_ALLOW_MOCK_FALLBACK", "0")
+    monkeypatch.setenv("BDI_DATABASE_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/bdi_test")
+    monkeypatch.setenv("BDI_DATABASE_ECHO", "yes")
+    monkeypatch.setenv("BDI_TASK_WORKER_ENABLED", "true")
+    monkeypatch.setenv("BDI_TASK_WORKER_INTERVAL_SECONDS", "2.5")
+    monkeypatch.setenv("BDI_TASK_MAX_ATTEMPTS", "5")
+    monkeypatch.setenv("BDI_ALERT_AUTO_ENABLED", "1")
+    monkeypatch.setenv("BDI_ALERT_COUNT_THRESHOLD", "4")
+    monkeypatch.setenv("BDI_ALERT_CATEGORY_WATCHLIST", "渗水, crack")
+    monkeypatch.setenv("BDI_ALERT_CATEGORY_CONFIDENCE_THRESHOLD", "0.9")
 
     settings = get_settings()
 
@@ -19,6 +28,15 @@ def test_get_settings_parses_boolean_and_path_flags(monkeypatch) -> None:
     assert settings.model_supports_overlay is True
     assert settings.model_supports_sliced_inference is True
     assert settings.allow_mock_fallback is False
+    assert settings.database_url.endswith("/bdi_test")
+    assert settings.database_echo is True
+    assert settings.task_worker_enabled is True
+    assert settings.task_worker_interval_seconds == 2.5
+    assert settings.task_max_attempts == 5
+    assert settings.alert_auto_enabled is True
+    assert settings.alert_count_threshold == 4
+    assert settings.alert_category_watchlist == ["seepage", "crack"]
+    assert settings.alert_category_confidence_threshold == 0.9
 
 
 def test_get_settings_parses_extra_models_and_cors_origins(monkeypatch) -> None:
