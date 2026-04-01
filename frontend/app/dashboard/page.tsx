@@ -1,9 +1,9 @@
-import { HomeShell } from "@/components/home-shell";
+import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Dashboard - BDI Infrastructure Scan",
+  title: "Ops Overview - BDI Infrastructure Scan",
 };
 
 export default function DashboardPage() {
-  return <HomeShell />;
+  redirect("/dashboard/ops/overview");
 }

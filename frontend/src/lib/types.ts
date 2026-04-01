@@ -133,3 +133,263 @@ export interface BatchDeleteResultsResponse {
   failed_count: number;
   results: BatchDeleteResultItem[];
 }
+
+export interface BridgeV1 {
+  id: string;
+  bridge_code: string;
+  bridge_name: string;
+  bridge_type?: string | null;
+  region?: string | null;
+  manager_org?: string | null;
+  longitude?: number | null;
+  latitude?: number | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BridgeListV1Response {
+  items: BridgeV1[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface BatchV1 {
+  id: string;
+  bridge_id: string;
+  batch_code: string;
+  source_type: string;
+  status: string;
+  sealed: boolean;
+  expected_item_count: number;
+  received_item_count: number;
+  queued_item_count: number;
+  running_item_count: number;
+  succeeded_item_count: number;
+  failed_item_count: number;
+  created_by?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BatchListV1Response {
+  items: BatchV1[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface BatchIngestV1Response {
+  batch_id: string;
+  accepted_count: number;
+  rejected_count: number;
+  items: Array<{
+    batch_item_id: string;
+    media_asset_id: string;
+    original_filename: string;
+    processing_status: string;
+    task_id: string;
+  }>;
+  errors: Array<{
+    filename: string;
+    code: string;
+    message: string;
+  }>;
+}
+
+export interface BatchStatsV1Response {
+  batch_id: string;
+  status_breakdown: Record<string, number>;
+  review_breakdown: Record<string, number>;
+  category_breakdown: Record<string, number>;
+  alert_breakdown: Record<string, number>;
+}
+
+export interface MediaAssetV1 {
+  id: string;
+  media_type: string;
+  original_filename: string;
+  storage_uri: string;
+  mime_type: string;
+  file_size_bytes: number;
+  width?: number | null;
+  height?: number | null;
+  captured_at?: string | null;
+  uploaded_at: string;
+  source_device?: string | null;
+}
+
+export interface BatchItemV1 {
+  id: string;
+  batch_id: string;
+  media_asset_id: string;
+  sequence_no: number;
+  processing_status: string;
+  review_status: string;
+  latest_task_id?: string | null;
+  latest_result_id?: string | null;
+  defect_count: number;
+  max_confidence?: number | null;
+  max_severity?: string | null;
+  alert_status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BatchItemListV1Response {
+  items: BatchItemV1[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface BatchItemDetailV1Response extends BatchItemV1 {
+  media_asset: MediaAssetV1;
+}
+
+export interface TaskV1 {
+  id: string;
+  batch_item_id: string;
+  task_type: string;
+  status: string;
+  attempt_no: number;
+  priority: number;
+  model_policy: string;
+  requested_model_version?: string | null;
+  resolved_model_version?: string | null;
+  inference_mode: string;
+  queued_at?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  failure_code?: string | null;
+  failure_message?: string | null;
+  worker_name?: string | null;
+  runtime_payload: Record<string, unknown>;
+  timing_payload: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaskRetryV1Response {
+  old_task_id: string;
+  new_task_id: string;
+  status: string;
+}
+
+export interface DetectionRecordV1 {
+  id: string;
+  result_id: string;
+  batch_item_id: string;
+  category: string;
+  confidence: number;
+  severity_level?: string | null;
+  bbox_x: number;
+  bbox_y: number;
+  bbox_width: number;
+  bbox_height: number;
+  mask_payload?: Record<string, unknown> | null;
+  length_mm?: number | null;
+  width_mm?: number | null;
+  area_mm2?: number | null;
+  source_role?: string | null;
+  source_model_name?: string | null;
+  source_model_version?: string | null;
+  is_valid: boolean;
+  extra_payload: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface DetectionListV1Response {
+  items: DetectionRecordV1[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface ReviewRecordV1 {
+  id: string;
+  batch_item_id: string;
+  result_id: string;
+  detection_id: string;
+  review_action: string;
+  review_decision: string;
+  before_payload: Record<string, unknown>;
+  after_payload: Record<string, unknown>;
+  review_note?: string | null;
+  reviewer: string;
+  reviewed_at: string;
+  created_at: string;
+}
+
+export interface ReviewListV1Response {
+  items: ReviewRecordV1[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AlertV1 {
+  id: string;
+  bridge_id: string;
+  batch_id: string;
+  batch_item_id?: string | null;
+  result_id?: string | null;
+  detection_id?: string | null;
+  event_type: string;
+  alert_level: string;
+  status: string;
+  title: string;
+  trigger_payload: Record<string, unknown>;
+  triggered_at: string;
+  acknowledged_by?: string | null;
+  acknowledged_at?: string | null;
+  resolved_at?: string | null;
+  note?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AlertListV1Response {
+  items: AlertV1[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface ResultDetectionV1 {
+  id: string;
+  category: string;
+  confidence: number;
+  severity_level?: string | null;
+  bbox: BoundingBox;
+  mask?: Record<string, unknown> | null;
+  metrics: DetectionMetrics;
+  source_role?: string | null;
+  source_model_name?: string | null;
+  source_model_version?: string | null;
+  is_valid: boolean;
+}
+
+export interface BatchItemResultV1Response {
+  id: string;
+  task_id: string;
+  batch_item_id: string;
+  schema_version: string;
+  model_name: string;
+  model_version: string;
+  backend: string;
+  inference_mode: string;
+  inference_ms: number;
+  inference_breakdown: Record<string, number>;
+  detection_count: number;
+  has_masks: boolean;
+  mask_detection_count: number;
+  overlay_uri?: string | null;
+  json_uri?: string | null;
+  diagnosis_uri?: string | null;
+  created_at: string;
+  detections: ResultDetectionV1[];
+}

@@ -182,17 +182,17 @@ export function HistoryRouteShell() {
           </div>
           <div className="flex items-center gap-3">
             <Link
-              href="/dashboard"
+              href="/dashboard/ops"
               className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/[0.08] hover:text-white"
             >
-              返回工作台
+              返回批次中心
             </Link>
             <button
               type="button"
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.push("/dashboard/lab-single")}
               className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sm text-sky-200 transition-colors hover:bg-sky-500/20"
             >
-              新建分析
+              单图实验台
             </button>
           </div>
         </div>
@@ -223,7 +223,7 @@ export function HistoryRouteShell() {
             onSearchQueryChange={setHistorySearchQuery}
             onCategoryFilterChange={setHistoryCategoryFilter}
             onSortModeChange={setHistorySortMode}
-            onOpenUploader={() => router.push("/dashboard")}
+            onOpenUploader={() => router.push("/dashboard/lab-single")}
             onRefresh={() => {
               void loadHistory();
             }}

@@ -4,13 +4,27 @@ import {
   demoResult
 } from "@/lib/mock-data";
 import type {
+  AlertListV1Response,
+  AlertV1,
   ApiError,
+  BatchItemDetailV1Response,
+  BatchIngestV1Response,
+  BatchItemListV1Response,
+  BatchItemResultV1Response,
+  BatchListV1Response,
+  BatchStatsV1Response,
   BatchDeleteResultsResponse,
+  BridgeListV1Response,
+  DetectionListV1Response,
   DiagnosisResponse,
   ModelCatalogResponse,
   PredictOptions,
   PredictionHistoryResponse,
-  PredictionResult
+  PredictionResult,
+  ReviewListV1Response,
+  ReviewRecordV1,
+  TaskRetryV1Response,
+  TaskV1
 } from "@/lib/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
@@ -130,6 +144,18 @@ function invalidateResultListCaches() {
 
 function encodeImageId(imageId: string): string {
   return encodeURIComponent(imageId);
+}
+
+function buildQuery(params: Record<string, string | number | boolean | null | undefined>): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === "") {
+      continue;
+    }
+    search.set(key, String(value));
+  }
+  const query = search.toString();
+  return query ? `?${query}` : "";
 }
 
 function getFilenameFromDisposition(header: string | null, fallback: string): string {
@@ -603,4 +629,347 @@ export async function* getDiagnosisStream(imageId: string): AsyncGenerator<strin
   } finally {
     reader.releaseLock();
   }
+}
+
+export async function listV1Batches(limit: number = 50, offset: number = 0): Promise<BatchListV1Response> {
+  if (!API_BASE_URL) {
+    return { items: [], total: 0, limit, offset };
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/batches?limit=${limit}&offset=${offset}`);
+  if (!response.ok) {
+    const payload = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(payload, "批次列表加载失败。"));
+  }
+  return (await response.json()) as BatchListV1Response;
+}
+
+export async function listV1Bridges(limit: number = 50, offset: number = 0): Promise<BridgeListV1Response> {
+  if (!API_BASE_URL) {
+    return { items: [], total: 0, limit, offset };
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/bridges?limit=${limit}&offset=${offset}`);
+  if (!response.ok) {
+    const payload = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(payload, "桥梁列表加载失败。"));
+  }
+  return (await response.json()) as BridgeListV1Response;
+}
+
+export async function createV1Batch(payload: {
+  bridgeId: string;
+  batchCode: string;
+  sourceType: string;
+  expectedItemCount: number;
+  createdBy?: string;
+}): Promise<BatchListV1Response["items"][number]> {
+  if (!API_BASE_URL) {
+    throw new Error("演示模式下无法创建批次。");
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/batches`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      bridge_id: payload.bridgeId,
+      batch_code: payload.batchCode,
+      source_type: payload.sourceType,
+      expected_item_count: payload.expectedItemCount,
+      created_by: payload.createdBy ?? null
+    })
+  });
+  if (!response.ok) {
+    const err = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(err, "批次创建失败。"));
+  }
+  return (await response.json()) as BatchListV1Response["items"][number];
+}
+
+export async function ingestV1BatchItems(payload: {
+  batchId: string;
+  files: File[];
+  modelPolicy?: string;
+  sourceDevice?: string;
+  capturedAt?: string;
+}): Promise<BatchIngestV1Response> {
+  if (!API_BASE_URL) {
+    throw new Error("演示模式下无法上传批次图片。");
+  }
+  const formData = new FormData();
+  payload.files.forEach((file) => formData.append("files", file));
+  formData.append("model_policy", payload.modelPolicy ?? "fusion-default");
+  if (payload.sourceDevice) {
+    formData.append("source_device", payload.sourceDevice);
+  }
+  if (payload.capturedAt) {
+    formData.append("captured_at", payload.capturedAt);
+  }
+
+  const response = await fetchWithTimeout(
+    `${API_BASE_URL}/api/v1/batches/${encodeURIComponent(payload.batchId)}/items`,
+    {
+      method: "POST",
+      body: formData,
+      timeoutMs: PREDICT_TIMEOUT_MS
+    }
+  );
+  if (!response.ok) {
+    const err = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(err, "批次图片上传失败。"));
+  }
+  return (await response.json()) as BatchIngestV1Response;
+}
+
+export async function getV1BatchStats(batchId: string): Promise<BatchStatsV1Response> {
+  if (!API_BASE_URL) {
+    return {
+      batch_id: batchId,
+      status_breakdown: {},
+      review_breakdown: {},
+      category_breakdown: {},
+      alert_breakdown: {}
+    };
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/batches/${encodeURIComponent(batchId)}/stats`);
+  if (!response.ok) {
+    const payload = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(payload, "批次统计加载失败。"));
+  }
+  return (await response.json()) as BatchStatsV1Response;
+}
+
+export async function listV1BatchItems(
+  batchId: string,
+  limit: number = 50,
+  offset: number = 0
+): Promise<BatchItemListV1Response> {
+  if (!API_BASE_URL) {
+    return { items: [], total: 0, limit, offset };
+  }
+  const response = await fetchWithTimeout(
+    `${API_BASE_URL}/api/v1/batches/${encodeURIComponent(batchId)}/items?limit=${limit}&offset=${offset}`
+  );
+  if (!response.ok) {
+    const payload = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(payload, "批次图片列表加载失败。"));
+  }
+  return (await response.json()) as BatchItemListV1Response;
+}
+
+export async function getV1BatchItemDetail(batchItemId: string): Promise<BatchItemDetailV1Response> {
+  if (!API_BASE_URL) {
+    throw new Error("演示模式下没有批次图片详情。");
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/batch-items/${encodeURIComponent(batchItemId)}`);
+  if (!response.ok) {
+    const payload = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(payload, "图片详情加载失败。"));
+  }
+  return (await response.json()) as BatchItemDetailV1Response;
+}
+
+export async function getV1BatchItemResult(batchItemId: string): Promise<BatchItemResultV1Response> {
+  if (!API_BASE_URL) {
+    throw new Error("演示模式下没有批次识别结果。");
+  }
+  const response = await fetchWithTimeout(
+    `${API_BASE_URL}/api/v1/batch-items/${encodeURIComponent(batchItemId)}/result`
+  );
+  if (!response.ok) {
+    const payload = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(payload, "图片识别结果加载失败。"));
+  }
+  return (await response.json()) as BatchItemResultV1Response;
+}
+
+export async function getV1Task(taskId: string): Promise<TaskV1> {
+  if (!API_BASE_URL) {
+    throw new Error("演示模式下没有任务详情。");
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/tasks/${encodeURIComponent(taskId)}`);
+  if (!response.ok) {
+    const payload = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(payload, "任务详情加载失败。"));
+  }
+  return (await response.json()) as TaskV1;
+}
+
+export async function retryV1Task(payload: {
+  taskId: string;
+  requestedBy: string;
+  reason?: string;
+}): Promise<TaskRetryV1Response> {
+  if (!API_BASE_URL) {
+    throw new Error("演示模式下无法重试任务。");
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/tasks/${encodeURIComponent(payload.taskId)}/retry`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      requested_by: payload.requestedBy,
+      reason: payload.reason ?? null
+    })
+  });
+  if (!response.ok) {
+    const err = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(err, "任务重试失败。"));
+  }
+  return (await response.json()) as TaskRetryV1Response;
+}
+
+export async function listV1Detections(params: {
+  batchId?: string;
+  batchItemId?: string;
+  category?: string;
+  minConfidence?: number;
+  maxConfidence?: number;
+  minAreaMm2?: number;
+  isValid?: boolean;
+  sortBy?: "created_at" | "confidence" | "area_mm2";
+  sortOrder?: "asc" | "desc";
+  limit?: number;
+  offset?: number;
+}): Promise<DetectionListV1Response> {
+  const limit = params.limit ?? 50;
+  const offset = params.offset ?? 0;
+  if (!API_BASE_URL) {
+    return { items: [], total: 0, limit, offset };
+  }
+  const query = buildQuery({
+    batch_id: params.batchId,
+    batch_item_id: params.batchItemId,
+    category: params.category,
+    min_confidence: params.minConfidence,
+    max_confidence: params.maxConfidence,
+    min_area_mm2: params.minAreaMm2,
+    is_valid: params.isValid,
+    sort_by: params.sortBy ?? "created_at",
+    sort_order: params.sortOrder ?? "desc",
+    limit,
+    offset
+  });
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/detections${query}`);
+  if (!response.ok) {
+    const payload = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(payload, "病害检索失败。"));
+  }
+  return (await response.json()) as DetectionListV1Response;
+}
+
+export async function listV1Reviews(params: {
+  batchId?: string;
+  batchItemId?: string;
+  detectionId?: string;
+  reviewer?: string;
+  sortBy?: "reviewed_at" | "created_at";
+  sortOrder?: "asc" | "desc";
+  limit?: number;
+  offset?: number;
+}): Promise<ReviewListV1Response> {
+  const limit = params.limit ?? 50;
+  const offset = params.offset ?? 0;
+  if (!API_BASE_URL) {
+    return { items: [], total: 0, limit, offset };
+  }
+  const query = buildQuery({
+    batch_id: params.batchId,
+    batch_item_id: params.batchItemId,
+    detection_id: params.detectionId,
+    reviewer: params.reviewer,
+    sort_by: params.sortBy ?? "reviewed_at",
+    sort_order: params.sortOrder ?? "desc",
+    limit,
+    offset
+  });
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/reviews${query}`);
+  if (!response.ok) {
+    const payload = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(payload, "复核记录加载失败。"));
+  }
+  return (await response.json()) as ReviewListV1Response;
+}
+
+export async function createV1Review(payload: {
+  detectionId: string;
+  reviewAction: "confirm" | "reject" | "edit";
+  reviewer: string;
+  reviewNote?: string;
+  afterPayload?: Record<string, unknown>;
+}): Promise<ReviewRecordV1> {
+  if (!API_BASE_URL) {
+    throw new Error("演示模式下无法提交复核。");
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/reviews`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      detection_id: payload.detectionId,
+      review_action: payload.reviewAction,
+      reviewer: payload.reviewer,
+      review_note: payload.reviewNote ?? null,
+      after_payload: payload.afterPayload ?? {}
+    })
+  });
+  if (!response.ok) {
+    const err = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(err, "复核提交失败。"));
+  }
+  return (await response.json()) as ReviewRecordV1;
+}
+
+export async function listV1Alerts(params: {
+  batchId?: string;
+  statusFilter?: string;
+  eventType?: string;
+  sortBy?: "triggered_at" | "created_at" | "updated_at";
+  sortOrder?: "asc" | "desc";
+  limit?: number;
+  offset?: number;
+}): Promise<AlertListV1Response> {
+  const limit = params.limit ?? 50;
+  const offset = params.offset ?? 0;
+  if (!API_BASE_URL) {
+    return { items: [], total: 0, limit, offset };
+  }
+  const query = buildQuery({
+    batch_id: params.batchId,
+    status_filter: params.statusFilter,
+    event_type: params.eventType,
+    sort_by: params.sortBy ?? "triggered_at",
+    sort_order: params.sortOrder ?? "desc",
+    limit,
+    offset
+  });
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/alerts${query}`);
+  if (!response.ok) {
+    const payload = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(payload, "告警列表加载失败。"));
+  }
+  return (await response.json()) as AlertListV1Response;
+}
+
+export async function updateV1AlertStatus(payload: {
+  alertId: string;
+  action: "acknowledge" | "resolve";
+  operator: string;
+  note?: string;
+}): Promise<AlertV1> {
+  if (!API_BASE_URL) {
+    throw new Error("演示模式下无法更新告警状态。");
+  }
+  const response = await fetchWithTimeout(
+    `${API_BASE_URL}/api/v1/alerts/${encodeURIComponent(payload.alertId)}/status`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: payload.action,
+        operator: payload.operator,
+        note: payload.note ?? null
+      })
+    }
+  );
+  if (!response.ok) {
+    const err = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(err, "告警状态更新失败。"));
+  }
+  return (await response.json()) as AlertV1;
 }
