@@ -58,7 +58,7 @@ export function HistoryDetailShell({ imageId }: HistoryDetailShellProps) {
     message: `正在加载 ${imageId} 的历史详情。`,
   });
   const [categoryFilter, setCategoryFilter] = useState("全部");
-  const [minConfidence, setMinConfidence] = useState(0.3);
+  const [minConfidence, setMinConfidence] = useState(0.0);
   const [selectedDetectionId, setSelectedDetectionId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"image" | "result" | "mask">("image");
 

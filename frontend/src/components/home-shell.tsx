@@ -87,7 +87,7 @@ export function HomeShell() {
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const MAX_RETRIES = 3;
   const [categoryFilter, setCategoryFilter] = useState("全部");
-  const [minConfidence, setMinConfidence] = useState(0.3);
+  const [minConfidence, setMinConfidence] = useState(0.0);
   const [selectedDetectionId, setSelectedDetectionId] = useState<string | null>(null);
   const [resultViewMode, setResultViewMode] = useState<"image" | "result" | "mask">("image");
   const [pixelsPerMm, setPixelsPerMm] = useState(10.0);
