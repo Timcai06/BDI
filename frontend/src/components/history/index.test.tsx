@@ -86,7 +86,6 @@ function renderHistoryPanel(overrides: Partial<ComponentProps<typeof HistoryPane
 describe("HistoryPanel batch mode", () => {
   it("selects all filtered results instead of only the current page subset", async () => {
     const onBatchDelete = vi.fn(async () => {});
-    vi.stubGlobal("confirm", vi.fn(() => true));
 
     renderHistoryPanel({
       searchQuery: "bridge",
@@ -96,6 +95,7 @@ describe("HistoryPanel batch mode", () => {
     fireEvent.click(screen.getByRole("button", { name: "批量" }));
     fireEvent.click(screen.getByRole("button", { name: "选择全部筛选结果 (2)" }));
     fireEvent.click(screen.getByRole("button", { name: "批量删除已选记录" }));
+    fireEvent.click(screen.getByRole("button", { name: "确认执行" }));
 
     await waitFor(() => {
       expect(onBatchDelete).toHaveBeenCalledWith(["bridge-002.jpg", "bridge-001.jpg"]);

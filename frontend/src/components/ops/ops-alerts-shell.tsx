@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { listV1Alerts, updateV1AlertStatus } from "@/lib/predict-client";
 import type { AlertV1 } from "@/lib/types";
@@ -16,6 +16,8 @@ export function OpsAlertsShell() {
   const [eventType, setEventType] = useState("");
   const [sortBy, setSortBy] = useState<"triggered_at" | "created_at" | "updated_at">("triggered_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [slaFilter, setSlaFilter] = useState<"all" | "near_due" | "overdue">("all");
+  const [prioritizeSlaRisk, setPrioritizeSlaRisk] = useState(true);
 
   const [operator, setOperator] = useState("ops-center");
   const [note, setNote] = useState("");
@@ -94,11 +96,61 @@ export function OpsAlertsShell() {
   }
 
   function toggleSelectAll() {
-    if (alerts.length === 0) {
+    if (displayedAlerts.length === 0) {
       return;
     }
-    setSelectedAlertIds((prev) => (prev.length === alerts.length ? [] : alerts.map((item) => item.id)));
+    setSelectedAlertIds((prev) =>
+      prev.length === displayedAlerts.length ? [] : displayedAlerts.map((item) => item.alert.id)
+    );
   }
+
+  const displayedAlerts = useMemo(() => {
+    const now = Date.now();
+    const nearDueMs = 2 * 60 * 60 * 1000;
+
+    const withSla = alerts.map((alert) => {
+      const dueAtRaw = alert.trigger_payload?.["sla_due_at"];
+      const dueAtMs = typeof dueAtRaw === "string" ? Date.parse(dueAtRaw) : NaN;
+      const hasDueAt = Number.isFinite(dueAtMs);
+      const isOverdue = hasDueAt && dueAtMs <= now && alert.status !== "resolved";
+      const isNearDue = hasDueAt && dueAtMs > now && dueAtMs - now <= nearDueMs && alert.status !== "resolved";
+      const slaRank = isOverdue ? 3 : isNearDue ? 2 : alert.status === "open" ? 1 : 0;
+      return { alert, dueAtMs, hasDueAt, isOverdue, isNearDue, slaRank };
+    });
+
+    const filtered = withSla.filter((item) => {
+      if (slaFilter === "overdue") {
+        return item.isOverdue;
+      }
+      if (slaFilter === "near_due") {
+        return item.isNearDue;
+      }
+      return true;
+    });
+
+    if (!prioritizeSlaRisk) {
+      return filtered;
+    }
+
+    return [...filtered].sort((a, b) => {
+      if (b.slaRank !== a.slaRank) {
+        return b.slaRank - a.slaRank;
+      }
+      if (a.hasDueAt && b.hasDueAt) {
+        return a.dueAtMs - b.dueAtMs;
+      }
+      if (a.hasDueAt) {
+        return -1;
+      }
+      if (b.hasDueAt) {
+        return 1;
+      }
+      return 0;
+    });
+  }, [alerts, prioritizeSlaRisk, slaFilter]);
+
+  const overdueCount = useMemo(() => displayedAlerts.filter((item) => item.isOverdue).length, [displayedAlerts]);
+  const nearDueCount = useMemo(() => displayedAlerts.filter((item) => item.isNearDue).length, [displayedAlerts]);
 
   return (
     <div className="relative z-10 flex-1 overflow-y-auto p-6 lg:p-8 space-y-6">
@@ -117,7 +169,7 @@ export function OpsAlertsShell() {
 
       <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
         <h3 className="text-sm font-semibold text-white/90">筛选与操作参数</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-2 text-xs">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-2 text-xs">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -151,6 +203,15 @@ export function OpsAlertsShell() {
             <option value="desc">desc</option>
             <option value="asc">asc</option>
           </select>
+          <select
+            value={slaFilter}
+            onChange={(e) => setSlaFilter(e.target.value as "all" | "near_due" | "overdue")}
+            className="rounded border border-white/15 bg-black/30 px-2 py-2 text-white"
+          >
+            <option value="all">SLA: all</option>
+            <option value="near_due">SLA: near_due(2h)</option>
+            <option value="overdue">SLA: overdue</option>
+          </select>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 text-xs">
           <input
@@ -168,10 +229,23 @@ export function OpsAlertsShell() {
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <button
+            onClick={() => setPrioritizeSlaRisk((prev) => !prev)}
+            className={`rounded border px-3 py-2 ${
+              prioritizeSlaRisk
+                ? "border-amber-300/30 bg-amber-300/10 text-amber-200"
+                : "border-white/20 text-white/80 hover:bg-white/10"
+            }`}
+          >
+            {prioritizeSlaRisk ? "按SLA风险优先: 开" : "按SLA风险优先: 关"}
+          </button>
+          <span className="text-white/50">当前列表超时 {overdueCount} 条，临近超时 {nearDueCount} 条</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <button
             onClick={toggleSelectAll}
             className="rounded border border-white/20 px-3 py-2 text-white/80 hover:bg-white/10"
           >
-            {selectedAlertIds.length === alerts.length && alerts.length > 0 ? "取消全选" : "全选当前列表"}
+            {selectedAlertIds.length === displayedAlerts.length && displayedAlerts.length > 0 ? "取消全选" : "全选当前列表"}
           </button>
           <button
             disabled={selectedAlertIds.length === 0}
@@ -200,7 +274,22 @@ export function OpsAlertsShell() {
           <div className="text-sm text-white/60">加载中...</div>
         ) : (
           <div className="space-y-2 max-h-[520px] overflow-auto">
-            {alerts.map((alert) => (
+            {displayedAlerts.map((item) => {
+              const alert = item.alert;
+              const dueAtText = item.hasDueAt
+                ? new Date(item.dueAtMs).toLocaleString("zh-CN", { hour12: false })
+                : "N/A";
+              const slaBadge = item.isOverdue
+                ? "已超时"
+                : item.isNearDue
+                  ? "临近超时"
+                  : "SLA正常";
+              const slaBadgeClass = item.isOverdue
+                ? "border-rose-300/35 bg-rose-400/10 text-rose-200"
+                : item.isNearDue
+                  ? "border-amber-300/35 bg-amber-400/10 text-amber-200"
+                  : "border-emerald-300/35 bg-emerald-400/10 text-emerald-200";
+              return (
               <div key={alert.id} className="rounded border border-white/10 bg-black/20 p-3 text-xs text-white/80">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-start gap-2">
@@ -214,6 +303,10 @@ export function OpsAlertsShell() {
                       <div className="text-white">{alert.title}</div>
                       <div className="text-white/60 mt-1">
                         id={alert.id} | {alert.event_type} | {alert.alert_level} | {alert.status}
+                      </div>
+                      <div className="text-white/50 mt-1">
+                        SLA 截止: {dueAtText}
+                        <span className={`ml-2 rounded border px-1.5 py-0.5 ${slaBadgeClass}`}>{slaBadge}</span>
                       </div>
                     </div>
                   </div>
@@ -235,8 +328,9 @@ export function OpsAlertsShell() {
                   </div>
                 </div>
               </div>
-            ))}
-            {alerts.length === 0 && <div className="text-xs text-white/50">暂无告警</div>}
+              );
+            })}
+            {displayedAlerts.length === 0 && <div className="text-xs text-white/50">暂无告警</div>}
           </div>
         )}
       </section>

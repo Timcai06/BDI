@@ -94,6 +94,7 @@ export function HistoryBatchDrawer({
           <div className="grid grid-cols-1 gap-2.5">
             <button
               type="button"
+              aria-label="批量删除已选记录"
               onClick={onBatchDelete}
               disabled={selectedCount === 0 || isDeleting || isExportingJson || isExportingOverlay}
               className="group flex w-full items-center gap-3 rounded-[1.25rem] border border-rose-500/20 bg-rose-500/[0.08] px-5 py-4 text-left transition-all hover:bg-rose-500/[0.15] disabled:cursor-not-allowed disabled:opacity-30"
@@ -105,7 +106,7 @@ export function HistoryBatchDrawer({
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-rose-200 group-hover:text-white transition-colors">
-                  {isDeleting ? "正在处理删除..." : "删除已选记录"}
+                  {isDeleting ? "正在处理删除..." : "批量删除已选记录"}
                 </p>
                 <p className="mt-0.5 text-[10px] text-rose-300/40">注意：删除操作不可撤回</p>
               </div>
@@ -156,7 +157,9 @@ export function HistoryBatchDrawer({
                 disabled={filteredCount === 0 || isDeleting || isExportingJson || isExportingOverlay}
                 className="flex-1 rounded-xl bg-white/5 py-3 text-[11px] font-medium text-sky-400 transition-all hover:bg-white/10 hover:text-sky-300 disabled:opacity-10"
               >
-                {selectedCount === filteredCount ? "取消全选" : "全选筛选结果"}
+                {selectedCount === filteredCount
+                  ? `取消选择全部筛选结果 (${filteredCount})`
+                  : `选择全部筛选结果 (${filteredCount})`}
               </button>
               <button
                 type="button"
@@ -172,12 +175,13 @@ export function HistoryBatchDrawer({
 
         <div className="relative z-10 px-5 py-6">
           <div className="mb-4 flex items-center justify-between px-1">
-            <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/20">已选择记录预览</h4>
+            <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/20">记录预览</h4>
             {selectedCount > 0 && <span className="h-4 w-px bg-white/10" />}
             <span className="text-[10px] font-mono text-white/20">
               {selectedCount > 0 ? `LIMIT: ${selectedPreview.length} / ${selectedCount}` : "NULL"}
             </span>
           </div>
+          <p className="mb-3 px-1 text-xs text-white/70">已选择 {selectedCount} 项</p>
 
           <div className="max-h-[320px] overflow-y-auto pr-1 space-y-2.5 custom-scrollbar">
             <AnimatePresence mode="popLayout">
