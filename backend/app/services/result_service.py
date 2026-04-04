@@ -65,6 +65,28 @@ class ResultService:
             )
         return upload_path
 
+    def get_enhanced_path(self, *, image_id: str) -> Path:
+        enhanced_path = self.store.enhanced_path(image_id)
+        if not enhanced_path.exists():
+            raise AppError(
+                code="ENHANCED_IMAGE_NOT_FOUND",
+                message="Enhanced image does not exist.",
+                status_code=status.HTTP_404_NOT_FOUND,
+                details={"image_id": image_id},
+            )
+        return enhanced_path
+
+    def get_enhanced_overlay_path(self, *, image_id: str) -> Path:
+        overlay_path = self.store.enhanced_overlay_path(image_id)
+        if not overlay_path.exists():
+            raise AppError(
+                code="ENHANCED_OVERLAY_NOT_FOUND",
+                message="Enhanced overlay does not exist.",
+                status_code=status.HTTP_404_NOT_FOUND,
+                details={"image_id": image_id},
+            )
+        return overlay_path
+
     def delete_result(self, *, image_id: str) -> DeleteResultResponse:
         if self.store.load_result(image_id=image_id) is None:
             raise AppError(

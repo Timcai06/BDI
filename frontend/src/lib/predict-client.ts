@@ -192,6 +192,9 @@ export async function predictImage(
   if (options.pixelsPerMm !== undefined) {
     formData.append("pixels_per_mm", String(options.pixelsPerMm));
   }
+  if (options.enhance !== undefined) {
+    formData.append("enhance", String(options.enhance));
+  }
 
   try {
     const response = await fetchWithTimeout(`${API_BASE_URL}/predict`, {
@@ -506,6 +509,28 @@ export function getResultImageUrl(
   }
 
   return withCacheKey(`${API_BASE_URL}/results/${encodeImageId(imageId)}/image`, cacheKey);
+}
+
+export function getEnhancedImageUrl(
+  imageId: string,
+  cacheKey?: string | number | null
+): string | null {
+  if (!API_BASE_URL) {
+    return null;
+  }
+
+  return withCacheKey(`${API_BASE_URL}/results/${encodeImageId(imageId)}/enhanced`, cacheKey);
+}
+
+export function getEnhancedOverlayUrl(
+  imageId: string,
+  cacheKey?: string | number | null
+): string | null {
+  if (!API_BASE_URL) {
+    return null;
+  }
+
+  return withCacheKey(`${API_BASE_URL}/results/${encodeImageId(imageId)}/enhanced-overlay`, cacheKey);
 }
 
 export async function getResultImageFile(imageId: string): Promise<File> {

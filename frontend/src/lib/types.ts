@@ -11,6 +11,7 @@ export interface PredictOptions {
   exportOverlay: boolean;
   modelVersion?: string | null;
   pixelsPerMm?: number;
+  enhance?: boolean;
 }
 
 export interface BoundingBox {
@@ -47,6 +48,8 @@ export interface Artifacts {
   upload_path: string;
   json_path: string;
   overlay_path?: string | null;
+  enhanced_path?: string | null;
+  enhanced_overlay_path?: string | null;
 }
 
 export interface PredictResponse {
@@ -62,6 +65,7 @@ export interface PredictResponse {
   has_masks: boolean;
   mask_detection_count: number;
   artifacts: Artifacts;
+  secondary_result?: PredictResponse | null;
   created_at: string;
 }
 

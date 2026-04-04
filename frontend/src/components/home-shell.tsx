@@ -66,6 +66,7 @@ export function HomeShell() {
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
 
   const [exportOverlay, setExportOverlay] = useState(true);
+  const [enhance, setEnhance] = useState(true);
   const [result] = useState<PredictionResult | null>(null);
   const [comparisonResult, setComparisonResult] = useState<PredictionResult | null>(null);
   const [compareStatus, setCompareStatus] = useState<PredictState>({
@@ -438,7 +439,8 @@ export function HomeShell() {
         confidence,
         exportOverlay: exportOverlay && selectedModelSupportsOverlay,
         modelVersion: selectedModelVersion,
-        pixelsPerMm
+        pixelsPerMm,
+        enhance: enhance
       });
 
       // Update to detecting as results arrive
@@ -1073,6 +1075,24 @@ export function HomeShell() {
                         />
                       </label>
 
+                      <label className="rounded-xl border border-white/5 bg-white/[0.02] p-4 flex items-center justify-between group transition-colors cursor-pointer hover:bg-white/[0.04]">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-white/50 block mb-1">暗图像增强</span>
+                          <span className="text-xs text-white/30 font-light">
+                            开启双路对比模式，自动增强低照度细节
+                          </span>
+                        </div>
+                        <div className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${enhance ? "bg-sky-400" : "bg-white/10"}`}>
+                          <span className={`inline-block h-3 w-3 transform rounded-full bg-black transition-transform mt-1 ${enhance ? "translate-x-5" : "translate-x-1"}`} />
+                        </div>
+                        <input
+                          type="checkbox"
+                          className="hidden"
+                          checked={enhance}
+                          onChange={() => setEnhance(!enhance)}
+                        />
+                      </label>
+
                       {/* GSD 物理尺寸换算配置 */}
                       <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 group transition-colors hover:bg-white/[0.04]">
                         <div className="flex items-center justify-between mb-4">
@@ -1129,7 +1149,7 @@ export function HomeShell() {
                     <div className="rounded-xl border border-white/5 bg-black/20 px-4 py-3">
                       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">预计输出</p>
                       <p className="mt-2 text-sm text-white">
-                        {exportOverlay ? "结构化结果 + 结果图" : "结构化结果"}
+                        {enhance ? "双路对比 (原图+增强)" : "标准识别 (单路)"}
                       </p>
                     </div>
                   </div>

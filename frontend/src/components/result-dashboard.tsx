@@ -8,7 +8,7 @@ import {
   getDetectionMaskPolygonPoints,
   getDetectionOverlayStyle,
 } from "@/lib/result-utils";
-import { getDiagnosisRecord, getDiagnosisText } from "@/lib/predict-client";
+import { getDiagnosisRecord, getDiagnosisText, getEnhancedImageUrl, getEnhancedOverlayUrl } from "@/lib/predict-client";
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Detection, PredictionResult, PredictState } from "@/lib/types";
@@ -167,7 +167,16 @@ export function ResultDashboard({
   const [thinkingIndex, setThinkingIndex] = useState(0);
 
   // Use the new comparison hook
-  const comp = useComparison(result, comparisonResult);
+  const [showEnhancementCompare, setShowEnhancementCompare] = useState<boolean>(false);
+
+  // Use effective comparison result (either manual or automatic enhancement)
+  const effectiveComparisonResult = useMemo(() => {
+    if (comparisonResult) return comparisonResult;
+    if (showEnhancementCompare && result.secondary_result) return result.secondary_result;
+    return null;
+  }, [comparisonResult, showEnhancementCompare, result.secondary_result]);
+
+  const comp = useComparison(result, effectiveComparisonResult);
   const mainMetrics = comp?.primaryMetrics ?? {
     totalLength: 0,
     totalArea: 0,
@@ -283,11 +292,18 @@ export function ResultDashboard({
   }, [filteredDetections]);
 
   const activePreviewUrl = useMemo(() => {
+    // If enhancement comparison is active, use enhanced paths
+    if (showEnhancementCompare && result.secondary_result) {
+      const eUrl = getEnhancedImageUrl(result.image_id);
+      const eoUrl = getEnhancedOverlayUrl(result.image_id);
+      return viewMode === "result" ? eoUrl ?? eUrl : eUrl;
+    }
+
     if (comp && comparisonViewMode === "comparison") {
       return viewMode === "result" ? comparisonOverlayPreviewUrl ?? comparisonPreviewUrl : comparisonPreviewUrl;
     }
     return viewMode === "result" ? overlayPreviewUrl ?? previewUrl : previewUrl;
-  }, [viewMode, overlayPreviewUrl, previewUrl, comparisonOverlayPreviewUrl, comparisonPreviewUrl, comparisonViewMode, comp]);
+  }, [viewMode, overlayPreviewUrl, previewUrl, comparisonOverlayPreviewUrl, comparisonPreviewUrl, comparisonViewMode, comp, showEnhancementCompare, result.secondary_result, result.image_id]);
 
   const current = prioritizedDetections.find((item) => item.id === selectedDetectionId) ?? prioritizedDetections[0] ?? null;
   const topPriorityDetection = prioritizedDetections[0] ?? null;
@@ -748,6 +764,22 @@ export function ResultDashboard({
                   </div>
                 ) : null}
               </div>
+
+              {result.secondary_result && !comparisonResult && (
+                <button
+                  onClick={() => setShowEnhancementCompare(!showEnhancementCompare)}
+                  className={`flex items-center gap-2 rounded-xl border px-5 py-2.5 text-xs font-bold tracking-widest uppercase transition-all ${
+                    showEnhancementCompare
+                      ? "bg-sky-500 border-sky-400 text-black shadow-[0_0_20px_rgba(56,189,248,0.4)]"
+                      : "border-white/10 bg-white/5 text-white/60 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  {showEnhancementCompare ? "退出增强对比" : "查看增强对比结果"}
+                </button>
+              )}
 
               {comp && (
                 <div className="flex rounded-xl border border-white/8 bg-white/5 p-1.5 backdrop-blur-md">

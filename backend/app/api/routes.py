@@ -157,6 +157,18 @@ async def get_result_image(request: Request, image_id: str) -> FileResponse:
     return FileResponse(image_path, filename=image_path.name)
 
 
+@router.get("/results/{image_id}/enhanced")
+async def get_enhanced_image(request: Request, image_id: str) -> FileResponse:
+    image_path = request.app.state.result_service.get_enhanced_path(image_id=image_id)
+    return FileResponse(image_path, filename=image_path.name)
+
+
+@router.get("/results/{image_id}/enhanced-overlay")
+async def get_enhanced_overlay(request: Request, image_id: str) -> FileResponse:
+    overlay_path = request.app.state.result_service.get_enhanced_overlay_path(image_id=image_id)
+    return FileResponse(overlay_path, media_type="image/webp", filename=overlay_path.name)
+
+
 @router.delete("/results/{image_id}", response_model=DeleteResultResponse)
 async def delete_result(request: Request, image_id: str) -> DeleteResultResponse:
     return request.app.state.result_service.delete_result(image_id=image_id)
