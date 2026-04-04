@@ -251,6 +251,11 @@ class BatchCreateResponse(BatchResponse):
     pass
 
 
+class BatchDeleteResponse(BaseModel):
+    deleted: bool = True
+    batch_id: str
+
+
 class BatchListResponse(BaseModel):
     items: list[BatchResponse]
     total: int
@@ -265,6 +270,8 @@ class BatchIngestItemSuccess(BaseModel):
     source_relative_path: Optional[str] = None
     processing_status: str
     task_id: str
+    model_policy: str = "fusion-default"
+    requested_model_version: Optional[str] = None
 
 
 class BatchIngestItemError(BaseModel):
@@ -287,11 +294,20 @@ class BatchItemResponse(BaseModel):
     id: str
     batch_id: str
     media_asset_id: str
+    original_filename: Optional[str] = None
+    source_device: Optional[str] = None
     source_relative_path: Optional[str] = None
     sequence_no: int
     processing_status: str
     review_status: str
     latest_task_id: Optional[str] = None
+    latest_task_status: Optional[str] = None
+    latest_task_attempt_no: Optional[int] = None
+    latest_failure_code: Optional[str] = None
+    latest_failure_message: Optional[str] = None
+    model_policy: Optional[str] = None
+    requested_model_version: Optional[str] = None
+    resolved_model_version: Optional[str] = None
     latest_result_id: Optional[str] = None
     defect_count: int
     max_confidence: Optional[float] = None
@@ -322,6 +338,9 @@ class TaskResponse(BaseModel):
     resolved_model_version: Optional[str] = None
     inference_mode: str
     queued_at: Optional[datetime] = None
+    claimed_at: Optional[datetime] = None
+    heartbeat_at: Optional[datetime] = None
+    lease_expires_at: Optional[datetime] = None
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
     failure_code: Optional[str] = None
@@ -368,6 +387,7 @@ class OpsMetricsResponse(BaseModel):
     queued_tasks: int = Field(ge=0)
     running_tasks: int = Field(ge=0)
     failed_tasks: int = Field(ge=0)
+    recovered_stale_tasks: int = Field(default=0, ge=0)
     p50_queue_wait_ms: Optional[int] = Field(default=None, ge=0)
     p95_queue_wait_ms: Optional[int] = Field(default=None, ge=0)
     p50_run_ms: Optional[int] = Field(default=None, ge=0)

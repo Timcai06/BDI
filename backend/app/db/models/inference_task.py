@@ -21,6 +21,9 @@ class InferenceTask(Base, TimestampMixin):
         CheckConstraint("inference_mode IN ('direct', 'sliced')", name="inference_mode"),
         Index("idx_inference_tasks_batch_item_id", "batch_item_id"),
         Index("idx_inference_tasks_created_at", "created_at"),
+        Index("idx_inference_tasks_status_lease", "status", "lease_expires_at"),
+        Index("idx_inference_tasks_batch_item_attempt", "batch_item_id", "attempt_no"),
+        Index("idx_inference_tasks_worker_status", "worker_name", "status"),
         Index(
             "idx_inference_tasks_status_priority_created",
             "status",
@@ -40,6 +43,9 @@ class InferenceTask(Base, TimestampMixin):
     resolved_model_version: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     inference_mode: Mapped[str] = mapped_column(String(32), nullable=False, default="direct")
     queued_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    claimed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    heartbeat_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    lease_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     failure_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)

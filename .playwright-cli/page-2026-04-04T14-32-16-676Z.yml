@@ -1,0 +1,85 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - complementary [ref=e3]:
+      - link "BDI INFRA-SCAN" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e7]: BDI
+        - generic [ref=e8]: INFRA-SCAN
+      - link "+ 单图实验台" [ref=e10] [cursor=pointer]:
+        - /url: /dashboard/lab-single
+        - generic [ref=e11]: +
+        - generic [ref=e12]: 单图实验台
+      - navigation [ref=e13]:
+        - link "运营总览" [ref=e14] [cursor=pointer]:
+          - /url: /dashboard/ops/overview
+          - img [ref=e15]
+          - generic [ref=e17]: 运营总览
+        - link "批次中心" [ref=e18] [cursor=pointer]:
+          - /url: /dashboard/ops
+          - img [ref=e19]
+          - generic [ref=e21]: 批次中心
+        - link "病害检索" [ref=e22] [cursor=pointer]:
+          - /url: /dashboard/ops/search
+          - img [ref=e23]
+          - generic [ref=e25]: 病害检索
+        - link "历史档案" [ref=e26] [cursor=pointer]:
+          - /url: /dashboard/history
+          - img [ref=e27]
+          - generic [ref=e29]: 历史档案
+        - link "复核中心" [ref=e30] [cursor=pointer]:
+          - /url: /dashboard/ops/reviews
+          - img [ref=e31]
+          - generic [ref=e33]: 复核中心
+        - link "告警中心" [ref=e34] [cursor=pointer]:
+          - /url: /dashboard/ops/alerts
+          - img [ref=e35]
+          - generic [ref=e37]: 告警中心
+        - link "系统设置" [ref=e38] [cursor=pointer]:
+          - /url: /dashboard/ops/settings
+          - img [ref=e39]
+          - generic [ref=e41]: 系统设置
+        - link "单图实验台" [ref=e42] [cursor=pointer]:
+          - /url: /dashboard/lab-single
+          - img [ref=e43]
+          - generic [ref=e45]: 单图实验台
+    - generic [ref=e46]:
+      - generic [ref=e47]:
+        - generic [ref=e50]:
+          - heading "未选择巡检批次" [level=1] [ref=e51]
+          - paragraph [ref=e52]: BDI INFRASTRUCTURE SCAN SYSTEM
+        - generic [ref=e53]:
+          - link "历史档案" [ref=e54] [cursor=pointer]:
+            - /url: /dashboard/history
+          - button "刷新数据" [ref=e55]:
+            - img [ref=e56]
+          - button "创建批次 / 导入图片" [ref=e58]:
+            - img [ref=e59]
+            - text: 创建批次 / 导入图片
+      - main [ref=e61]:
+        - generic [ref=e62]: 正在刷新批次状态与任务结果...
+        - generic [ref=e63]:
+          - img [ref=e67]
+          - heading "暂未选择扫描批次" [level=2] [ref=e69]
+          - paragraph [ref=e70]: 巡检工作台需要先选择一个已有的批次进行分析。您可以从下方列表选择， 或者通过点击右侧按钮新建一个批次并导入无人机巡检素材。
+          - button "新建巡检批次" [ref=e72]:
+            - generic [ref=e73]: 新建巡检批次
+            - img [ref=e74]
+          - generic [ref=e76]:
+            - generic [ref=e77]:
+              - paragraph [ref=e78]: Step 1
+              - paragraph [ref=e79]: 选择/创建桥梁
+            - generic [ref=e80]:
+              - paragraph [ref=e81]: Step 2
+              - paragraph [ref=e82]: 定义批次细节
+            - generic [ref=e83]:
+              - paragraph [ref=e84]: Step 3
+              - paragraph [ref=e85]: 批量导入扫描素材
+      - generic [ref=e87]:
+        - combobox [ref=e89]:
+          - option "快速切换批次..." [selected]
+        - generic [ref=e90]:
+          - button "PREV" [disabled] [ref=e91]
+          - generic [ref=e92]: PAGE 1 / 1
+          - button "NEXT" [disabled] [ref=e93]
+  - button "Open Next.js Dev Tools" [ref=e99] [cursor=pointer]:
+    - img [ref=e100]

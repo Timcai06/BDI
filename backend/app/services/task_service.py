@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import io
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -7,8 +9,11 @@ from typing import Any, Optional
 from uuid import uuid4
 
 from fastapi import status
+from PIL import Image as PILImage
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
+
+from app.adapters.enhancement_runner import DualBranchEnhanceRunner
 
 from app.adapters.manager import RunnerManager
 from app.core.category_mapper import normalize_defect_category
@@ -43,6 +48,7 @@ RETRYABLE_FAILURE_CODES = {
     "MODEL_RUNTIME_ERROR",
     "MODEL_UNAVAILABLE",
     "TASK_EXECUTION_FAILED",
+    "WORKER_LEASE_EXPIRED",
 }
 
 ALERT_LEVEL_ORDER = ["low", "medium", "high", "critical"]
@@ -52,6 +58,10 @@ ALERT_SLA_HOURS_BY_LEVEL = {
     "high": 24,
     "critical": 12,
 }
+
+logger = logging.getLogger(__name__)
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
+WORKSPACE_ROOT = BACKEND_ROOT.parent
 
 
 @dataclass
@@ -82,7 +92,9 @@ class TaskService:
         session_factory: sessionmaker[Session],
         store: LocalArtifactStore,
         runner_manager: RunnerManager,
+        enhance_runner: Optional[DualBranchEnhanceRunner] = None,
         max_attempts: int = 3,
+        task_lease_seconds: int = 300,
         alert_auto_enabled: bool = True,
         alert_count_threshold: int = 3,
         alert_category_watchlist: Optional[list[str]] = None,
@@ -91,7 +103,9 @@ class TaskService:
         self.session_factory = session_factory
         self.store = store
         self.runner_manager = runner_manager
+        self.enhance_runner = enhance_runner
         self.max_attempts = max(1, max_attempts)
+        self.task_lease_seconds = max(30, task_lease_seconds)
         self.alert_profile_name = "JTG-v1"
         self.alert_updated_at = datetime.now(timezone.utc)
         self.alert_updated_by: Optional[str] = "system-default"
@@ -116,12 +130,49 @@ class TaskService:
                 )
             return TaskResponse.model_validate(task)
 
+    def recover_stale_tasks(self) -> int:
+        stale_task_ids: list[str] = []
+        now = datetime.now(timezone.utc)
+        with self.session_factory() as session:
+            if not hasattr(session, "scalars"):
+                return 0
+            stale_task_ids = list(
+                session.scalars(
+                    select(InferenceTask.id)
+                    .where(
+                        InferenceTask.status == "running",
+                        InferenceTask.lease_expires_at.is_not(None),
+                        InferenceTask.lease_expires_at < now,
+                    )
+                    .order_by(InferenceTask.lease_expires_at.asc(), InferenceTask.id.asc())
+                ).all()
+            )
+
+        recovered = 0
+        for task_id in stale_task_ids:
+            retry_task_id = self._mark_task_failed(
+                task_id,
+                decision=FailureDecision(
+                    code="WORKER_LEASE_EXPIRED",
+                    message="Task lease expired before worker completed the job.",
+                    retryable=True,
+                ),
+                allow_auto_retry=True,
+            )
+            recovered += 1
+            logger.warning("Recovered stale task %s -> retry=%s", task_id, retry_task_id)
+        return recovered
+
     def process_next_queued_task(self) -> TaskProcessResponse:
+        recovered_stale_tasks = self.recover_stale_tasks()
         with self.session_factory() as session:
             self._sync_alert_rules_from_db(session=session)
             task = self._claim_next_queued_task(session=session, worker_name="local-worker-1")
             if task is None:
-                return TaskProcessResponse(processed=False, message="No queued task found.")
+                message = "No queued task found."
+                if recovered_stale_tasks > 0:
+                    message = f"{message} Recovered stale tasks: {recovered_stale_tasks}"
+                return TaskProcessResponse(processed=False, message=message)
 
             try:
                 result_id = self._execute_task(session, task)
@@ -281,6 +332,45 @@ class TaskService:
             items = [OpsAuditLogResponse.model_validate(row) for row in rows]
             return OpsAuditLogListResponse(items=items, total=total, limit=limit, offset=offset)
 
+    def _lease_deadline(self, now: Optional[datetime] = None) -> datetime:
+        current = now or datetime.now(timezone.utc)
+        return current + timedelta(seconds=self.task_lease_seconds)
+
+    def _touch_task_lease(self, task: InferenceTask) -> None:
+        now = datetime.now(timezone.utc)
+        task.heartbeat_at = now
+        task.lease_expires_at = self._lease_deadline(now)
+
+    def _resolve_requested_model_version(self, model_policy: str) -> Optional[str]:
+        policy = (model_policy or "").strip().lower()
+        registry = self.runner_manager.registry
+
+        if not policy or policy in {"active-default", "active"}:
+            return registry.active_version
+
+        if policy in {"fusion-default", "seepage-priority"}:
+            active_spec = registry.get_active()
+            if active_spec.runner_kind == "fusion":
+                return active_spec.model_version
+            for spec in registry.list_specs():
+                if spec.runner_kind == "fusion":
+                    return spec.model_version
+            return registry.active_version
+
+        if policy == "general-only":
+            active_spec = registry.get_active()
+            if active_spec.runner_kind == "fusion" and active_spec.primary_model_version:
+                return active_spec.primary_model_version
+            for spec in registry.list_specs():
+                if spec.runner_kind == "ultralytics":
+                    return spec.model_version
+            return registry.active_version
+
+        if policy in registry.specs:
+            return policy
+
+        return registry.active_version
+
     def _claim_next_queued_task(self, *, session: Session, worker_name: str) -> Optional[InferenceTask]:
         task = session.scalar(
             select(InferenceTask)
@@ -292,8 +382,12 @@ class TaskService:
         if task is None:
             return None
 
+        now = datetime.now(timezone.utc)
         task.status = "running"
-        task.started_at = datetime.now(timezone.utc)
+        task.claimed_at = now
+        task.started_at = now
+        task.heartbeat_at = now
+        task.lease_expires_at = now + timedelta(seconds=self.task_lease_seconds)
         task.worker_name = worker_name
         batch_item = session.get(BatchItem, task.batch_item_id)
         if batch_item is not None:
@@ -321,7 +415,7 @@ class TaskService:
                 details={"media_asset_id": batch_item.media_asset_id},
             )
 
-        image_path = Path(media_asset.storage_uri)
+        image_path = self._resolve_storage_path(media_asset.storage_uri)
         if not image_path.exists():
             raise AppError(
                 code="MEDIA_FILE_NOT_FOUND",
@@ -329,28 +423,86 @@ class TaskService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 details={"storage_uri": media_asset.storage_uri},
             )
-
+        self._touch_task_lease(task)
         image_bytes = image_path.read_bytes()
-        spec, runner = self.runner_manager.resolve(task.requested_model_version)
+        requested_model_version = task.requested_model_version or self._resolve_requested_model_version(task.model_policy)
+        spec, runner = self.runner_manager.resolve(requested_model_version)
+        task.requested_model_version = requested_model_version
         task.resolved_model_version = spec.model_version
+        runtime_payload = dict(task.runtime_payload or {})
+        runtime_payload["resolved_from_policy"] = {
+            "model_policy": task.model_policy,
+            "requested_model_version": task.requested_model_version,
+            "resolved_model_version": spec.model_version,
+        }
+        task.runtime_payload = runtime_payload
 
         options = PredictOptions(
             model_version=spec.model_version,
             inference_mode=task.inference_mode,
             return_overlay=True,
         )
+
+        # 1. Track A: Original (Baseline)
         raw = runner.predict(
             image_bytes=image_bytes,
             image_name=media_asset.original_filename,
             options=options,
         )
+        self._touch_task_lease(task)
+
+        # 2. Track B: Enhanced (Twin-track)
+        secondary_raw = None
+        enhanced_uri = None
+        enhanced_overlay_uri = None
+        
+        if task.runtime_payload.get("enhance") and self.enhance_runner:
+            try:
+                # Image Enhancement
+                orig_img = PILImage.open(io.BytesIO(image_bytes))
+                enhanced_img = self.enhance_runner.enhance(orig_img)
+                
+                # Save Enhanced Image
+                buf = io.BytesIO()
+                enhanced_img.save(buf, format="WEBP", quality=95)
+                enhanced_content = buf.getvalue()
+                enhanced_uri = self.store.save_enhanced(image_id=batch_item.id, content=enhanced_content)
+                
+                # Detection on Enhanced Image
+                secondary_raw = runner.predict(
+                    image_bytes=enhanced_content,
+                    image_name=media_asset.original_filename,
+                    options=options,
+                )
+                
+                # Save Enhanced Overlay
+                if secondary_raw.overlay_png:
+                    enhanced_overlay_uri = self.store.save_enhanced_overlay(
+                        image_id=batch_item.id,
+                        content=secondary_raw.overlay_png
+                    )
+            except Exception:
+                # log and allow Track A to finish
+                pass
 
         result_id = _new_id("res")
-        json_payload = self._build_result_json(result_id=result_id, batch_item_id=batch_item.id, raw=raw)
-        json_uri = self.store.save_json(image_id=result_id, payload=json_payload)
+        result_created_at = datetime.now(timezone.utc)
         overlay_uri = None
         if raw.overlay_png:
             overlay_uri = self.store.save_overlay(image_id=result_id, content=raw.overlay_png)
+
+        json_payload = self._build_result_json(
+            result_id=result_id,
+            batch_item_id=batch_item.id,
+            raw=raw,
+            upload_uri=media_asset.storage_uri,
+            overlay_uri=overlay_uri,
+            secondary_raw=secondary_raw,
+            enhanced_uri=enhanced_uri,
+            enhanced_overlay_uri=enhanced_overlay_uri,
+            created_at=result_created_at,
+        )
+        json_uri = self.store.save_json(image_id=result_id, payload=json_payload)
 
         result = InferenceResult(
             id=result_id,
@@ -361,16 +513,24 @@ class TaskService:
             model_version=raw.model_version,
             backend=raw.backend,
             inference_mode=raw.inference_mode,
-            inference_ms=raw.inference_ms,
-            inference_breakdown=raw.inference_breakdown,
+            inference_ms=raw.inference_ms + (secondary_raw.inference_ms if secondary_raw else 0),
+            inference_breakdown={
+                "original": raw.inference_breakdown,
+                "enhanced": secondary_raw.inference_breakdown if secondary_raw else None
+            },
             detection_count=len(raw.detections),
             has_masks=any(item.mask is not None for item in raw.detections),
             mask_detection_count=sum(1 for item in raw.detections if item.mask is not None),
             overlay_uri=overlay_uri,
             json_uri=json_uri,
+            created_at=result_created_at,
         )
         session.add(result)
+        # Persist the parent row first so child Detection inserts cannot race
+        # ahead of inference_results and trip the FK on result_id.
+        session.flush()
 
+        # Merge detections for persistent record (showing main track detections)
         for item in raw.detections:
             session.add(
                 Detection(
@@ -393,12 +553,27 @@ class TaskService:
                 )
             )
 
-        self._emit_auto_alerts(
-            session=session,
-            batch_item=batch_item,
-            result_id=result_id,
-            raw=raw,
-        )
+        # Flush result and detections before inserting dependent alert rows.
+        session.flush()
+
+        # Keep alert persistence isolated from result persistence. If alert insert fails
+        # (for example FK mismatch from legacy data), result/detection rows should still commit.
+        try:
+            with session.begin_nested():
+                self._emit_auto_alerts(
+                    session=session,
+                    batch_item=batch_item,
+                    result_id=result_id,
+                    raw=raw,
+                )
+                session.flush()
+        except Exception as exc:  # pragma: no cover - defensive path for alert side effects
+            logger.warning(
+                "Auto alert persistence failed but inference result remains valid: batch_item_id=%s result_id=%s error=%s",
+                batch_item.id,
+                result_id,
+                exc,
+            )
 
         batch_item.processing_status = "succeeded"
         batch_item.latest_task_id = task.id
@@ -407,11 +582,28 @@ class TaskService:
         batch_item.max_confidence = max((item.confidence for item in raw.detections), default=None)
 
         task.status = "succeeded"
+        task.heartbeat_at = datetime.now(timezone.utc)
+        task.lease_expires_at = None
         task.finished_at = datetime.now(timezone.utc)
         task.timing_payload = raw.inference_breakdown
 
         self._refresh_batch_aggregates(session=session, batch_id=batch_item.batch_id)
         return result_id
+
+    def _resolve_storage_path(self, storage_uri: str) -> Path:
+        candidate = Path(storage_uri)
+        if candidate.is_absolute():
+            return candidate
+        # Backward-compatibility for previously persisted relative paths.
+        options = [
+            Path.cwd() / candidate,
+            BACKEND_ROOT / candidate,
+            WORKSPACE_ROOT / candidate,
+        ]
+        for path in options:
+            if path.exists():
+                return path
+        return options[0]
 
     def _emit_auto_alerts(
         self,
@@ -530,14 +722,27 @@ class TaskService:
         batch.succeeded_item_count = int(status_counts.get("succeeded", 0))
         batch.failed_item_count = int(status_counts.get("failed", 0))
 
+        if batch.received_item_count == 0:
+            batch.status = "ingesting"
+            batch.started_at = None
+            batch.finished_at = None
+            return
+
+        if batch.started_at is None:
+            batch.started_at = datetime.now(timezone.utc)
+
         if batch.running_item_count > 0 or batch.queued_item_count > 0:
             batch.status = "running"
+            batch.finished_at = None
         elif batch.failed_item_count > 0 and batch.succeeded_item_count > 0:
             batch.status = "partial_failed"
+            batch.finished_at = datetime.now(timezone.utc)
         elif batch.failed_item_count > 0 and batch.succeeded_item_count == 0:
             batch.status = "failed"
+            batch.finished_at = datetime.now(timezone.utc)
         elif batch.succeeded_item_count > 0:
             batch.status = "completed"
+            batch.finished_at = datetime.now(timezone.utc)
 
     def _mark_task_failed(
         self,
@@ -553,6 +758,8 @@ class TaskService:
 
             task.status = "failed"
             task.finished_at = datetime.now(timezone.utc)
+            task.heartbeat_at = datetime.now(timezone.utc)
+            task.lease_expires_at = None
             task.failure_code = decision.code
             task.failure_message = decision.message[:2000]
 
@@ -747,12 +954,24 @@ class TaskService:
                 diff[key] = {"before": before_value, "after": after_value}
         return diff
 
-    def _build_result_json(self, *, result_id: str, batch_item_id: str, raw: RawPrediction) -> dict[str, Any]:
-        detections = []
-        for index, item in enumerate(raw.detections):
-            detections.append(
-                {
-                    "id": f"{result_id}-{index + 1}",
+    def _build_result_json(
+        self,
+        *,
+        result_id: str,
+        batch_item_id: str,
+        raw: RawPrediction,
+        upload_uri: Optional[str] = None,
+        overlay_uri: Optional[str] = None,
+        secondary_raw: Optional[RawPrediction] = None,
+        enhanced_uri: Optional[str] = None,
+        enhanced_overlay_uri: Optional[str] = None,
+        created_at: Optional[datetime] = None,
+    ) -> dict[str, Any]:
+        def _map_detections(r_id: str, d_items: list):
+            res = []
+            for index, item in enumerate(d_items):
+                res.append({
+                    "id": f"{r_id}-{index + 1}",
                     "category": item.category,
                     "confidence": item.confidence,
                     "bbox": item.bbox.model_dump(),
@@ -761,12 +980,12 @@ class TaskService:
                     "source_role": item.source_role,
                     "source_model_name": item.source_model_name,
                     "source_model_version": item.source_model_version,
-                }
-            )
+                })
+            return res
 
-        return {
+        payload = {
             "schema_version": "2.0.0",
-            "result_id": result_id,
+            "image_id": result_id,
             "batch_item_id": batch_item_id,
             "model_name": raw.model_name,
             "model_version": raw.model_version,
@@ -774,5 +993,38 @@ class TaskService:
             "inference_mode": raw.inference_mode,
             "inference_ms": raw.inference_ms,
             "inference_breakdown": raw.inference_breakdown,
-            "detections": detections,
+            "detections": _map_detections(result_id, raw.detections),
+            "has_masks": any(item.mask is not None for item in raw.detections),
+            "mask_detection_count": sum(1 for item in raw.detections if item.mask is not None),
+            "created_at": (created_at or datetime.now(timezone.utc)).isoformat(),
+            "artifacts": {
+                "upload_path": upload_uri or "",
+                "json_path": "",
+                "overlay_path": overlay_uri,
+                "enhanced_path": enhanced_uri,
+                "enhanced_overlay_path": enhanced_overlay_uri,
+            }
         }
+        
+        if secondary_raw:
+            secondary_id = f"{result_id}-enhanced"
+            payload["secondary_result"] = {
+                "image_id": secondary_id,
+                "inference_ms": secondary_raw.inference_ms,
+                "inference_breakdown": secondary_raw.inference_breakdown,
+                "model_name": secondary_raw.model_name,
+                "model_version": secondary_raw.model_version,
+                "backend": secondary_raw.backend,
+                "inference_mode": secondary_raw.inference_mode,
+                "detections": _map_detections(secondary_id, secondary_raw.detections),
+                "has_masks": any(item.mask is not None for item in secondary_raw.detections),
+                "mask_detection_count": sum(1 for item in secondary_raw.detections if item.mask is not None),
+                "created_at": (created_at or datetime.now(timezone.utc)).isoformat(),
+                "artifacts": {
+                    "upload_path": enhanced_uri or "",
+                    "json_path": "",
+                    "overlay_path": enhanced_overlay_uri,
+                }
+            }
+
+        return payload

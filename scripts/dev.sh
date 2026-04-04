@@ -34,7 +34,7 @@ open_backend_window() {
   osascript >/dev/null 2>&1 <<EOF || true
 tell application "Terminal"
   activate
-  do script "printf '\\\033]0;BDI Backend ($MODE)\\\007'; clear; echo 'BDI Backend ($MODE mode)'; echo 'Project: $backend_dir_escaped'; echo 'Press Ctrl+C in this window to stop the backend.'; echo; cd \"$backend_dir_escaped\"; source \"$backend_env_escaped/bin/activate\"; $backend_python_escaped -m uvicorn app.main:app --reload"
+  do script "printf '\\\033]0;BDI Backend ($MODE)\\\007'; clear; echo 'BDI Backend ($MODE mode)'; echo 'Project: $backend_dir_escaped'; echo 'Press Ctrl+C in this window to stop the backend.'; echo; cd \"$backend_dir_escaped\"; source \"$backend_env_escaped/bin/activate\"; export BDI_TASK_WORKER_ENABLED=true; $backend_python_escaped -m uvicorn app.main:app --reload"
 end tell
 EOF
 }

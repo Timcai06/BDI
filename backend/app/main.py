@@ -77,18 +77,21 @@ def create_app() -> FastAPI:
         enhance_runner=enhance_runner,
         max_upload_size_bytes=settings.max_upload_size_bytes,
     )
-    result_service = ResultService(store=store)
+    result_service = ResultService(store=store, session_factory=db_session_factory)
     llm_service = LLMService(settings=settings)
     batch_service = BatchService(
         session_factory=db_session_factory,
         store=store,
         max_upload_size_bytes=settings.max_upload_size_bytes,
+        runner_manager=runner_manager,
     )
     task_service = TaskService(
         session_factory=db_session_factory,
         store=store,
         runner_manager=runner_manager,
+        enhance_runner=enhance_runner,
         max_attempts=settings.task_max_attempts,
+        task_lease_seconds=settings.task_lease_seconds,
         alert_auto_enabled=settings.alert_auto_enabled,
         alert_count_threshold=settings.alert_count_threshold,
         alert_category_watchlist=settings.alert_category_watchlist,
@@ -102,6 +105,9 @@ def create_app() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
+        recovered = task_service.recover_stale_tasks()
+        if recovered > 0:
+            logger.warning("Recovered %s stale running tasks during startup.", recovered)
         if settings.task_worker_enabled:
             await task_worker.start()
         try:

@@ -35,8 +35,9 @@ alembic upgrade head
 
 - `BDI_DATABASE_URL`（示例：`postgresql+psycopg://your_local_pg_role@localhost:5432/bdi`，本机常见为你的系统用户名）
 - `BDI_DATABASE_ECHO`（`true/false`）
-- `BDI_TASK_WORKER_ENABLED`（`true/false`）
+- `BDI_TASK_WORKER_ENABLED`（`true/false`，`bdi run` 默认建议为 `true`）
 - `BDI_TASK_WORKER_INTERVAL_SECONDS`（默认 `1.0`）
+- `BDI_TASK_LEASE_SECONDS`（任务租约秒数，默认 `300`）
 - `BDI_TASK_MAX_ATTEMPTS`（单个批次项最大尝试次数，默认 `3`）
 - `BDI_ALERT_AUTO_ENABLED`（是否启用识别后自动预警，默认 `true`）
 - `BDI_ALERT_COUNT_THRESHOLD`（单图病害数阈值，默认 `3`）

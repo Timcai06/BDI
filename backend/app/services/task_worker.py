@@ -38,7 +38,7 @@ class TaskWorker:
     async def _run_loop(self) -> None:
         while not self._stopping:
             try:
-                result = self.task_service.process_next_queued_task()
+                result = await asyncio.to_thread(self.task_service.process_next_queued_task)
                 if result.processed:
                     await asyncio.sleep(0.01)
                     continue

@@ -13,6 +13,8 @@ from app.core.category_mapper import normalize_defect_category
 
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
+WORKSPACE_ROOT = BACKEND_ROOT.parent
 
 
 class ConfiguredModel(BaseModel):
@@ -39,7 +41,7 @@ class ConfiguredModel(BaseModel):
 class Settings(BaseModel):
     app_name: str = "bridge-defect-api"
     app_version: str = "0.1.0"
-    artifact_root: Path = Field(default=Path("artifacts"))
+    artifact_root: Path = Field(default=WORKSPACE_ROOT / "artifacts")
     max_upload_size_bytes: int = 30 * 1024 * 1024
     model_name: str = "yolov8-seg"
     model_version: str = "v1"
@@ -54,8 +56,8 @@ class Settings(BaseModel):
     pixels_per_mm: float = Field(default=10.0, description="Pixel to millimeter conversion factor")
     allow_mock_fallback: bool = True
     enhance_enabled: bool = True
-    enhance_revised_weights: Optional[Path] = Field(default=Path("backend/models/enhancement/revised/best_psnr.pth"))
-    enhance_bridge_weights: Optional[Path] = Field(default=Path("backend/models/enhancement/bridge/best_psnr.pth"))
+    enhance_revised_weights: Optional[Path] = Field(default=Path("models/enhancement/revised/best_psnr.pth"))
+    enhance_bridge_weights: Optional[Path] = Field(default=Path("models/enhancement/bridge/best_psnr.pth"))
     extra_models: list[ConfiguredModel] = Field(default_factory=list)
     cors_allow_origins: list[str] = Field(
         default_factory=lambda: [
@@ -68,8 +70,9 @@ class Settings(BaseModel):
     llm_model_name: str = "gpt-3.5-turbo"
     database_url: str = f"postgresql+psycopg://{getuser()}@localhost:5432/bdi"
     database_echo: bool = False
-    task_worker_enabled: bool = False
+    task_worker_enabled: bool = True
     task_worker_interval_seconds: float = 1.0
+    task_lease_seconds: int = 300
     task_max_attempts: int = 3
     alert_auto_enabled: bool = True
     alert_count_threshold: int = 3
@@ -83,7 +86,21 @@ def _env_flag(name: str, default: str) -> bool:
 
 def _env_path(name: str) -> Path | None:
     value = os.getenv(name)
-    return Path(value) if value else None
+    return _resolve_runtime_path(Path(value)) if value else None
+
+
+def _resolve_runtime_path(path: Path | None) -> Path | None:
+    if path is None:
+        return None
+    if path.is_absolute():
+        return path
+
+    # Backward-compatible handling for values like "backend/models/..."
+    # while allowing "models/..." relative to backend root.
+    path_text = path.as_posix()
+    if path_text.startswith("backend/"):
+        return WORKSPACE_ROOT / path
+    return BACKEND_ROOT / path
 
 
 def _load_extra_models(raw_value: str | None) -> list[ConfiguredModel]:
@@ -94,7 +111,9 @@ def _load_extra_models(raw_value: str | None) -> list[ConfiguredModel]:
         ConfiguredModel(
             **{
                 **item,
-                "weights_path": Path(item["weights_path"]) if item.get("weights_path") else None,
+                "weights_path": _resolve_runtime_path(Path(item["weights_path"]))
+                if item.get("weights_path")
+                else None,
             }
         )
         for item in json.loads(raw_value)
@@ -123,7 +142,7 @@ def get_settings() -> Settings:
     artifact_root = os.getenv("BDI_ARTIFACT_ROOT")
     extra_models_raw = os.getenv("BDI_EXTRA_MODELS")
     return Settings(
-        artifact_root=Path(artifact_root) if artifact_root else Path("artifacts"),
+        artifact_root=_resolve_runtime_path(Path(artifact_root)) if artifact_root else (WORKSPACE_ROOT / "artifacts"),
         max_upload_size_bytes=int(os.getenv("BDI_MAX_UPLOAD_SIZE_BYTES", str(30 * 1024 * 1024))),
         model_name=os.getenv("BDI_MODEL_NAME", "yolov8-seg"),
         model_version=os.getenv("BDI_MODEL_VERSION", "v1"),
@@ -140,8 +159,10 @@ def get_settings() -> Settings:
         pixels_per_mm=float(os.getenv("BDI_PIXELS_PER_MM", "10.0")),
         allow_mock_fallback=_env_flag("BDI_ALLOW_MOCK_FALLBACK", "true"),
         enhance_enabled=_env_flag("BDI_ENHANCE_ENABLED", "true"),
-        enhance_revised_weights=_env_path("BDI_ENHANCE_REVISED_WEIGHTS") or Path("backend/models/enhancement/revised/best_psnr.pth"),
-        enhance_bridge_weights=_env_path("BDI_ENHANCE_BRIDGE_WEIGHTS") or Path("backend/models/enhancement/bridge/best_psnr.pth"),
+        enhance_revised_weights=_env_path("BDI_ENHANCE_REVISED_WEIGHTS")
+        or _resolve_runtime_path(Path("models/enhancement/revised/best_psnr.pth")),
+        enhance_bridge_weights=_env_path("BDI_ENHANCE_BRIDGE_WEIGHTS")
+        or _resolve_runtime_path(Path("models/enhancement/bridge/best_psnr.pth")),
         extra_models=_load_extra_models(extra_models_raw),
         cors_allow_origins=_load_cors_origins(cors_origins),
         llm_api_key=os.getenv("BDI_LLM_API_KEY"),
@@ -152,8 +173,9 @@ def get_settings() -> Settings:
             f"postgresql+psycopg://{getuser()}@localhost:5432/bdi",
         ),
         database_echo=_env_flag("BDI_DATABASE_ECHO", "false"),
-        task_worker_enabled=_env_flag("BDI_TASK_WORKER_ENABLED", "false"),
+        task_worker_enabled=_env_flag("BDI_TASK_WORKER_ENABLED", "true"),
         task_worker_interval_seconds=float(os.getenv("BDI_TASK_WORKER_INTERVAL_SECONDS", "1.0")),
+        task_lease_seconds=max(30, int(os.getenv("BDI_TASK_LEASE_SECONDS", "300"))),
         task_max_attempts=int(os.getenv("BDI_TASK_MAX_ATTEMPTS", "3")),
         alert_auto_enabled=_env_flag("BDI_ALERT_AUTO_ENABLED", "true"),
         alert_count_threshold=int(os.getenv("BDI_ALERT_COUNT_THRESHOLD", "3")),

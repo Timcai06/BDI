@@ -1,13 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 
 import {
   createV1Bridge,
   createV1Batch,
+  deleteV1Batch,
   getV1Task,
   getV1BatchStats,
   ingestV1BatchItems,
@@ -19,6 +19,12 @@ import {
   listV1Reviews,
   retryV1Task
 } from "@/lib/predict-client";
+import { BatchHeader } from "./batch-header";
+import { BatchAnalytics } from "./batch-analytics";
+import { ItemGrid } from "./item-grid";
+import { IngestionWizard } from "./ingestion-wizard";
+import type { BatchWizardPayload } from "./ingestion-wizard";
+import { BatchEmptyState } from "./batch-empty-state";
 import type {
   AlertV1,
   BatchItemV1,
@@ -28,23 +34,6 @@ import type {
   DetectionRecordV1,
   ReviewRecordV1
 } from "@/lib/types";
-
-function SectionCard({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur">
-      <h3 className="text-sm font-semibold tracking-wide text-white/90 mb-3">{title}</h3>
-      {children}
-    </section>
-  );
-}
-
-function countMapToText(map: Record<string, number>): string {
-  const entries = Object.entries(map);
-  if (entries.length === 0) {
-    return "-";
-  }
-  return entries.map(([k, v]) => `${k}:${v}`).join(" | ");
-}
 
 type FileWithRelativePath = File & { webkitRelativePath?: string };
 const RECENT_PATH_PREFIXES_STORAGE_KEY = "ops.recentPathPrefixes.v1";
@@ -90,7 +79,9 @@ export function OpsWorkbenchShell() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [deletingBatch, setDeletingBatch] = useState(false);
   const [ready, setReady] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(null);
 
   const [bridges, setBridges] = useState<BridgeV1[]>([]);
   const [selectedBridgeId, setSelectedBridgeId] = useState("");
@@ -101,29 +92,27 @@ export function OpsWorkbenchShell() {
   const [selectedBatchId, setSelectedBatchId] = useState<string>("");
   const [refreshTick, setRefreshTick] = useState(0);
 
-  const [batchCode, setBatchCode] = useState("");
-  const [bridgeCodeInput, setBridgeCodeInput] = useState("");
-  const [bridgeNameInput, setBridgeNameInput] = useState("");
-  const [sourceType, setSourceType] = useState("drone_image_stream");
-  const [createdBy, setCreatedBy] = useState("ops-user");
-  const [expectedItemCount, setExpectedItemCount] = useState("0");
-  const [sourceDevice, setSourceDevice] = useState("drone-A");
-  const [modelPolicy, setModelPolicy] = useState("fusion-default");
-  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
-  const [uploadInputMode, setUploadInputMode] = useState<"files" | "folder">("files");
+  const createdBy = "ops-user";
+  const sourceDevice = "drone-A";
+  const modelPolicy = "fusion-default";
   const [showFailedItemsOnly, setShowFailedItemsOnly] = useState(false);
   const [relativePathPrefix, setRelativePathPrefix] = useState("");
   const [recentPathPrefixes, setRecentPathPrefixes] = useState<string[]>([]);
   const [retryingTaskId, setRetryingTaskId] = useState<string | null>(null);
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
 
   const [stats, setStats] = useState<BatchStatsV1Response | null>(null);
   const [items, setItems] = useState<BatchItemV1[]>([]);
+  const [batchItemTotal, setBatchItemTotal] = useState(0);
+  const [batchItemOffset, setBatchItemOffset] = useState(0);
+  const batchItemLimit = 50;
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [detections, setDetections] = useState<DetectionRecordV1[]>([]);
   const [reviews, setReviews] = useState<ReviewRecordV1[]>([]);
   const [alerts, setAlerts] = useState<AlertV1[]>([]);
 
   const [category, setCategory] = useState("");
-  const [minConfidence, setMinConfidence] = useState("0.8");
+  const [minConfidence, setMinConfidence] = useState("0.0");
   const [detectionSortBy, setDetectionSortBy] = useState<"created_at" | "confidence" | "area_mm2">("created_at");
   const [detectionSortOrder, setDetectionSortOrder] = useState<"asc" | "desc">("desc");
 
@@ -235,7 +224,7 @@ export function OpsWorkbenchShell() {
     if (category) {
       next.set("category", category);
     }
-    if (minConfidence && minConfidence !== "0.8") {
+    if (minConfidence && minConfidence !== "0.0") {
       next.set("minConfidence", minConfidence);
     }
     if (detectionSortBy !== "created_at") {
@@ -330,10 +319,22 @@ export function OpsWorkbenchShell() {
   }, [ready, batchOffset, refreshTick]);
 
   useEffect(() => {
+    if (!selectedBatchId) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setRefreshTick((value) => value + 1);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [selectedBatchId]);
+
+  useEffect(() => {
     let cancelled = false;
     if (!ready || !selectedBatchId) {
       setStats(null);
       setItems([]);
+      setBatchItemTotal(0);
+      setSelectedItemIds([]);
       setDetections([]);
       setReviews([]);
       setAlerts([]);
@@ -346,7 +347,7 @@ export function OpsWorkbenchShell() {
       try {
         const [statsResp, itemsResp, detectionsResp, reviewsResp, alertsResp] = await Promise.all([
           getV1BatchStats(selectedBatchId),
-          listV1BatchItems(selectedBatchId, 100, 0, relativePathPrefix.trim() || undefined),
+          listV1BatchItems(selectedBatchId, batchItemLimit, batchItemOffset, relativePathPrefix.trim() || undefined),
           listV1Detections({
             batchId: selectedBatchId,
             category: category || undefined,
@@ -379,9 +380,14 @@ export function OpsWorkbenchShell() {
 
         setStats(statsResp);
         setItems(itemsResp.items);
+        setBatchItemTotal(itemsResp.total);
+        setSelectedItemIds((current) =>
+          current.filter((itemId) => itemsResp.items.some((item) => item.id === itemId))
+        );
         setDetections(detectionsResp.items);
         setReviews(reviewsResp.items);
         setAlerts(alertsResp.items);
+        setLastRefreshedAt(new Date().toISOString());
         setRecentPathPrefixes((current) =>
           mergeRecentPathPrefixes(
             current,
@@ -416,6 +422,7 @@ export function OpsWorkbenchShell() {
     alertSortBy,
     alertSortOrder,
     relativePathPrefix,
+    batchItemOffset,
     refreshTick
   ]);
 
@@ -428,74 +435,62 @@ export function OpsWorkbenchShell() {
   const canPrevBatchPage = batchOffset > 0;
   const canNextBatchPage = batchOffset + batchLimit < batchTotal;
 
-  async function handleCreateBatch() {
-    if (!selectedBridgeId || !batchCode.trim()) {
-      setError("请选择桥梁并填写 batch_code。");
-      return;
-    }
+  useEffect(() => {
+    setBatchItemOffset(0);
+    setSelectedItemIds([]);
+  }, [selectedBatchId, relativePathPrefix, showFailedItemsOnly]);
+
+  async function handleCreateBatch(bridgeId: string, payload: { batchCode: string; sourceType: string; expectedItemCount: number; createdBy?: string }) {
     setActionLoading(true);
     setError(null);
     setNotice(null);
     try {
-      const expected = Number(expectedItemCount || "0");
       const created = await createV1Batch({
-        bridgeId: selectedBridgeId,
-        batchCode: batchCode.trim(),
-        sourceType: sourceType.trim() || "drone_image_stream",
-        expectedItemCount: Number.isFinite(expected) ? Math.max(0, Math.floor(expected)) : 0,
-        createdBy: createdBy.trim() || undefined
+        bridgeId,
+        batchCode: payload.batchCode.trim(),
+        sourceType: payload.sourceType || "drone_image_stream",
+        expectedItemCount: payload.expectedItemCount,
+        createdBy: payload.createdBy || createdBy
       });
       setNotice(`批次创建成功：${created.batch_code}`);
-      setBatchCode("");
       setBatchOffset(0);
       setSelectedBatchId(created.id);
       setRefreshTick((v) => v + 1);
+      return created;
     } catch (err) {
       setError(err instanceof Error ? err.message : "批次创建失败");
+      throw err;
     } finally {
       setActionLoading(false);
     }
   }
 
-  async function handleCreateBridge() {
-    if (!bridgeCodeInput.trim() || !bridgeNameInput.trim()) {
-      setError("请先填写 bridge_code 和 bridge_name。");
-      return;
-    }
+  async function handleCreateBridge(code: string, name: string) {
     setActionLoading(true);
     setError(null);
     setNotice(null);
     try {
       const created = await createV1Bridge({
-        bridgeCode: bridgeCodeInput.trim(),
-        bridgeName: bridgeNameInput.trim()
+        bridgeCode: code.trim(),
+        bridgeName: name.trim()
       });
       setNotice(`桥梁创建成功：${created.bridge_code} | ${created.bridge_name}`);
-      setBridgeCodeInput("");
-      setBridgeNameInput("");
       setSelectedBridgeId(created.id);
       setRefreshTick((v) => v + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "桥梁创建失败");
+      throw err;
     } finally {
       setActionLoading(false);
     }
   }
 
-  async function handleIngestItems() {
-    if (!selectedBatchId) {
-      setError("请先选择批次。");
-      return;
-    }
-    if (uploadFiles.length === 0) {
-      setError("请先选择要上传的图片。");
-      return;
-    }
+  async function handleIngestItems(batchId: string, files: File[]) {
     setActionLoading(true);
     setError(null);
     setNotice(null);
     try {
-      const relativePaths = uploadFiles.map((file) => {
+      const relativePaths = files.map((file) => {
         const relativePath = (file as FileWithRelativePath).webkitRelativePath?.trim() ?? "";
         return relativePath;
       });
@@ -503,36 +498,52 @@ export function OpsWorkbenchShell() {
       if (hasRelativePath) {
         setRecentPathPrefixes((current) => mergeRecentPathPrefixes(current, derivePathPrefixesFromItems(relativePaths)));
       }
-      const response = await ingestV1BatchItems({
-        batchId: selectedBatchId,
-        files: uploadFiles,
-        relativePaths: hasRelativePath ? relativePaths : undefined,
-        modelPolicy: modelPolicy.trim() || "fusion-default",
-        sourceDevice: sourceDevice.trim() || undefined
-      });
-      setNotice(`上传完成：accepted=${response.accepted_count}, rejected=${response.rejected_count}`);
-      setUploadFiles([]);
-      setUploadInputMode("files");
+      const chunkSize = 20;
+      let acceptedCount = 0;
+      let rejectedCount = 0;
+      const errorCounter = new Map<string, number>();
+      for (let index = 0; index < files.length; index += chunkSize) {
+        const chunkFiles = files.slice(index, index + chunkSize);
+        const chunkRelativePaths = hasRelativePath ? relativePaths.slice(index, index + chunkSize) : undefined;
+        const response = await ingestV1BatchItems({
+          batchId,
+          files: chunkFiles,
+          relativePaths: chunkRelativePaths,
+          modelPolicy: modelPolicy.trim() || "fusion-default",
+          sourceDevice: sourceDevice.trim() || undefined
+        });
+        acceptedCount += response.accepted_count;
+        rejectedCount += response.rejected_count;
+        response.errors.forEach((item) => {
+          const key = `${item.code}: ${item.message}`;
+          errorCounter.set(key, (errorCounter.get(key) ?? 0) + 1);
+        });
+      }
+      const topErrors = Array.from(errorCounter.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([message, count]) => `${count}x ${message}`);
+      const summary = `上传完成：accepted=${acceptedCount}, rejected=${rejectedCount}, chunks=${Math.ceil(files.length / chunkSize)}`;
+      setNotice(topErrors.length > 0 ? `${summary} | 失败原因：${topErrors.join(" ; ")}` : summary);
       setRefreshTick((v) => v + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "批次图片上传失败");
+      throw err;
     } finally {
       setActionLoading(false);
     }
   }
 
-  function normalizeSelectedFiles(fileList: FileList | null): File[] {
-    if (!fileList) {
-      return [];
-    }
-    const allowed = new Set(["image/jpeg", "image/png", "image/webp"]);
-    return Array.from(fileList).filter((file) => {
-      if (allowed.has(file.type)) {
-        return true;
+  async function handleWizardFinish(bridgeId: string, batchPayload: BatchWizardPayload, files: File[]) {
+    try {
+      const batch = await handleCreateBatch(bridgeId, batchPayload);
+      if (files.length > 0) {
+        await handleIngestItems(batch.id, files);
       }
-      const lower = file.name.toLowerCase();
-      return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".webp");
-    });
+      setIsWizardOpen(false);
+    } catch {
+      // Errors are handled in the individual calls
+    }
   }
 
   async function handleRetryBatchItemTask(taskId: string) {
@@ -558,422 +569,231 @@ export function OpsWorkbenchShell() {
     }
   }
 
-  return (
-    <div className="relative z-10 flex-1 overflow-y-auto p-6 lg:p-8 space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl lg:text-2xl font-semibold text-white">巡检工作台</h1>
-          <p className="text-sm text-white/60 mt-1">批次详情、病害检索、复核与告警联动</p>
-        </div>
-        <Link
-          href="/dashboard/ops/alerts"
-          className="rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-xs tracking-wider text-cyan-200 hover:bg-cyan-300/20"
-        >
-          告警中心
-        </Link>
-      </header>
+  function handleToggleSelectItem(itemId: string) {
+    setSelectedItemIds((current) =>
+      current.includes(itemId) ? current.filter((id) => id !== itemId) : [...current, itemId]
+    );
+  }
 
-      <SectionCard title="批次选择">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-3">
-          <div className="rounded border border-white/10 bg-black/20 p-3 space-y-2">
-            <p className="text-xs text-white/60">先创建桥梁（无可选项时）</p>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                value={bridgeCodeInput}
-                onChange={(e) => setBridgeCodeInput(e.target.value)}
-                placeholder="bridge_code (e.g. BR-001)"
-                className="w-full rounded border border-white/15 bg-black/30 px-2 py-2 text-xs text-white"
-              />
-              <input
-                value={bridgeNameInput}
-                onChange={(e) => setBridgeNameInput(e.target.value)}
-                placeholder="bridge_name (e.g. 北江大桥)"
-                className="w-full rounded border border-white/15 bg-black/30 px-2 py-2 text-xs text-white"
-              />
+  function handleSelectVisibleItems() {
+    const visibleIds = visibleItems.map((item) => item.id);
+    setSelectedItemIds((current) => Array.from(new Set([...current, ...visibleIds])));
+  }
+
+  async function handleRetrySelectedFailed() {
+    const selectedFailedItems = items.filter(
+      (item) => selectedItemIds.includes(item.id) && item.processing_status === "failed" && item.latest_task_id
+    );
+    if (selectedFailedItems.length === 0) {
+      setNotice("当前选择中没有可重试的失败项。");
+      return;
+    }
+
+    setActionLoading(true);
+    setError(null);
+    setNotice(null);
+    try {
+      let queuedCount = 0;
+      const failedReasons: string[] = [];
+      for (const item of selectedFailedItems) {
+        try {
+          await retryV1Task({
+            taskId: item.latest_task_id!,
+            requestedBy: createdBy.trim() || "ops-user",
+            reason: "bulk retry from ops workbench"
+          });
+          queuedCount += 1;
+        } catch (err) {
+          failedReasons.push(err instanceof Error ? err.message : "任务重试失败");
+        }
+      }
+      if (failedReasons.length > 0) {
+        const sample = failedReasons.slice(0, 2).join(" | ");
+        setError(`批量重试部分失败：成功入队 ${queuedCount} 项，失败 ${failedReasons.length} 项。${sample}`);
+      } else {
+        setNotice(`批量重试已入队：${queuedCount} 项`);
+      }
+      setSelectedItemIds([]);
+      setRefreshTick((v) => v + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "批量重试失败");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleDeleteCurrentBatch() {
+    if (!selectedBatchId) {
+      return;
+    }
+    const current = batches.find((item) => item.id === selectedBatchId);
+    const label = current?.batch_code ?? selectedBatchId;
+    const confirmed = window.confirm(`确认删除批次 ${label}？该操作会删除批次及其任务、结果、告警记录。`);
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingBatch(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await deleteV1Batch(selectedBatchId);
+      setNotice(`批次已删除：${label}`);
+      setSelectedBatchId("");
+      setBatchItemOffset(0);
+      setSelectedItemIds([]);
+      setRefreshTick((v) => v + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "批次删除失败");
+    } finally {
+      setDeletingBatch(false);
+    }
+  }
+
+  return (
+    <div className="relative z-10 flex flex-1 flex-col bg-transparent overflow-hidden">
+      <BatchHeader 
+        batch={selectedBatch} 
+        onOpenWizard={() => setIsWizardOpen(true)} 
+        onRefresh={() => setRefreshTick(v => v + 1)}
+        onDeleteBatch={handleDeleteCurrentBatch}
+        deletingBatch={deletingBatch}
+        lastRefreshedAt={lastRefreshedAt}
+      />
+
+      <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8">
+        {error && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300">
+            {error}
+          </motion.div>
+        )}
+        {notice && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-300">
+            {notice}
+          </motion.div>
+        )}
+        {loading && !lastRefreshedAt && (
+          <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3 text-sm text-white/45">
+            正在刷新批次状态与任务结果...
+          </div>
+        )}
+
+        {!selectedBatchId ? (
+          <BatchEmptyState onCreateClick={() => setIsWizardOpen(true)} />
+        ) : (
+          <div className="space-y-8">
+            <BatchAnalytics stats={stats} />
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <div className="rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-4 text-sm text-white/70">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">检索面板</p>
+                <p className="mt-2">Detections: {detections.length}</p>
+                <p>Reviews: {reviews.length}</p>
+                <p>Alerts: {alerts.length}</p>
+                <p>Min Confidence: {minConfidence}</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    onClick={() => setMinConfidence("0.0")}
+                    className={`rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${
+                      minConfidence === "0.0"
+                        ? "border-cyan-500/40 bg-cyan-500/20 text-cyan-200"
+                        : "border-white/10 bg-white/5 text-white/60"
+                    }`}
+                  >
+                    全部结果
+                  </button>
+                  <button
+                    onClick={() => setMinConfidence("0.8")}
+                    className={`rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${
+                      minConfidence === "0.8"
+                        ? "border-cyan-500/40 bg-cyan-500/20 text-cyan-200"
+                        : "border-white/10 bg-white/5 text-white/60"
+                    }`}
+                  >
+                    高置信
+                  </button>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-4 text-sm text-white/70">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">批量动作</p>
+                <p className="mt-2">当前已选择 {selectedItemIds.length} 项。</p>
+                <p>支持按页选择、只看异常项、批量重试失败任务。</p>
+              </div>
+              <div className="rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-4 text-sm text-white/70">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">调度状态</p>
+                <p className="mt-2">模型策略：{modelPolicy}</p>
+                <p>采集设备：{sourceDevice}</p>
+                <p>批次创建人：{createdBy}</p>
+              </div>
             </div>
-            <button
-              onClick={handleCreateBridge}
-              disabled={actionLoading}
-              className="rounded border border-white/20 bg-white/5 px-3 py-2 text-xs text-white/80 disabled:opacity-40"
-            >
-              创建桥梁并选中
-            </button>
-            <div className="h-px bg-white/10 my-1" />
-            <p className="text-xs text-white/60">新建批次</p>
+            <ItemGrid 
+              items={visibleItems}
+              pathFilter={relativePathPrefix}
+              onPathFilterChange={setRelativePathPrefix}
+              showFailedOnly={showFailedItemsOnly}
+              onShowFailedOnlyToggle={() => setShowFailedItemsOnly(!showFailedItemsOnly)}
+              onRetryTask={handleRetryBatchItemTask}
+              retryingTaskId={retryingTaskId}
+              selectedItemIds={selectedItemIds}
+              onToggleSelectItem={handleToggleSelectItem}
+              onSelectVisibleItems={handleSelectVisibleItems}
+              onClearSelection={() => setSelectedItemIds([])}
+              onRetrySelectedFailed={handleRetrySelectedFailed}
+              batchItemOffset={batchItemOffset}
+              batchItemLimit={batchItemLimit}
+              batchItemTotal={batchItemTotal}
+              onBatchItemPageChange={setBatchItemOffset}
+            />
+          </div>
+        )}
+      </main>
+
+      <footer className="border-t border-white/5 bg-white/[0.01] px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
             <select
-              value={selectedBridgeId}
-              onChange={(e) => setSelectedBridgeId(e.target.value)}
-              className="w-full rounded border border-white/15 bg-black/30 px-2 py-2 text-xs text-white"
+              value={selectedBatchId}
+              onChange={(e) => setSelectedBatchId(e.target.value)}
+              className="rounded-lg border border-white/10 bg-black/40 px-3 py-1.5 text-xs text-white outline-none focus:border-cyan-500/30"
             >
-              <option value="">选择桥梁</option>
-              {bridges.map((bridge) => (
-                <option key={bridge.id} value={bridge.id}>
-                  {bridge.bridge_code} | {bridge.bridge_name}
+              <option value="">快速切换批次...</option>
+              {batches.map((batch) => (
+                <option key={batch.id} value={batch.id}>
+                  {batch.batch_code} ({batch.status})
                 </option>
               ))}
             </select>
-            <input
-              value={batchCode}
-              onChange={(e) => setBatchCode(e.target.value)}
-              placeholder="batch_code (e.g. B20260401-001)"
-              className="w-full rounded border border-white/15 bg-black/30 px-2 py-2 text-xs text-white"
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                value={sourceType}
-                onChange={(e) => setSourceType(e.target.value)}
-                placeholder="source_type"
-                className="w-full rounded border border-white/15 bg-black/30 px-2 py-2 text-xs text-white"
-              />
-              <input
-                value={expectedItemCount}
-                onChange={(e) => setExpectedItemCount(e.target.value)}
-                placeholder="expected_item_count"
-                className="w-full rounded border border-white/15 bg-black/30 px-2 py-2 text-xs text-white"
-              />
-            </div>
-            <input
-              value={createdBy}
-              onChange={(e) => setCreatedBy(e.target.value)}
-              placeholder="created_by"
-              className="w-full rounded border border-white/15 bg-black/30 px-2 py-2 text-xs text-white"
-            />
-            <button
-              onClick={handleCreateBatch}
-              disabled={actionLoading}
-              className="rounded border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-200 disabled:opacity-40"
-            >
-              创建批次
-            </button>
           </div>
 
-          <div className="rounded border border-white/10 bg-black/20 p-3 space-y-2">
-            <p className="text-xs text-white/60">批量上传并自动入队</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setUploadInputMode("files")}
-                className={`rounded border px-2 py-2 text-xs ${
-                  uploadInputMode === "files"
-                    ? "border-cyan-300/30 bg-cyan-300/10 text-cyan-200"
-                    : "border-white/15 bg-black/30 text-white/70"
-                }`}
-              >
-                选择文件
-              </button>
-              <button
-                type="button"
-                onClick={() => setUploadInputMode("folder")}
-                className={`rounded border px-2 py-2 text-xs ${
-                  uploadInputMode === "folder"
-                    ? "border-cyan-300/30 bg-cyan-300/10 text-cyan-200"
-                    : "border-white/15 bg-black/30 text-white/70"
-                }`}
-              >
-                选择文件夹
-              </button>
-            </div>
-            <input
-              key={`upload-${uploadInputMode}`}
-              type="file"
-              multiple
-              accept="image/jpeg,image/png,image/webp"
-              {...(uploadInputMode === "folder"
-                ? ({ webkitdirectory: "", directory: "" } as unknown as Record<string, string>)
-                : {})}
-              onChange={(e) => setUploadFiles(normalizeSelectedFiles(e.target.files))}
-              className="w-full rounded border border-white/15 bg-black/30 px-2 py-2 text-xs text-white"
-            />
-            <p className="text-[11px] text-white/45">
-              {uploadInputMode === "folder"
-                ? "文件夹模式：会自动扫描子目录中的图片并批量入队。"
-                : "文件模式：手动多选图片后批量入队。"}
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                value={modelPolicy}
-                onChange={(e) => setModelPolicy(e.target.value)}
-                placeholder="model_policy"
-                className="w-full rounded border border-white/15 bg-black/30 px-2 py-2 text-xs text-white"
-              />
-              <input
-                value={sourceDevice}
-                onChange={(e) => setSourceDevice(e.target.value)}
-                placeholder="source_device"
-                className="w-full rounded border border-white/15 bg-black/30 px-2 py-2 text-xs text-white"
-              />
-            </div>
-            <p className="text-xs text-white/50">已选文件: {uploadFiles.length}</p>
+          <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest">
             <button
-              onClick={handleIngestItems}
-              disabled={actionLoading || uploadFiles.length === 0 || !selectedBatchId}
-              className="rounded border border-emerald-300/30 bg-emerald-300/10 px-3 py-2 text-xs text-emerald-200 disabled:opacity-40"
+              disabled={!canPrevBatchPage}
+              onClick={() => setBatchOffset((prev) => Math.max(0, prev - batchLimit))}
+              className="text-white/40 hover:text-white disabled:opacity-20"
             >
-              上传到当前批次
+              PREV
+            </button>
+            <span className="text-cyan-500/50">PAGE {currentBatchPage} / {totalBatchPages}</span>
+            <button
+              disabled={!canNextBatchPage}
+              onClick={() => setBatchOffset((prev) => prev + batchLimit)}
+              className="text-white/40 hover:text-white disabled:opacity-20"
+            >
+              NEXT
             </button>
           </div>
         </div>
+      </footer>
 
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <select
-            value={selectedBatchId}
-            onChange={(e) => setSelectedBatchId(e.target.value)}
-            className="rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white outline-none"
-          >
-            <option value="">请选择批次</option>
-            {batches.map((batch) => (
-              <option key={batch.id} value={batch.id}>
-                {batch.batch_code} ({batch.status})
-              </option>
-            ))}
-          </select>
-          {selectedBatch && (
-            <p className="text-xs text-white/60">
-              source={selectedBatch.source_type} | received={selectedBatch.received_item_count} | succeeded={selectedBatch.succeeded_item_count} | failed={selectedBatch.failed_item_count}
-            </p>
-          )}
-        </div>
-        <div className="mt-3 flex items-center gap-2 text-xs">
-          <button
-            disabled={!canPrevBatchPage}
-            onClick={() => setBatchOffset((prev) => Math.max(0, prev - batchLimit))}
-            className="rounded border border-white/20 px-2 py-1 text-white/80 disabled:opacity-40"
-          >
-            上一页
-          </button>
-          <button
-            disabled={!canNextBatchPage}
-            onClick={() => setBatchOffset((prev) => prev + batchLimit)}
-            className="rounded border border-white/20 px-2 py-1 text-white/80 disabled:opacity-40"
-          >
-            下一页
-          </button>
-          <span className="text-white/50">page {currentBatchPage}/{totalBatchPages}</span>
-          <span className="text-white/40">total={batchTotal}</span>
-        </div>
-      </SectionCard>
-
-      {error && (
-        <div className="rounded-lg border border-rose-300/30 bg-rose-400/10 p-3 text-sm text-rose-200">{error}</div>
-      )}
-      {notice && (
-        <div className="rounded-lg border border-emerald-300/30 bg-emerald-400/10 p-3 text-sm text-emerald-200">{notice}</div>
-      )}
-
-      {loading ? (
-        <div className="text-sm text-white/60">加载中...</div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <SectionCard title="批次统计">
-              <div className="space-y-2 text-xs text-white/80">
-                <div>status: {countMapToText(stats?.status_breakdown ?? {})}</div>
-                <div>review: {countMapToText(stats?.review_breakdown ?? {})}</div>
-                <div>category: {countMapToText(stats?.category_breakdown ?? {})}</div>
-                <div>alert: {countMapToText(stats?.alert_breakdown ?? {})}</div>
-              </div>
-            </SectionCard>
-
-            <SectionCard title="批次图片">
-              <div className="mb-3 flex items-center justify-between text-xs">
-                <span className="text-white/50">
-                  显示 {visibleItems.length}/{items.length} 项
-                </span>
-                <div className="flex items-center gap-2">
-                  <input
-                    value={relativePathPrefix}
-                    onChange={(e) => setRelativePathPrefix(e.target.value)}
-                    placeholder="按目录前缀过滤，例如 bridge-A/segment-01"
-                    className="w-56 rounded border border-white/15 bg-black/30 px-2 py-1 text-[11px] text-white"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setRelativePathPrefix("")}
-                    disabled={!relativePathPrefix}
-                    className="rounded border border-white/20 px-2 py-1 text-white/80 hover:bg-white/[0.06] disabled:opacity-40"
-                  >
-                    清空筛选
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowFailedItemsOnly((prev) => !prev)}
-                    className="rounded border border-white/20 px-2 py-1 text-white/80 hover:bg-white/[0.06]"
-                  >
-                    {showFailedItemsOnly ? "显示全部" : "仅看失败项"}
-                  </button>
-                </div>
-              </div>
-              {recentPathPrefixes.length > 0 && (
-                <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px]">
-                  <span className="text-white/45">最近目录:</span>
-                  {recentPathPrefixes.map((prefix) => (
-                    <button
-                      key={prefix}
-                      type="button"
-                      onClick={() => setRelativePathPrefix(prefix)}
-                      className={`rounded border px-2 py-1 ${
-                        relativePathPrefix === prefix
-                          ? "border-cyan-300/30 bg-cyan-300/10 text-cyan-200"
-                          : "border-white/15 bg-black/30 text-white/70 hover:bg-white/[0.06]"
-                      }`}
-                    >
-                      {prefix}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <div className="max-h-56 overflow-auto space-y-2">
-                {visibleItems.map((item) => (
-                  <div key={item.id} className="rounded-lg border border-white/10 bg-black/20 p-2 text-xs text-white/80">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <Link
-                          href={`/dashboard/ops/items/${encodeURIComponent(item.id)}`}
-                          className="hover:text-cyan-200"
-                        >
-                          #{item.sequence_no} | {item.processing_status} | defects={item.defect_count} | review={item.review_status} | alert={item.alert_status}
-                        </Link>
-                        <div className="mt-1 truncate text-[11px] text-white/55">
-                          路径: {item.source_relative_path || "(未提供目录路径)"}
-                        </div>
-                      </div>
-                      {item.processing_status === "failed" && item.latest_task_id && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void handleRetryBatchItemTask(item.latest_task_id as string);
-                          }}
-                          disabled={retryingTaskId === item.latest_task_id}
-                          className="rounded border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[11px] text-amber-100 disabled:opacity-40"
-                        >
-                          {retryingTaskId === item.latest_task_id ? "重试中..." : "重试任务"}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {visibleItems.length === 0 && <div className="text-xs text-white/50">暂无图片数据</div>}
-              </div>
-            </SectionCard>
-          </div>
-
-          <SectionCard title="病害检索（detections）">
-            <div className="mb-3 grid grid-cols-1 lg:grid-cols-5 gap-2 text-xs">
-              <input
-                placeholder="category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="rounded border border-white/15 bg-black/30 px-2 py-2 text-white"
-              />
-              <input
-                placeholder="min_confidence"
-                value={minConfidence}
-                onChange={(e) => setMinConfidence(e.target.value)}
-                className="rounded border border-white/15 bg-black/30 px-2 py-2 text-white"
-              />
-              <select
-                value={detectionSortBy}
-                onChange={(e) => setDetectionSortBy(e.target.value as "created_at" | "confidence" | "area_mm2")}
-                className="rounded border border-white/15 bg-black/30 px-2 py-2 text-white"
-              >
-                <option value="created_at">created_at</option>
-                <option value="confidence">confidence</option>
-                <option value="area_mm2">area_mm2</option>
-              </select>
-              <select
-                value={detectionSortOrder}
-                onChange={(e) => setDetectionSortOrder(e.target.value as "asc" | "desc")}
-                className="rounded border border-white/15 bg-black/30 px-2 py-2 text-white"
-              >
-                <option value="desc">desc</option>
-                <option value="asc">asc</option>
-              </select>
-              <div className="text-white/50 px-1 py-2">total={detections.length}</div>
-            </div>
-            <div className="max-h-64 overflow-auto space-y-2">
-              {detections.map((det) => (
-                <div key={det.id} className="rounded border border-white/10 bg-black/20 p-2 text-xs text-white/80">
-                  {det.category} | conf={det.confidence.toFixed(3)} | area={det.area_mm2 ?? "-"} | valid={String(det.is_valid)}
-                </div>
-              ))}
-              {detections.length === 0 && <div className="text-xs text-white/50">暂无病害记录</div>}
-            </div>
-          </SectionCard>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <SectionCard title="复核记录（reviews）">
-              <div className="mb-3 grid grid-cols-2 gap-2 text-xs">
-                <select
-                  value={reviewSortBy}
-                  onChange={(e) => setReviewSortBy(e.target.value as "reviewed_at" | "created_at")}
-                  className="rounded border border-white/15 bg-black/30 px-2 py-2 text-white"
-                >
-                  <option value="reviewed_at">reviewed_at</option>
-                  <option value="created_at">created_at</option>
-                </select>
-                <select
-                  value={reviewSortOrder}
-                  onChange={(e) => setReviewSortOrder(e.target.value as "asc" | "desc")}
-                  className="rounded border border-white/15 bg-black/30 px-2 py-2 text-white"
-                >
-                  <option value="desc">desc</option>
-                  <option value="asc">asc</option>
-                </select>
-              </div>
-              <div className="max-h-64 overflow-auto space-y-2">
-                {reviews.map((review) => (
-                  <div key={review.id} className="rounded border border-white/10 bg-black/20 p-2 text-xs text-white/80">
-                    {review.review_action} {"->"} {review.review_decision} | by={review.reviewer}
-                  </div>
-                ))}
-                {reviews.length === 0 && <div className="text-xs text-white/50">暂无复核记录</div>}
-              </div>
-            </SectionCard>
-
-            <SectionCard title="告警记录（alerts）">
-              <div className="mb-3 grid grid-cols-3 gap-2 text-xs">
-                <select
-                  value={alertStatusFilter}
-                  onChange={(e) => setAlertStatusFilter(e.target.value)}
-                  className="rounded border border-white/15 bg-black/30 px-2 py-2 text-white"
-                >
-                  <option value="">all status</option>
-                  <option value="open">open</option>
-                  <option value="acknowledged">acknowledged</option>
-                  <option value="resolved">resolved</option>
-                </select>
-                <select
-                  value={alertSortBy}
-                  onChange={(e) =>
-                    setAlertSortBy(e.target.value as "triggered_at" | "created_at" | "updated_at")
-                  }
-                  className="rounded border border-white/15 bg-black/30 px-2 py-2 text-white"
-                >
-                  <option value="triggered_at">triggered_at</option>
-                  <option value="created_at">created_at</option>
-                  <option value="updated_at">updated_at</option>
-                </select>
-                <select
-                  value={alertSortOrder}
-                  onChange={(e) => setAlertSortOrder(e.target.value as "asc" | "desc")}
-                  className="rounded border border-white/15 bg-black/30 px-2 py-2 text-white"
-                >
-                  <option value="desc">desc</option>
-                  <option value="asc">asc</option>
-                </select>
-              </div>
-              <div className="max-h-64 overflow-auto space-y-2">
-                {alerts.map((alert) => (
-                  <div key={alert.id} className="rounded border border-white/10 bg-black/20 p-2 text-xs text-white/80">
-                    {alert.title} | {alert.event_type} | {alert.alert_level} | {alert.status}
-                  </div>
-                ))}
-                {alerts.length === 0 && <div className="text-xs text-white/50">暂无告警记录</div>}
-              </div>
-            </SectionCard>
-          </div>
-        </>
-      )}
+      <IngestionWizard 
+        isOpen={isWizardOpen}
+        onClose={() => setIsWizardOpen(false)}
+        bridges={bridges}
+        onCreateBridge={handleCreateBridge}
+        onFinish={handleWizardFinish}
+        selectedBridgeId={selectedBridgeId}
+        onSelectedBridgeChange={setSelectedBridgeId}
+        isLoading={actionLoading}
+      />
     </div>
   );
 }

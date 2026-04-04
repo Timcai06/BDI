@@ -186,6 +186,11 @@ export interface BatchListV1Response {
   offset: number;
 }
 
+export interface BatchDeleteV1Response {
+  deleted: boolean;
+  batch_id: string;
+}
+
 export interface BatchIngestV1Response {
   batch_id: string;
   accepted_count: number;
@@ -197,6 +202,8 @@ export interface BatchIngestV1Response {
     source_relative_path?: string | null;
     processing_status: string;
     task_id: string;
+    model_policy: string;
+    requested_model_version?: string | null;
   }>;
   errors: Array<{
     filename: string;
@@ -222,6 +229,7 @@ export interface OpsMetricsV1Response {
   queued_tasks: number;
   running_tasks: number;
   failed_tasks: number;
+  recovered_stale_tasks: number;
   p50_queue_wait_ms?: number | null;
   p95_queue_wait_ms?: number | null;
   p50_run_ms?: number | null;
@@ -282,11 +290,20 @@ export interface BatchItemV1 {
   id: string;
   batch_id: string;
   media_asset_id: string;
+  original_filename?: string | null;
+  source_device?: string | null;
   source_relative_path?: string | null;
   sequence_no: number;
   processing_status: string;
   review_status: string;
   latest_task_id?: string | null;
+  latest_task_status?: string | null;
+  latest_task_attempt_no?: number | null;
+  latest_failure_code?: string | null;
+  latest_failure_message?: string | null;
+  model_policy?: string | null;
+  requested_model_version?: string | null;
+  resolved_model_version?: string | null;
   latest_result_id?: string | null;
   defect_count: number;
   max_confidence?: number | null;
@@ -319,6 +336,9 @@ export interface TaskV1 {
   resolved_model_version?: string | null;
   inference_mode: string;
   queued_at?: string | null;
+  claimed_at?: string | null;
+  heartbeat_at?: string | null;
+  lease_expires_at?: string | null;
   started_at?: string | null;
   finished_at?: string | null;
   failure_code?: string | null;

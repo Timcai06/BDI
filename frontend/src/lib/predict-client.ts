@@ -12,6 +12,7 @@ import type {
   BatchIngestV1Response,
   BatchItemListV1Response,
   BatchItemResultV1Response,
+  BatchDeleteV1Response,
   BatchListV1Response,
   BatchStatsV1Response,
   BatchDeleteResultsResponse,
@@ -743,6 +744,20 @@ export async function createV1Batch(payload: {
   return (await response.json()) as BatchListV1Response["items"][number];
 }
 
+export async function deleteV1Batch(batchId: string): Promise<BatchDeleteV1Response> {
+  if (!API_BASE_URL) {
+    throw new Error("演示模式下无法删除批次。");
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/batches/${encodeURIComponent(batchId)}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    const err = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(err, "批次删除失败。"));
+  }
+  return (await response.json()) as BatchDeleteV1Response;
+}
+
 export async function ingestV1BatchItems(payload: {
   batchId: string;
   files: File[];
@@ -810,6 +825,7 @@ export async function getV1OpsMetrics(windowHours: number = 24): Promise<OpsMetr
       queued_tasks: 0,
       running_tasks: 0,
       failed_tasks: 0,
+      recovered_stale_tasks: 0,
       p50_queue_wait_ms: null,
       p95_queue_wait_ms: null,
       p50_run_ms: null,

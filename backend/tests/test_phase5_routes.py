@@ -11,6 +11,7 @@ from app.models.schemas import (
     AlertRulesConfigResponse,
     AlertResponse,
     BatchCreateResponse,
+    BatchDeleteResponse,
     BatchIngestResponse,
     BatchItemDetailResponse,
     BatchItemListResponse,
@@ -81,6 +82,9 @@ class StubBatchService:
 
     def get_batch(self, _batch_id: str):
         return self.batch
+
+    def delete_batch(self, batch_id: str):
+        return BatchDeleteResponse(batch_id=batch_id, deleted=True)
 
     async def ingest_items(self, **_kwargs):
         return BatchIngestResponse(batch_id="bat_1", accepted_count=0, rejected_count=0, items=[], errors=[])
@@ -446,6 +450,17 @@ def test_phase5_batch_item_result_endpoint_returns_detections() -> None:
     payload = response.json()
     assert payload["id"] == "res_1"
     assert payload["detections"][0]["category"] == "crack"
+
+
+def test_phase5_delete_batch_endpoint_returns_payload() -> None:
+    client, _ = create_phase5_client()
+
+    response = client.delete("/api/v1/batches/bat_1")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["deleted"] is True
+    assert payload["batch_id"] == "bat_1"
 
 
 def test_phase5_retry_task_endpoint_returns_accepted_and_calls_service() -> None:

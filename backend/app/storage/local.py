@@ -8,7 +8,7 @@ from uuid import uuid4
 
 class LocalArtifactStore:
     def __init__(self, root: Path) -> None:
-        self.root = root
+        self.root = root.resolve()
         self.uploads_dir = self.root / "uploads"
         self.results_dir = self.root / "results"
         self.overlays_dir = self.root / "overlays"
@@ -31,6 +31,11 @@ class LocalArtifactStore:
 
     def upload_path(self, image_id: str) -> Path:
         return self.uploads_dir / image_id
+
+    def delete_upload(self, image_id: str) -> None:
+        path = self.upload_path(image_id)
+        if path.exists():
+            path.unlink()
 
     def save_json(self, *, image_id: str, payload: dict) -> str:
         destination = self.results_dir / f"{image_id}.json"

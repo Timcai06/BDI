@@ -153,8 +153,8 @@ async def get_result_overlay(request: Request, image_id: str) -> FileResponse:
 
 @router.get("/results/{image_id}/image")
 async def get_result_image(request: Request, image_id: str) -> FileResponse:
-    image_path = request.app.state.result_service.get_upload_path(image_id=image_id)
-    return FileResponse(image_path, filename=image_path.name)
+    image_path, media_type, filename = request.app.state.result_service.get_upload_resource(image_id=image_id)
+    return FileResponse(image_path, media_type=media_type, filename=filename)
 
 
 @router.get("/results/{image_id}/enhanced")

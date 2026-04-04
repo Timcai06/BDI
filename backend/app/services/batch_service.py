@@ -3,14 +3,16 @@ from __future__ import annotations
 import hashlib
 import math
 from datetime import datetime, timedelta, timezone
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Any, Optional
 from uuid import uuid4
 
 from fastapi import UploadFile, status
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.adapters.manager import RunnerManager
 from app.core.errors import AppError
 from app.db.models import (
     AlertEvent,
@@ -31,6 +33,7 @@ from app.models.schemas import (
     BatchItemDetailResponse,
     BatchCreateRequest,
     BatchCreateResponse,
+    BatchDeleteResponse,
     BatchItemListResponse,
     BatchItemResponse,
     BatchItemResultResponse,
@@ -76,10 +79,12 @@ class BatchService:
         session_factory: sessionmaker[Session],
         store: LocalArtifactStore,
         max_upload_size_bytes: int,
+        runner_manager: Optional[RunnerManager] = None,
     ) -> None:
         self.session_factory = session_factory
         self.store = store
         self.max_upload_size_bytes = max_upload_size_bytes
+        self.runner_manager = runner_manager
         self.alert_sla_hours_by_level = dict(ALERT_SLA_HOURS_BY_LEVEL)
 
     def set_alert_sla_hours_by_level(self, values: dict[str, int]) -> None:
@@ -88,6 +93,34 @@ class BatchService:
             if level in values:
                 merged[level] = max(1, int(values[level]))
         self.alert_sla_hours_by_level = merged
+
+    def _resolve_requested_model_version(self, model_policy: str) -> Optional[str]:
+        if self.runner_manager is None:
+            return None
+
+        registry = self.runner_manager.registry
+        policy = (model_policy or "").strip().lower()
+        if not policy or policy in {"active-default", "active"}:
+            return registry.active_version
+        if policy in {"fusion-default", "seepage-priority"}:
+            active_spec = registry.get_active()
+            if active_spec.runner_kind == "fusion":
+                return active_spec.model_version
+            for spec in registry.list_specs():
+                if spec.runner_kind == "fusion":
+                    return spec.model_version
+            return registry.active_version
+        if policy == "general-only":
+            active_spec = registry.get_active()
+            if active_spec.runner_kind == "fusion" and active_spec.primary_model_version:
+                return active_spec.primary_model_version
+            for spec in registry.list_specs():
+                if spec.runner_kind == "ultralytics":
+                    return spec.model_version
+            return registry.active_version
+        if policy in registry.specs:
+            return policy
+        return registry.active_version
 
     def create_bridge(self, payload: BridgeCreateRequest) -> BridgeResponse:
         with self.session_factory() as session:
@@ -187,6 +220,11 @@ class BatchService:
                 .offset(offset)
                 .limit(limit)
             ).all()
+            dirty = False
+            for batch in rows:
+                dirty = self._reconcile_batch_aggregates(session=session, batch=batch) or dirty
+            if dirty:
+                session.commit()
             items = [BatchResponse.model_validate(row) for row in rows]
             return BatchListResponse(items=items, total=total, limit=limit, offset=offset)
 
@@ -200,7 +238,83 @@ class BatchService:
                     status_code=status.HTTP_404_NOT_FOUND,
                     details={"batch_id": batch_id},
                 )
+            if self._reconcile_batch_aggregates(session=session, batch=batch):
+                session.commit()
             return BatchResponse.model_validate(batch)
+
+    def delete_batch(self, batch_id: str) -> BatchDeleteResponse:
+        with self.session_factory() as session:
+            batch = session.get(InspectionBatch, batch_id)
+            if batch is None:
+                raise AppError(
+                    code="BATCH_NOT_FOUND",
+                    message="Batch does not exist.",
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    details={"batch_id": batch_id},
+                )
+
+            item_rows = session.execute(
+                select(BatchItem.id, BatchItem.media_asset_id).where(BatchItem.batch_id == batch_id)
+            ).all()
+            batch_item_ids = [row[0] for row in item_rows]
+            media_asset_ids = [row[1] for row in item_rows]
+
+            result_rows = session.execute(
+                select(
+                    InferenceResult.id,
+                    InferenceResult.json_uri,
+                    InferenceResult.overlay_uri,
+                    InferenceResult.diagnosis_uri,
+                ).where(InferenceResult.batch_item_id.in_(batch_item_ids))
+            ).all() if batch_item_ids else []
+            result_ids = [row[0] for row in result_rows]
+
+            media_rows = session.execute(
+                select(MediaAsset.id, MediaAsset.storage_uri).where(MediaAsset.id.in_(media_asset_ids))
+            ).all() if media_asset_ids else []
+
+            if batch_item_ids:
+                session.execute(
+                    update(BatchItem)
+                    .where(BatchItem.id.in_(batch_item_ids))
+                    .values(latest_task_id=None, latest_result_id=None)
+                )
+                session.execute(delete(ReviewRecord).where(ReviewRecord.batch_item_id.in_(batch_item_ids)))
+            session.execute(delete(AlertEvent).where(AlertEvent.batch_id == batch_id))
+            if batch_item_ids:
+                session.execute(delete(Detection).where(Detection.batch_item_id.in_(batch_item_ids)))
+            if result_ids:
+                session.execute(delete(InferenceResult).where(InferenceResult.id.in_(result_ids)))
+            if batch_item_ids:
+                session.execute(delete(InferenceTask).where(InferenceTask.batch_item_id.in_(batch_item_ids)))
+                session.execute(delete(BatchItem).where(BatchItem.id.in_(batch_item_ids)))
+            session.execute(delete(InspectionBatch).where(InspectionBatch.id == batch_id))
+
+            for media_asset_id, _ in media_rows:
+                ref_count = session.scalar(
+                    select(func.count()).select_from(BatchItem).where(BatchItem.media_asset_id == media_asset_id)
+                ) or 0
+                if ref_count == 0:
+                    session.execute(delete(MediaAsset).where(MediaAsset.id == media_asset_id))
+
+            session.commit()
+
+            for _, storage_uri in media_rows:
+                if not storage_uri:
+                    continue
+                upload_path = Path(storage_uri)
+                if upload_path.exists():
+                    upload_path.unlink(missing_ok=True)
+
+            for _, json_uri, overlay_uri, diagnosis_uri in result_rows:
+                for candidate in (json_uri, overlay_uri, diagnosis_uri):
+                    if not candidate:
+                        continue
+                    artifact_path = Path(candidate)
+                    if artifact_path.exists():
+                        artifact_path.unlink(missing_ok=True)
+
+            return BatchDeleteResponse(batch_id=batch_id)
 
     def list_batch_items(
         self,
@@ -244,8 +358,22 @@ class BatchService:
             ).all()
             items: list[BatchItemResponse] = []
             for batch_item, media_asset in rows:
+                latest_task = session.get(InferenceTask, batch_item.latest_task_id) if batch_item.latest_task_id else None
                 item_payload = BatchItemResponse.model_validate(batch_item).model_dump()
+                item_payload["original_filename"] = media_asset.original_filename
+                item_payload["source_device"] = media_asset.source_device
                 item_payload["source_relative_path"] = media_asset.source_relative_path
+                item_payload["latest_task_status"] = latest_task.status if latest_task is not None else None
+                item_payload["latest_task_attempt_no"] = latest_task.attempt_no if latest_task is not None else None
+                item_payload["latest_failure_code"] = latest_task.failure_code if latest_task is not None else None
+                item_payload["latest_failure_message"] = latest_task.failure_message if latest_task is not None else None
+                item_payload["model_policy"] = latest_task.model_policy if latest_task is not None else None
+                item_payload["requested_model_version"] = (
+                    latest_task.requested_model_version if latest_task is not None else None
+                )
+                item_payload["resolved_model_version"] = (
+                    latest_task.resolved_model_version if latest_task is not None else None
+                )
                 items.append(BatchItemResponse.model_validate(item_payload))
             return BatchItemListResponse(items=items, total=total, limit=limit, offset=offset)
 
@@ -347,6 +475,7 @@ class BatchService:
                 queued_tasks=int(status_breakdown.get("queued", 0)),
                 running_tasks=int(status_breakdown.get("running", 0)),
                 failed_tasks=int(status_breakdown.get("failed", 0)),
+                recovered_stale_tasks=int(failure_code_breakdown.get("WORKER_LEASE_EXPIRED", 0)),
                 p50_queue_wait_ms=self._percentile_int(queue_wait_ms, 0.50),
                 p95_queue_wait_ms=self._percentile_int(queue_wait_ms, 0.95),
                 p50_run_ms=self._percentile_int(run_ms, 0.50),
@@ -370,8 +499,22 @@ class BatchService:
                     details={"batch_item_id": batch_item_id},
                 )
             batch_item, media_asset = row
+            latest_task = session.get(InferenceTask, batch_item.latest_task_id) if batch_item.latest_task_id else None
             item_payload = BatchItemResponse.model_validate(batch_item).model_dump()
+            item_payload["original_filename"] = media_asset.original_filename
+            item_payload["source_device"] = media_asset.source_device
             item_payload["source_relative_path"] = media_asset.source_relative_path
+            item_payload["latest_task_status"] = latest_task.status if latest_task is not None else None
+            item_payload["latest_task_attempt_no"] = latest_task.attempt_no if latest_task is not None else None
+            item_payload["latest_failure_code"] = latest_task.failure_code if latest_task is not None else None
+            item_payload["latest_failure_message"] = latest_task.failure_message if latest_task is not None else None
+            item_payload["model_policy"] = latest_task.model_policy if latest_task is not None else None
+            item_payload["requested_model_version"] = (
+                latest_task.requested_model_version if latest_task is not None else None
+            )
+            item_payload["resolved_model_version"] = (
+                latest_task.resolved_model_version if latest_task is not None else None
+            )
             item_payload["media_asset"] = MediaAssetResponse.model_validate(media_asset)
             return BatchItemDetailResponse.model_validate(item_payload)
 
@@ -545,7 +688,27 @@ class BatchService:
 
             batch_item = session.get(BatchItem, detection.batch_item_id)
             if batch_item is not None:
-                batch_item.review_status = "reviewed"
+                total_detection_count = session.scalar(
+                    select(func.count()).select_from(Detection).where(Detection.batch_item_id == detection.batch_item_id)
+                ) or 0
+                reviewed_detection_count = session.scalar(
+                    select(func.count(func.distinct(ReviewRecord.detection_id)))
+                    .select_from(ReviewRecord)
+                    .where(ReviewRecord.batch_item_id == detection.batch_item_id)
+                ) or 0
+                already_reviewed = session.scalar(
+                    select(func.count())
+                    .select_from(ReviewRecord)
+                    .where(
+                        ReviewRecord.batch_item_id == detection.batch_item_id,
+                        ReviewRecord.detection_id == detection.id,
+                    )
+                ) or 0
+                projected_reviewed_count = int(reviewed_detection_count) + (0 if already_reviewed else 1)
+                if total_detection_count <= 1 or projected_reviewed_count >= total_detection_count:
+                    batch_item.review_status = "reviewed"
+                else:
+                    batch_item.review_status = "partially_reviewed"
 
             session.add(review)
             session.commit()
@@ -744,6 +907,8 @@ class BatchService:
 
             accepted: list[BatchIngestItemSuccess] = []
             errors: list[BatchIngestItemError] = []
+            model_policy_value = model_policy.strip() or "fusion-default"
+            requested_model_version = self._resolve_requested_model_version(model_policy_value)
 
             for index, file in enumerate(files):
                 ok, error = await self._validate_upload(file)
@@ -751,16 +916,103 @@ class BatchService:
                     if error is not None:
                         errors.append(error)
                     continue
+                media_asset_id = _new_id("med")
+                batch_item_id = _new_id("bit")
+                task_id = _new_id("tsk")
+                storage_saved = False
 
-                content = await file.read()
-                file_hash = hashlib.sha256(content).hexdigest()
-                duplicated = session.scalar(
-                    select(func.count())
-                    .select_from(BatchItem)
-                    .join(MediaAsset, MediaAsset.id == BatchItem.media_asset_id)
-                    .where(BatchItem.batch_id == batch_id, MediaAsset.sha256 == file_hash)
-                )
-                if duplicated:
+                try:
+                    content = await self._read_upload_content(file)
+                    file_hash = hashlib.sha256(content).hexdigest()
+                    duplicated = session.scalar(
+                        select(func.count())
+                        .select_from(BatchItem)
+                        .join(MediaAsset, MediaAsset.id == BatchItem.media_asset_id)
+                        .where(BatchItem.batch_id == batch_id, MediaAsset.sha256 == file_hash)
+                    )
+                    if duplicated:
+                        errors.append(
+                            BatchIngestItemError(
+                                filename=file.filename or "",
+                                code="MEDIA_DUPLICATED",
+                                message="Image already exists in this batch.",
+                            )
+                        )
+                        continue
+
+                    next_sequence = current_sequence + 1
+                    source_relative_path = self._normalize_relative_path(
+                        relative_paths[index] if relative_paths and index < len(relative_paths) else None
+                    )
+                    self.store.save_upload(image_id=media_asset_id, content=content)
+                    storage_saved = True
+
+                    with session.begin_nested():
+                        media_asset = MediaAsset(
+                            id=media_asset_id,
+                            media_type="image",
+                            original_filename=file.filename or media_asset_id,
+                            storage_uri=str(self.store.upload_path(media_asset_id)),
+                            sha256=file_hash,
+                            mime_type=file.content_type or "application/octet-stream",
+                            file_size_bytes=len(content),
+                            captured_at=captured_at,
+                            source_device=source_device,
+                            source_relative_path=source_relative_path,
+                        )
+                        session.add(media_asset)
+                        session.flush()
+
+                        batch_item = BatchItem(
+                            id=batch_item_id,
+                            batch_id=batch_id,
+                            media_asset_id=media_asset_id,
+                            sequence_no=next_sequence,
+                            processing_status="queued",
+                        )
+                        task = InferenceTask(
+                            id=task_id,
+                            batch_item_id=batch_item_id,
+                            status="queued",
+                            model_policy=model_policy_value,
+                            requested_model_version=requested_model_version,
+                            queued_at=datetime.now(timezone.utc),
+                            # Default to baseline track for stable throughput in batch mode.
+                            # Enhancement can be enabled later by policy/config when needed.
+                            runtime_payload={"enhance": False},
+                        )
+                        session.add(batch_item)
+                        session.add(task)
+                        session.flush()
+                        batch_item.latest_task_id = task_id
+
+                    accepted.append(
+                        BatchIngestItemSuccess(
+                            batch_item_id=batch_item_id,
+                            media_asset_id=media_asset_id,
+                            original_filename=file.filename or media_asset_id,
+                            source_relative_path=source_relative_path,
+                            processing_status="queued",
+                            task_id=task_id,
+                            model_policy=model_policy_value,
+                            requested_model_version=requested_model_version,
+                        )
+                    )
+                    current_sequence = next_sequence
+                except AppError as exc:
+                    if storage_saved:
+                        self.store.delete_upload(media_asset_id)
+                    errors.append(
+                        BatchIngestItemError(
+                            filename=file.filename or "",
+                            code=exc.code,
+                            message=exc.message,
+                        )
+                    )
+                    continue
+                except IntegrityError:
+                    if storage_saved:
+                        self.store.delete_upload(media_asset_id)
                     errors.append(
                         BatchIngestItemError(
                             filename=file.filename or "",
@@ -769,63 +1021,6 @@ class BatchService:
                         )
                     )
                     continue
-
-                media_asset_id = _new_id("med")
-                batch_item_id = _new_id("bit")
-                task_id = _new_id("tsk")
-                current_sequence += 1
-
-                storage_uri = self.store.save_upload(image_id=media_asset_id, content=content)
-                source_relative_path = self._normalize_relative_path(
-                    relative_paths[index] if relative_paths and index < len(relative_paths) else None
-                )
-
-                media_asset = MediaAsset(
-                    id=media_asset_id,
-                    media_type="image",
-                    original_filename=file.filename or media_asset_id,
-                    storage_uri=storage_uri,
-                    sha256=file_hash,
-                    mime_type=file.content_type or "application/octet-stream",
-                    file_size_bytes=len(content),
-                    captured_at=captured_at,
-                    source_device=source_device,
-                    source_relative_path=source_relative_path,
-                )
-                session.add(media_asset)
-                # Ensure media_assets rows are persisted before batch_items flushes.
-                # This avoids FK violations when SQLAlchemy groups inserts by mapper.
-                session.flush()
-
-                batch_item = BatchItem(
-                    id=batch_item_id,
-                    batch_id=batch_id,
-                    media_asset_id=media_asset_id,
-                    sequence_no=current_sequence,
-                    processing_status="queued",
-                    latest_task_id=task_id,
-                )
-                task = InferenceTask(
-                    id=task_id,
-                    batch_item_id=batch_item_id,
-                    status="queued",
-                    model_policy=model_policy,
-                    queued_at=datetime.now(timezone.utc),
-                )
-
-                session.add(batch_item)
-                session.add(task)
-
-                accepted.append(
-                    BatchIngestItemSuccess(
-                        batch_item_id=batch_item_id,
-                        media_asset_id=media_asset_id,
-                        original_filename=file.filename or media_asset_id,
-                        source_relative_path=source_relative_path,
-                        processing_status="queued",
-                        task_id=task_id,
-                    )
-                )
 
             if accepted:
                 batch.received_item_count += len(accepted)
@@ -864,21 +1059,24 @@ class BatchService:
                 code="INVALID_CONTENT_TYPE",
                 message="Unsupported content type for uploaded image.",
             )
+        return True, None
+
+    async def _read_upload_content(self, file: UploadFile) -> bytes:
         content = await file.read()
+        await file.seek(0)
         if not content:
-            return False, BatchIngestItemError(
-                filename=file.filename,
+            raise AppError(
                 code="EMPTY_FILE",
                 message="Uploaded image is empty.",
+                status_code=status.HTTP_400_BAD_REQUEST,
             )
         if len(content) > self.max_upload_size_bytes:
-            return False, BatchIngestItemError(
-                filename=file.filename,
+            raise AppError(
                 code="FILE_TOO_LARGE",
                 message="Uploaded image exceeds maximum allowed size.",
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             )
-        await file.seek(0)
-        return True, None
+        return content
 
     def _normalize_relative_path(self, value: Optional[str]) -> Optional[str]:
         if not value:
@@ -911,6 +1109,70 @@ class BatchService:
             batch_item.alert_status = "resolved"
         else:
             batch_item.alert_status = "none"
+
+    def _reconcile_batch_aggregates(self, *, session: Session, batch: InspectionBatch) -> bool:
+        status_counts = dict(
+            session.execute(
+                select(BatchItem.processing_status, func.count())
+                .where(BatchItem.batch_id == batch.id)
+                .group_by(BatchItem.processing_status)
+            ).all()
+        )
+
+        next_received = sum(status_counts.values())
+        next_queued = int(status_counts.get("queued", 0))
+        next_running = int(status_counts.get("running", 0))
+        next_succeeded = int(status_counts.get("succeeded", 0))
+        next_failed = int(status_counts.get("failed", 0))
+
+        next_status = batch.status
+        next_started_at = batch.started_at
+        next_finished_at = batch.finished_at
+
+        if next_received == 0:
+            next_status = "ingesting"
+            next_started_at = None
+            next_finished_at = None
+        else:
+            if next_started_at is None:
+                next_started_at = batch.created_at
+            if next_running > 0 or next_queued > 0:
+                next_status = "running"
+                next_finished_at = None
+            elif next_failed > 0 and next_succeeded > 0:
+                next_status = "partial_failed"
+                next_finished_at = batch.updated_at
+            elif next_failed > 0:
+                next_status = "failed"
+                next_finished_at = batch.updated_at
+            elif next_succeeded > 0:
+                next_status = "completed"
+                next_finished_at = batch.updated_at
+
+        changed = any(
+            [
+                batch.received_item_count != next_received,
+                batch.queued_item_count != next_queued,
+                batch.running_item_count != next_running,
+                batch.succeeded_item_count != next_succeeded,
+                batch.failed_item_count != next_failed,
+                batch.status != next_status,
+                batch.started_at != next_started_at,
+                batch.finished_at != next_finished_at,
+            ]
+        )
+        if not changed:
+            return False
+
+        batch.received_item_count = next_received
+        batch.queued_item_count = next_queued
+        batch.running_item_count = next_running
+        batch.succeeded_item_count = next_succeeded
+        batch.failed_item_count = next_failed
+        batch.status = next_status
+        batch.started_at = next_started_at
+        batch.finished_at = next_finished_at
+        return True
 
     @staticmethod
     def _percentile_int(values: list[int], p: float) -> Optional[int]:

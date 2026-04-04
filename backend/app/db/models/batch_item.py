@@ -18,7 +18,10 @@ class BatchItem(Base, TimestampMixin):
             "processing_status IN ('received', 'queued', 'running', 'succeeded', 'failed')",
             name="processing_status",
         ),
-        CheckConstraint("review_status IN ('unreviewed', 'reviewed')", name="review_status"),
+        CheckConstraint(
+            "review_status IN ('unreviewed', 'partially_reviewed', 'reviewed')",
+            name="review_status",
+        ),
         CheckConstraint(
             "alert_status IN ('none', 'open', 'acknowledged', 'resolved')",
             name="alert_status",

@@ -5,8 +5,8 @@ from pathlib import Path
 from zipfile import ZipFile
 
 from fastapi.testclient import TestClient
-
 from app.main import create_app
+from app.services.result_service import ResultService
 
 
 def create_test_client(tmp_path: Path, monkeypatch) -> TestClient:
@@ -222,6 +222,55 @@ def test_get_result_overlay_returns_not_found_when_missing(tmp_path: Path, monke
     assert response.status_code == 404
     payload = response.json()
     assert payload["error"]["code"] == "OVERLAY_NOT_FOUND"
+
+
+def test_get_result_image_falls_back_to_db_media_asset_path_for_batch_results(tmp_path: Path, monkeypatch) -> None:
+    upload_bytes = b"batch-image-bytes"
+    monkeypatch.setenv("BDI_ARTIFACT_ROOT", str(tmp_path / "artifacts"))
+    app = create_app()
+    store = app.state.predict_service.store
+    upload_path = store.save_upload(image_id="med_test", content=upload_bytes)
+    store.save_json(
+        image_id="res_test",
+        payload={
+            "schema_version": "2.0.0",
+            "image_id": "res_test",
+            "batch_item_id": "bit_test",
+            "model_name": "mock",
+            "model_version": "mock-v1",
+            "backend": "mock",
+            "inference_mode": "direct",
+            "inference_ms": 10,
+            "inference_breakdown": {},
+            "detections": [],
+            "artifacts": {
+                "upload_path": "",
+                "json_path": "",
+                "overlay_path": None,
+                "enhanced_path": None,
+                "enhanced_overlay_path": None,
+            },
+        },
+    )
+    class FakeResult:
+        def first(self):
+            return (upload_path,)
+
+    class FakeSession:
+        def execute(self, _query):
+            return FakeResult()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    service = ResultService(store=store, session_factory=lambda: FakeSession())
+
+    resolved = service.get_upload_path(image_id="res_test")
+
+    assert resolved.read_bytes() == upload_bytes
 
 
 def test_get_result_image_returns_uploaded_file(tmp_path: Path, monkeypatch) -> None:

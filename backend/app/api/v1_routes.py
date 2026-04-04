@@ -15,6 +15,7 @@ from app.models.schemas import (
     AlertStatusUpdateRequest,
     BatchCreateRequest,
     BatchCreateResponse,
+    BatchDeleteResponse,
     BatchIngestResponse,
     BatchItemDetailResponse,
     BatchItemListResponse,
@@ -67,6 +68,11 @@ async def list_batches(request: Request, limit: int = 20, offset: int = 0) -> Ba
 @router.get("/batches/{batch_id}", response_model=BatchResponse)
 async def get_batch(request: Request, batch_id: str) -> BatchResponse:
     return request.app.state.batch_service.get_batch(batch_id)
+
+
+@router.delete("/batches/{batch_id}", response_model=BatchDeleteResponse)
+async def delete_batch(request: Request, batch_id: str) -> BatchDeleteResponse:
+    return request.app.state.batch_service.delete_batch(batch_id)
 
 
 @router.post("/batches/{batch_id}/items", response_model=BatchIngestResponse)

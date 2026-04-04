@@ -14,9 +14,11 @@ import {
   deleteResult,
   getOverlayDownloadUrl,
   getResultImageUrl,
+  listV1BatchItems,
+  listV1Batches,
   listAllResults,
 } from "@/lib/predict-client";
-import type { PredictState, PredictionHistoryItem } from "@/lib/types";
+import type { BatchItemV1, BatchV1, PredictState, PredictionHistoryItem } from "@/lib/types";
 
 const initialStatus: PredictState = {
   phase: "idle",
@@ -44,6 +46,12 @@ export function HistoryRouteShell() {
   const [historyCategoryFilter, setHistoryCategoryFilter] = useState("全部");
   const [historySortMode, setHistorySortMode] = useState<HistorySortMode>("newest");
   const [status, setStatus] = useState<PredictState>(initialStatus);
+  const [batchHistoryLoading, setBatchHistoryLoading] = useState(false);
+  const [batchHistoryError, setBatchHistoryError] = useState<string | null>(null);
+  const [batchList, setBatchList] = useState<BatchV1[]>([]);
+  const [selectedBatchId, setSelectedBatchId] = useState<string>("");
+  const [selectedBatchItems, setSelectedBatchItems] = useState<BatchItemV1[]>([]);
+  const [showLegacyHistory, setShowLegacyHistory] = useState(false);
 
   const availableHistoryCategories = useMemo(
     () =>
@@ -98,6 +106,53 @@ export function HistoryRouteShell() {
   useEffect(() => {
     void loadHistory({ silent: true });
   }, [loadHistory]);
+
+  const loadBatchHistory = useCallback(async () => {
+    setBatchHistoryLoading(true);
+    setBatchHistoryError(null);
+    try {
+      const batchResp = await listV1Batches(50, 0);
+      setBatchList(batchResp.items);
+      const targetBatchId = selectedBatchId || batchResp.items[0]?.id || "";
+      setSelectedBatchId(targetBatchId);
+      if (targetBatchId) {
+        const itemsResp = await listV1BatchItems(targetBatchId, 200, 0);
+        setSelectedBatchItems(itemsResp.items);
+      } else {
+        setSelectedBatchItems([]);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "批次历史读取失败";
+      setBatchHistoryError(message);
+    } finally {
+      setBatchHistoryLoading(false);
+    }
+  }, [selectedBatchId]);
+
+  useEffect(() => {
+    void loadBatchHistory();
+  }, [loadBatchHistory]);
+
+  useEffect(() => {
+    if (!selectedBatchId) {
+      return;
+    }
+    let cancelled = false;
+    async function refreshItems() {
+      try {
+        const itemsResp = await listV1BatchItems(selectedBatchId, 200, 0);
+        if (!cancelled) {
+          setSelectedBatchItems(itemsResp.items);
+        }
+      } catch {
+        // noop
+      }
+    }
+    void refreshItems();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedBatchId]);
 
   async function handleDeleteHistory(imageId: string) {
     try {
@@ -201,36 +256,148 @@ export function HistoryRouteShell() {
           {status.message}
         </div>
 
+        <div className="mb-6 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold tracking-wide text-cyan-100">批次历史视图（企业流程）</h2>
+            <button
+              type="button"
+              onClick={() => {
+                void loadBatchHistory();
+              }}
+              className="rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs text-cyan-100 hover:bg-cyan-500/20"
+            >
+              刷新批次历史
+            </button>
+          </div>
+          {batchHistoryError ? (
+            <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+              {batchHistoryError}
+            </div>
+          ) : null}
+          <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-white/50">批次列表</p>
+              <div className="max-h-[320px] overflow-auto space-y-2">
+                {batchList.map((batch) => (
+                  <button
+                    key={batch.id}
+                    type="button"
+                    onClick={() => setSelectedBatchId(batch.id)}
+                    className={`w-full rounded-lg border px-3 py-2 text-left text-xs ${
+                      selectedBatchId === batch.id
+                        ? "border-cyan-400/40 bg-cyan-500/15 text-cyan-100"
+                        : "border-white/10 bg-white/5 text-white/70"
+                    }`}
+                  >
+                    <p className="font-semibold">{batch.batch_code}</p>
+                    <p className="mt-1 text-[10px] opacity-80">
+                      {batch.status} | success {batch.succeeded_item_count} | failed {batch.failed_item_count}
+                    </p>
+                  </button>
+                ))}
+                {!batchHistoryLoading && batchList.length === 0 ? (
+                  <div className="text-xs text-white/40">暂无批次记录</div>
+                ) : null}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-white/50">
+                批次图片清单 {selectedBatchId ? `(${selectedBatchId})` : ""}
+              </p>
+              <div className="max-h-[320px] overflow-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="text-white/40">
+                    <tr>
+                      <th className="py-2">序号</th>
+                      <th className="py-2">文件</th>
+                      <th className="py-2">状态</th>
+                      <th className="py-2">结果数</th>
+                      <th className="py-2 text-right">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/10 text-white/80">
+                    {selectedBatchItems.map((item) => (
+                      <tr key={item.id}>
+                        <td className="py-2">{item.sequence_no}</td>
+                        <td className="py-2">{item.original_filename ?? item.source_relative_path ?? item.id}</td>
+                        <td className="py-2">{item.processing_status}</td>
+                        <td className="py-2">{item.defect_count ?? 0}</td>
+                        <td className="py-2 text-right">
+                          {item.latest_result_id ? (
+                            <Link
+                              href={`/dashboard/history/${encodeURIComponent(item.latest_result_id)}`}
+                              className="rounded-md border border-white/20 px-2 py-1 text-[10px] hover:bg-white/10"
+                            >
+                              查看详情
+                            </Link>
+                          ) : (
+                            <span className="rounded-md border border-white/10 px-2 py-1 text-[10px] text-white/35">
+                              暂无结果
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {!batchHistoryLoading && selectedBatchItems.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-6 text-center text-white/40">
+                          当前批次暂无图片
+                        </td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="min-h-0 flex-1">
-          <HistoryPanel
-            items={historyItems}
-            totalCount={historyTotal}
-            loading={historyLoading}
-            errorMessage={historyError}
-            deletingImageId={deletingImageId}
-            deleteSuccessMessage={deleteSuccessMessage}
-            searchQuery={historySearchQuery}
-            categoryFilter={historyCategoryFilter}
-            sortMode={historySortMode}
-            availableCategories={availableHistoryCategories}
-            getImageUrl={getHistoryPreviewUrl}
-            onDeleteRequest={(imageId) => {
-              void handleDeleteHistory(imageId);
-            }}
-            onBatchDelete={handleBatchDeleteHistory}
-            onBatchExportJson={(imageIds) => handleBatchExportHistory(imageIds, "json")}
-            onBatchExportOverlay={(imageIds) => handleBatchExportHistory(imageIds, "overlay")}
-            onSearchQueryChange={setHistorySearchQuery}
-            onCategoryFilterChange={setHistoryCategoryFilter}
-            onSortModeChange={setHistorySortMode}
-            onOpenUploader={() => router.push("/dashboard/lab-single")}
-            onRefresh={() => {
-              void loadHistory();
-            }}
-            onSelect={(imageId) => {
-              router.push(`/dashboard/history/${encodeURIComponent(imageId)}`);
-            }}
-          />
+          <div className="mb-3 flex items-center justify-between">
+            <div className="text-xs text-white/45">单图历史</div>
+            <button
+              type="button"
+              onClick={() => setShowLegacyHistory((prev) => !prev)}
+              className="rounded-lg border border-white/15 bg-white/5 px-3 py-1 text-[11px] text-white/70 hover:bg-white/10"
+            >
+              {showLegacyHistory ? "收起单图历史" : "展开单图历史"}
+            </button>
+          </div>
+          {showLegacyHistory ? (
+            <HistoryPanel
+              items={historyItems}
+              totalCount={historyTotal}
+              loading={historyLoading}
+              errorMessage={historyError}
+              deletingImageId={deletingImageId}
+              deleteSuccessMessage={deleteSuccessMessage}
+              searchQuery={historySearchQuery}
+              categoryFilter={historyCategoryFilter}
+              sortMode={historySortMode}
+              availableCategories={availableHistoryCategories}
+              getImageUrl={getHistoryPreviewUrl}
+              onDeleteRequest={(imageId) => {
+                void handleDeleteHistory(imageId);
+              }}
+              onBatchDelete={handleBatchDeleteHistory}
+              onBatchExportJson={(imageIds) => handleBatchExportHistory(imageIds, "json")}
+              onBatchExportOverlay={(imageIds) => handleBatchExportHistory(imageIds, "overlay")}
+              onSearchQueryChange={setHistorySearchQuery}
+              onCategoryFilterChange={setHistoryCategoryFilter}
+              onSortModeChange={setHistorySortMode}
+              onOpenUploader={() => router.push("/dashboard/lab-single")}
+              onRefresh={() => {
+                void loadHistory();
+              }}
+              onSelect={(imageId) => {
+                router.push(`/dashboard/history/${encodeURIComponent(imageId)}`);
+              }}
+            />
+          ) : (
+            <div className="rounded-2xl border border-white/6 bg-white/[0.02] px-4 py-5 text-sm text-white/45">
+              默认已切换为企业流程：先批次，再图片。需要查看单图历史时再展开。
+            </div>
+          )}
         </div>
           </div>
         </div>
