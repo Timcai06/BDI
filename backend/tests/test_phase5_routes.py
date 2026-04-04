@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from app.main import create_app
 from app.models.schemas import (
     AlertListResponse,
+    AlertRulesConfigResponse,
     AlertResponse,
     BatchCreateResponse,
     BatchIngestResponse,
@@ -23,6 +24,9 @@ from app.models.schemas import (
     DetectionListResponse,
     DetectionRecordResponse,
     MediaAssetResponse,
+    OpsAuditLogListResponse,
+    OpsAuditLogResponse,
+    OpsMetricsResponse,
     ReviewListResponse,
     ReviewRecordResponse,
     ResultDetectionResponse,
@@ -81,12 +85,20 @@ class StubBatchService:
     async def ingest_items(self, **_kwargs):
         return BatchIngestResponse(batch_id="bat_1", accepted_count=0, rejected_count=0, items=[], errors=[])
 
-    def list_batch_items(self, *, batch_id: str, limit: int, offset: int):
+    def list_batch_items(
+        self,
+        *,
+        batch_id: str,
+        limit: int,
+        offset: int,
+        relative_path_prefix: Optional[str] = None,
+    ):
         now = datetime.now(timezone.utc)
         item = BatchItemResponse(
             id="bit_1",
             batch_id=batch_id,
             media_asset_id="med_1",
+            source_relative_path=relative_path_prefix,
             sequence_no=1,
             processing_status="queued",
             review_status="unreviewed",
@@ -300,10 +312,33 @@ class StubBatchService:
             updated_at=now,
         )
 
+    def set_alert_sla_hours_by_level(self, _values):
+        return None
+
+    def get_ops_metrics(self, *, window_hours: int):
+        now = datetime.now(timezone.utc)
+        return OpsMetricsResponse(
+            window_hours=window_hours,
+            generated_at=now,
+            total_tasks=12,
+            success_rate=0.75,
+            retry_recovery_rate=0.5,
+            queued_tasks=2,
+            running_tasks=1,
+            failed_tasks=3,
+            p50_queue_wait_ms=240,
+            p95_queue_wait_ms=800,
+            p50_run_ms=1200,
+            p95_run_ms=3400,
+            status_breakdown={"queued": 2, "running": 1, "failed": 3, "succeeded": 6},
+            failure_code_breakdown={"MODEL_TIMEOUT": 2, "TASK_EXECUTION_FAILED": 1},
+        )
+
 
 class StubTaskService:
     def __init__(self) -> None:
         self.retry_called = False
+        self.rule_update_called = False
 
     def get_task(self, _task_id: str):
         now = datetime.now(timezone.utc)
@@ -326,6 +361,61 @@ class StubTaskService:
     def retry_task(self, task_id: str, _payload):
         self.retry_called = True
         return TaskRetryResponse(old_task_id=task_id, new_task_id="tsk_2", status="queued")
+
+    def get_alert_rule_config(self):
+        now = datetime.now(timezone.utc)
+        return AlertRulesConfigResponse(
+            profile_name="JTG-v1",
+            alert_auto_enabled=True,
+            count_threshold=3,
+            category_watchlist=["seepage"],
+            category_confidence_threshold=0.8,
+            repeat_escalation_hits=2,
+            sla_hours_by_level={"low": 72, "medium": 48, "high": 24, "critical": 12},
+            near_due_hours=2,
+            updated_at=now,
+            updated_by="system-default",
+        )
+
+    def update_alert_rule_config(self, payload):
+        self.rule_update_called = True
+        now = datetime.now(timezone.utc)
+        return AlertRulesConfigResponse(
+            profile_name=payload.profile_name or "JTG-v1",
+            alert_auto_enabled=True if payload.alert_auto_enabled is None else payload.alert_auto_enabled,
+            count_threshold=payload.count_threshold or 3,
+            category_watchlist=payload.category_watchlist or ["seepage"],
+            category_confidence_threshold=payload.category_confidence_threshold or 0.8,
+            repeat_escalation_hits=payload.repeat_escalation_hits or 2,
+            sla_hours_by_level=payload.sla_hours_by_level or {"low": 72, "medium": 48, "high": 24, "critical": 12},
+            near_due_hours=payload.near_due_hours or 2,
+            updated_at=now,
+            updated_by=payload.updated_by,
+        )
+
+    def list_alert_rule_audit_logs(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        actor: Optional[str] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
+    ):
+        now = datetime.now(timezone.utc)
+        item = OpsAuditLogResponse(
+            id="aud_1",
+            audit_type="alert_rules_updated",
+            actor=actor or "ops-admin",
+            target_key="alert_rules",
+            before_payload={"count_threshold": 3},
+            after_payload={"count_threshold": 4},
+            diff_payload={"count_threshold": {"before": 3, "after": 4}},
+            note="profile=JTG-v1.1",
+            created_at=now,
+            updated_at=now,
+        )
+        return OpsAuditLogListResponse(items=[item], total=1, limit=limit, offset=offset)
 
 
 def create_phase5_client() -> tuple[TestClient, StubTaskService]:
@@ -373,6 +463,52 @@ def test_phase5_retry_task_endpoint_returns_accepted_and_calls_service() -> None
     assert task_service.retry_called is True
 
 
+def test_phase6_alert_rules_endpoint_supports_read_and_update() -> None:
+    client, task_service = create_phase5_client()
+
+    get_response = client.get("/api/v1/ops/alert-rules")
+    assert get_response.status_code == 200
+    assert get_response.json()["profile_name"] == "JTG-v1"
+
+    put_response = client.put(
+        "/api/v1/ops/alert-rules",
+        json={
+            "updated_by": "ops-admin",
+            "profile_name": "JTG-v1.1",
+            "count_threshold": 4,
+            "repeat_escalation_hits": 3,
+        },
+    )
+    assert put_response.status_code == 200
+    payload = put_response.json()
+    assert payload["profile_name"] == "JTG-v1.1"
+    assert payload["count_threshold"] == 4
+    assert payload["repeat_escalation_hits"] == 3
+    assert payload["updated_by"] == "ops-admin"
+    assert task_service.rule_update_called is True
+
+
+def test_phase6_alert_rules_audit_endpoint_returns_payload() -> None:
+    client, _ = create_phase5_client()
+
+    response = client.get(
+        "/api/v1/ops/alert-rules/audit",
+        params={
+            "limit": 20,
+            "offset": 0,
+            "actor": "ops-admin",
+            "date_from": "2026-04-01T00:00:00+00:00",
+            "date_to": "2026-04-30T23:59:59+00:00",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total"] == 1
+    assert payload["items"][0]["audit_type"] == "alert_rules_updated"
+    assert payload["items"][0]["actor"] == "ops-admin"
+
+
 def test_phase5_detections_endpoint_supports_filter() -> None:
     client, _ = create_phase5_client()
 
@@ -382,6 +518,18 @@ def test_phase5_detections_endpoint_supports_filter() -> None:
     payload = response.json()
     assert payload["items"][0]["category"] == "crack"
     assert payload["items"][0]["confidence"] >= 0.8
+
+
+def test_phase6_ops_metrics_endpoint_returns_payload() -> None:
+    client, _ = create_phase5_client()
+
+    response = client.get("/api/v1/ops/metrics", params={"window_hours": 24})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["window_hours"] == 24
+    assert payload["total_tasks"] == 12
+    assert payload["status_breakdown"]["succeeded"] == 6
 
 
 def test_phase5_create_review_endpoint_returns_created_record() -> None:

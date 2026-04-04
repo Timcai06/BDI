@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 from uuid import uuid4
@@ -21,8 +21,14 @@ from app.db.models import (
     InferenceTask,
     InspectionBatch,
     MediaAsset,
+    OpsAuditLog,
+    OpsConfig,
 )
 from app.models.schemas import (
+    AlertRulesConfigResponse,
+    AlertRulesUpdateRequest,
+    OpsAuditLogListResponse,
+    OpsAuditLogResponse,
     PredictOptions,
     RawPrediction,
     TaskProcessResponse,
@@ -37,6 +43,14 @@ RETRYABLE_FAILURE_CODES = {
     "MODEL_RUNTIME_ERROR",
     "MODEL_UNAVAILABLE",
     "TASK_EXECUTION_FAILED",
+}
+
+ALERT_LEVEL_ORDER = ["low", "medium", "high", "critical"]
+ALERT_SLA_HOURS_BY_LEVEL = {
+    "low": 72,
+    "medium": 48,
+    "high": 24,
+    "critical": 12,
 }
 
 
@@ -60,6 +74,8 @@ def _new_id(prefix: str) -> str:
 
 
 class TaskService:
+    ALERT_RULES_CONFIG_KEY = "alert_rules"
+
     def __init__(
         self,
         *,
@@ -76,11 +92,17 @@ class TaskService:
         self.store = store
         self.runner_manager = runner_manager
         self.max_attempts = max(1, max_attempts)
+        self.alert_profile_name = "JTG-v1"
+        self.alert_updated_at = datetime.now(timezone.utc)
+        self.alert_updated_by: Optional[str] = "system-default"
         self.alert_auto_enabled = alert_auto_enabled
         self.alert_count_threshold = max(1, alert_count_threshold)
         normalized = [normalize_defect_category(item) for item in (alert_category_watchlist or ["seepage"])]
         self.alert_category_watchlist = [item for item in normalized if item]
         self.alert_category_confidence_threshold = max(0.0, min(1.0, alert_category_confidence_threshold))
+        self.alert_repeat_escalation_hits = 2
+        self.alert_near_due_hours = 2
+        self.alert_sla_hours_by_level = dict(ALERT_SLA_HOURS_BY_LEVEL)
 
     def get_task(self, task_id: str) -> TaskResponse:
         with self.session_factory() as session:
@@ -96,6 +118,7 @@ class TaskService:
 
     def process_next_queued_task(self) -> TaskProcessResponse:
         with self.session_factory() as session:
+            self._sync_alert_rules_from_db(session=session)
             task = self._claim_next_queued_task(session=session, worker_name="local-worker-1")
             if task is None:
                 return TaskProcessResponse(processed=False, message="No queued task found.")
@@ -164,6 +187,100 @@ class TaskService:
             session.commit()
             return TaskRetryResponse(old_task_id=task_id, new_task_id=new_task.id, status="queued")
 
+    def get_alert_rule_config(self) -> AlertRulesConfigResponse:
+        with self.session_factory() as session:
+            self._sync_alert_rules_from_db(session=session)
+        return AlertRulesConfigResponse(
+            profile_name=self.alert_profile_name,
+            alert_auto_enabled=self.alert_auto_enabled,
+            count_threshold=self.alert_count_threshold,
+            category_watchlist=self.alert_category_watchlist,
+            category_confidence_threshold=self.alert_category_confidence_threshold,
+            repeat_escalation_hits=self.alert_repeat_escalation_hits,
+            sla_hours_by_level=self.alert_sla_hours_by_level,
+            near_due_hours=self.alert_near_due_hours,
+            updated_at=self.alert_updated_at,
+            updated_by=self.alert_updated_by,
+        )
+
+    def update_alert_rule_config(self, payload: AlertRulesUpdateRequest) -> AlertRulesConfigResponse:
+        with self.session_factory() as session:
+            self._sync_alert_rules_from_db(session=session)
+            before_payload = self._build_alert_rules_payload()
+            if payload.profile_name is not None:
+                self.alert_profile_name = payload.profile_name
+            if payload.alert_auto_enabled is not None:
+                self.alert_auto_enabled = payload.alert_auto_enabled
+            if payload.count_threshold is not None:
+                self.alert_count_threshold = max(1, int(payload.count_threshold))
+            if payload.category_watchlist is not None:
+                self.alert_category_watchlist = [item for item in payload.category_watchlist if item]
+            if payload.category_confidence_threshold is not None:
+                self.alert_category_confidence_threshold = max(0.0, min(1.0, payload.category_confidence_threshold))
+            if payload.repeat_escalation_hits is not None:
+                self.alert_repeat_escalation_hits = max(2, int(payload.repeat_escalation_hits))
+            if payload.sla_hours_by_level is not None:
+                merged = dict(self.alert_sla_hours_by_level)
+                for level in ALERT_LEVEL_ORDER:
+                    if level in payload.sla_hours_by_level:
+                        merged[level] = max(1, int(payload.sla_hours_by_level[level]))
+                self.alert_sla_hours_by_level = merged
+            if payload.near_due_hours is not None:
+                self.alert_near_due_hours = max(1, int(payload.near_due_hours))
+            self.alert_updated_at = datetime.now(timezone.utc)
+            self.alert_updated_by = payload.updated_by
+            config = session.get(OpsConfig, self.ALERT_RULES_CONFIG_KEY)
+            if config is None:
+                config = OpsConfig(config_key=self.ALERT_RULES_CONFIG_KEY)
+                session.add(config)
+            after_payload = self._build_alert_rules_payload()
+            config.config_payload = after_payload
+            config.updated_by = payload.updated_by
+            session.add(
+                OpsAuditLog(
+                    id=_new_id("aud"),
+                    audit_type="alert_rules_updated",
+                    actor=payload.updated_by,
+                    target_key=self.ALERT_RULES_CONFIG_KEY,
+                    before_payload=before_payload,
+                    after_payload=after_payload,
+                    diff_payload=self._build_diff_payload(before_payload, after_payload),
+                    note=f"profile={after_payload.get('profile_name', 'JTG-v1')}",
+                )
+            )
+            session.commit()
+        return self.get_alert_rule_config()
+
+    def list_alert_rule_audit_logs(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        actor: Optional[str] = None,
+        date_from: Optional[datetime] = None,
+        date_to: Optional[datetime] = None,
+    ) -> OpsAuditLogListResponse:
+        with self.session_factory() as session:
+            query = select(OpsAuditLog).where(OpsAuditLog.audit_type == "alert_rules_updated")
+            count_query = select(func.count()).select_from(OpsAuditLog).where(
+                OpsAuditLog.audit_type == "alert_rules_updated"
+            )
+            if actor:
+                query = query.where(OpsAuditLog.actor == actor)
+                count_query = count_query.where(OpsAuditLog.actor == actor)
+            if date_from is not None:
+                query = query.where(OpsAuditLog.created_at >= date_from)
+                count_query = count_query.where(OpsAuditLog.created_at >= date_from)
+            if date_to is not None:
+                query = query.where(OpsAuditLog.created_at <= date_to)
+                count_query = count_query.where(OpsAuditLog.created_at <= date_to)
+            total = session.scalar(count_query) or 0
+            rows = session.scalars(
+                query.order_by(OpsAuditLog.created_at.desc(), OpsAuditLog.id.desc()).offset(offset).limit(limit)
+            ).all()
+            items = [OpsAuditLogResponse.model_validate(row) for row in rows]
+            return OpsAuditLogListResponse(items=items, total=total, limit=limit, offset=offset)
+
     def _claim_next_queued_task(self, *, session: Session, worker_name: str) -> Optional[InferenceTask]:
         task = session.scalar(
             select(InferenceTask)
@@ -178,6 +295,11 @@ class TaskService:
         task.status = "running"
         task.started_at = datetime.now(timezone.utc)
         task.worker_name = worker_name
+        batch_item = session.get(BatchItem, task.batch_item_id)
+        if batch_item is not None:
+            batch_item.processing_status = "running"
+            batch_item.latest_task_id = task.id
+            self._refresh_batch_aggregates(session=session, batch_id=batch_item.batch_id)
         session.commit()
         return task
 
@@ -312,17 +434,19 @@ class TaskService:
 
         created_count = 0
         for candidate in candidates:
-            exists = session.scalar(
-                select(func.count())
-                .select_from(AlertEvent)
+            existing_alert = session.scalar(
+                select(AlertEvent)
                 .where(
                     AlertEvent.result_id == result_id,
                     AlertEvent.batch_item_id == batch_item.id,
                     AlertEvent.event_type == candidate.event_type,
                     AlertEvent.status.in_(["open", "acknowledged"]),
                 )
-            ) or 0
-            if int(exists) > 0:
+                .order_by(AlertEvent.triggered_at.desc())
+                .limit(1)
+            )
+            if existing_alert is not None:
+                self._apply_repeat_trigger_escalation(existing_alert)
                 continue
 
             session.add(
@@ -337,7 +461,7 @@ class TaskService:
                     alert_level=candidate.alert_level,
                     status="open",
                     title=candidate.title,
-                    trigger_payload=candidate.trigger_payload,
+                    trigger_payload=self._build_alert_trigger_payload(candidate.trigger_payload, candidate.alert_level),
                     triggered_at=datetime.now(timezone.utc),
                 )
             )
@@ -522,6 +646,106 @@ class TaskService:
         if code is None:
             return False
         return code in RETRYABLE_FAILURE_CODES
+
+    def _apply_repeat_trigger_escalation(self, alert: AlertEvent) -> None:
+        now = datetime.now(timezone.utc)
+        payload = dict(alert.trigger_payload or {})
+        repeat_hits = int(payload.get("repeat_hits", 1)) + 1
+        payload["repeat_hits"] = repeat_hits
+        payload["last_triggered_at"] = now.isoformat()
+        if repeat_hits >= self.alert_repeat_escalation_hits:
+            next_level = self._next_alert_level(alert.alert_level)
+            if next_level != alert.alert_level:
+                alert.alert_level = next_level
+                payload["repeat_escalated_at"] = now.isoformat()
+                payload["sla_due_at"] = self._build_sla_due_at_iso(next_level, now)
+        alert.trigger_payload = payload
+        alert.updated_at = now
+
+    def _build_alert_trigger_payload(self, base_payload: dict[str, Any], alert_level: str) -> dict[str, Any]:
+        now = datetime.now(timezone.utc)
+        payload = dict(base_payload)
+        payload.setdefault("repeat_hits", 1)
+        payload.setdefault("first_triggered_at", now.isoformat())
+        payload["last_triggered_at"] = now.isoformat()
+        payload["sla_due_at"] = self._build_sla_due_at_iso(alert_level, now)
+        return payload
+
+    @staticmethod
+    def _next_alert_level(level: str) -> str:
+        try:
+            idx = ALERT_LEVEL_ORDER.index(level)
+        except ValueError:
+            return "critical"
+        if idx >= len(ALERT_LEVEL_ORDER) - 1:
+            return ALERT_LEVEL_ORDER[-1]
+        return ALERT_LEVEL_ORDER[idx + 1]
+
+    def _build_sla_due_at_iso(self, level: str, start_at: datetime) -> str:
+        hours = self.alert_sla_hours_by_level.get(level, self.alert_sla_hours_by_level.get("critical", 12))
+        due_at = start_at + timedelta(hours=hours)
+        return due_at.isoformat()
+
+    def _sync_alert_rules_from_db(self, *, session: Session) -> None:
+        try:
+            config = session.get(OpsConfig, self.ALERT_RULES_CONFIG_KEY)
+        except Exception:
+            return
+        if config is None or not isinstance(config.config_payload, dict):
+            return
+        payload = config.config_payload
+        self.alert_profile_name = str(payload.get("profile_name", self.alert_profile_name))
+        self.alert_auto_enabled = bool(payload.get("alert_auto_enabled", self.alert_auto_enabled))
+        self.alert_count_threshold = max(1, int(payload.get("count_threshold", self.alert_count_threshold)))
+        watchlist = payload.get("category_watchlist", self.alert_category_watchlist)
+        if isinstance(watchlist, list):
+            normalized = [normalize_defect_category(str(item)) for item in watchlist if str(item).strip()]
+            if normalized:
+                self.alert_category_watchlist = normalized
+        self.alert_category_confidence_threshold = max(
+            0.0,
+            min(1.0, float(payload.get("category_confidence_threshold", self.alert_category_confidence_threshold))),
+        )
+        self.alert_repeat_escalation_hits = max(
+            2,
+            int(payload.get("repeat_escalation_hits", self.alert_repeat_escalation_hits)),
+        )
+        self.alert_near_due_hours = max(1, int(payload.get("near_due_hours", self.alert_near_due_hours)))
+        sla = payload.get("sla_hours_by_level")
+        if isinstance(sla, dict):
+            merged = dict(self.alert_sla_hours_by_level)
+            for level in ALERT_LEVEL_ORDER:
+                value = sla.get(level)
+                if value is not None:
+                    merged[level] = max(1, int(value))
+            self.alert_sla_hours_by_level = merged
+        updated_by = config.updated_by
+        if updated_by is not None:
+            self.alert_updated_by = updated_by
+        self.alert_updated_at = config.updated_at
+
+    def _build_alert_rules_payload(self) -> dict[str, Any]:
+        return {
+            "profile_name": self.alert_profile_name,
+            "alert_auto_enabled": self.alert_auto_enabled,
+            "count_threshold": self.alert_count_threshold,
+            "category_watchlist": self.alert_category_watchlist,
+            "category_confidence_threshold": self.alert_category_confidence_threshold,
+            "repeat_escalation_hits": self.alert_repeat_escalation_hits,
+            "sla_hours_by_level": self.alert_sla_hours_by_level,
+            "near_due_hours": self.alert_near_due_hours,
+        }
+
+    @staticmethod
+    def _build_diff_payload(before_payload: dict[str, Any], after_payload: dict[str, Any]) -> dict[str, Any]:
+        diff: dict[str, Any] = {}
+        keys = set(before_payload.keys()) | set(after_payload.keys())
+        for key in sorted(keys):
+            before_value = before_payload.get(key)
+            after_value = after_payload.get(key)
+            if before_value != after_value:
+                diff[key] = {"before": before_value, "after": after_value}
+        return diff
 
     def _build_result_json(self, *, result_id: str, batch_item_id: str, raw: RawPrediction) -> dict[str, Any]:
         detections = []

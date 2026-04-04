@@ -15,7 +15,8 @@ export function DashboardSidebar() {
   const pathname = usePathname();
   const isOverview = pathname.startsWith("/dashboard/ops/overview");
   const isBatches = pathname === "/dashboard/ops" || pathname.startsWith("/dashboard/ops/items");
-  const isSearch = pathname.startsWith("/dashboard/ops/search") || pathname.startsWith("/dashboard/history");
+  const isSearch = pathname.startsWith("/dashboard/ops/search");
+  const isHistory = pathname.startsWith("/dashboard/history");
   const isReviews = pathname.startsWith("/dashboard/ops/reviews");
   const isAlerts = pathname.startsWith("/dashboard/ops/alerts");
   const isSettings = pathname.startsWith("/dashboard/ops/settings");
@@ -87,6 +88,18 @@ export function DashboardSidebar() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-5.2-5.2m1.7-4.3a6 6 0 11-12 0 6 6 0 0112 0z" />
           </svg>
           <span className="hidden lg:block text-[11px] uppercase tracking-widest">病害检索</span>
+        </Link>
+
+        <Link href="/dashboard/history" className={navButtonClass(isHistory)}>
+          <svg
+            className={`shrink-0 w-5 h-5 transition-colors ${isHistory ? "text-white" : "text-white/40"}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span className="hidden lg:block text-[11px] uppercase tracking-widest">历史档案</span>
         </Link>
 
         <Link href="/dashboard/ops/reviews" className={navButtonClass(isReviews)}>

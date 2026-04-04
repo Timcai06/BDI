@@ -80,6 +80,7 @@ def create_app() -> FastAPI:
         alert_category_watchlist=settings.alert_category_watchlist,
         alert_category_confidence_threshold=settings.alert_category_confidence_threshold,
     )
+    batch_service.set_alert_sla_hours_by_level(task_service.alert_sla_hours_by_level)
     task_worker = TaskWorker(
         task_service=task_service,
         poll_interval_seconds=settings.task_worker_interval_seconds,

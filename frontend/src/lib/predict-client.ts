@@ -4,6 +4,7 @@ import {
   demoResult
 } from "@/lib/mock-data";
 import type {
+  AlertRulesConfigV1Response,
   AlertListV1Response,
   AlertV1,
   ApiError,
@@ -18,6 +19,8 @@ import type {
   DetectionListV1Response,
   DiagnosisResponse,
   ModelCatalogResponse,
+  OpsMetricsV1Response,
+  OpsAuditLogListV1Response,
   PredictOptions,
   PredictionHistoryResponse,
   PredictionResult,
@@ -655,6 +658,38 @@ export async function listV1Bridges(limit: number = 50, offset: number = 0): Pro
   return (await response.json()) as BridgeListV1Response;
 }
 
+export async function createV1Bridge(payload: {
+  bridgeCode: string;
+  bridgeName: string;
+  bridgeType?: string;
+  region?: string;
+  managerOrg?: string;
+  longitude?: number;
+  latitude?: number;
+}): Promise<BridgeListV1Response["items"][number]> {
+  if (!API_BASE_URL) {
+    throw new Error("演示模式下无法创建桥梁。");
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/bridges`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      bridge_code: payload.bridgeCode,
+      bridge_name: payload.bridgeName,
+      bridge_type: payload.bridgeType ?? null,
+      region: payload.region ?? null,
+      manager_org: payload.managerOrg ?? null,
+      longitude: payload.longitude ?? null,
+      latitude: payload.latitude ?? null
+    })
+  });
+  if (!response.ok) {
+    const err = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(err, "桥梁创建失败。"));
+  }
+  return (await response.json()) as BridgeListV1Response["items"][number];
+}
+
 export async function createV1Batch(payload: {
   bridgeId: string;
   batchCode: string;
@@ -686,6 +721,7 @@ export async function createV1Batch(payload: {
 export async function ingestV1BatchItems(payload: {
   batchId: string;
   files: File[];
+  relativePaths?: string[];
   modelPolicy?: string;
   sourceDevice?: string;
   capturedAt?: string;
@@ -695,6 +731,7 @@ export async function ingestV1BatchItems(payload: {
   }
   const formData = new FormData();
   payload.files.forEach((file) => formData.append("files", file));
+  payload.relativePaths?.forEach((relativePath) => formData.append("relative_paths", relativePath));
   formData.append("model_policy", payload.modelPolicy ?? "fusion-default");
   if (payload.sourceDevice) {
     formData.append("source_device", payload.sourceDevice);
@@ -736,16 +773,138 @@ export async function getV1BatchStats(batchId: string): Promise<BatchStatsV1Resp
   return (await response.json()) as BatchStatsV1Response;
 }
 
+export async function getV1OpsMetrics(windowHours: number = 24): Promise<OpsMetricsV1Response> {
+  const normalizedWindow = Math.max(1, Math.floor(windowHours));
+  if (!API_BASE_URL) {
+    return {
+      window_hours: normalizedWindow,
+      generated_at: new Date().toISOString(),
+      total_tasks: 0,
+      success_rate: 0,
+      retry_recovery_rate: null,
+      queued_tasks: 0,
+      running_tasks: 0,
+      failed_tasks: 0,
+      p50_queue_wait_ms: null,
+      p95_queue_wait_ms: null,
+      p50_run_ms: null,
+      p95_run_ms: null,
+      status_breakdown: {},
+      failure_code_breakdown: {}
+    };
+  }
+  const response = await fetchWithTimeout(
+    `${API_BASE_URL}/api/v1/ops/metrics?window_hours=${encodeURIComponent(String(normalizedWindow))}`
+  );
+  if (!response.ok) {
+    const payload = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(payload, "运营指标加载失败。"));
+  }
+  return (await response.json()) as OpsMetricsV1Response;
+}
+
+export async function getV1AlertRules(): Promise<AlertRulesConfigV1Response> {
+  if (!API_BASE_URL) {
+    return {
+      profile_name: "JTG-v1",
+      alert_auto_enabled: true,
+      count_threshold: 3,
+      category_watchlist: ["seepage"],
+      category_confidence_threshold: 0.8,
+      repeat_escalation_hits: 2,
+      sla_hours_by_level: { low: 72, medium: 48, high: 24, critical: 12 },
+      near_due_hours: 2,
+      updated_at: new Date().toISOString(),
+      updated_by: "demo"
+    };
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/ops/alert-rules`);
+  if (!response.ok) {
+    const payload = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(payload, "告警规则加载失败。"));
+  }
+  return (await response.json()) as AlertRulesConfigV1Response;
+}
+
+export async function updateV1AlertRules(payload: {
+  updatedBy: string;
+  profileName?: string;
+  alertAutoEnabled?: boolean;
+  countThreshold?: number;
+  categoryWatchlist?: string[];
+  categoryConfidenceThreshold?: number;
+  repeatEscalationHits?: number;
+  slaHoursByLevel?: Record<string, number>;
+  nearDueHours?: number;
+}): Promise<AlertRulesConfigV1Response> {
+  if (!API_BASE_URL) {
+    throw new Error("演示模式下无法更新告警规则。");
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/ops/alert-rules`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      updated_by: payload.updatedBy,
+      profile_name: payload.profileName ?? null,
+      alert_auto_enabled: payload.alertAutoEnabled ?? null,
+      count_threshold: payload.countThreshold ?? null,
+      category_watchlist: payload.categoryWatchlist ?? null,
+      category_confidence_threshold: payload.categoryConfidenceThreshold ?? null,
+      repeat_escalation_hits: payload.repeatEscalationHits ?? null,
+      sla_hours_by_level: payload.slaHoursByLevel ?? null,
+      near_due_hours: payload.nearDueHours ?? null
+    })
+  });
+  if (!response.ok) {
+    const err = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(err, "告警规则更新失败。"));
+  }
+  return (await response.json()) as AlertRulesConfigV1Response;
+}
+
+export async function listV1AlertRulesAudit(params?: {
+  actor?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<OpsAuditLogListV1Response> {
+  const limit = params?.limit ?? 20;
+  const offset = params?.offset ?? 0;
+  if (!API_BASE_URL) {
+    return { items: [], total: 0, limit, offset };
+  }
+  const query = buildQuery({
+    actor: params?.actor,
+    date_from: params?.dateFrom,
+    date_to: params?.dateTo,
+    limit,
+    offset
+  });
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/ops/alert-rules/audit${query}`);
+  if (!response.ok) {
+    const payload = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(payload, "规则审计日志加载失败。"));
+  }
+  return (await response.json()) as OpsAuditLogListV1Response;
+}
+
 export async function listV1BatchItems(
   batchId: string,
   limit: number = 50,
-  offset: number = 0
+  offset: number = 0,
+  relativePathPrefix?: string
 ): Promise<BatchItemListV1Response> {
   if (!API_BASE_URL) {
     return { items: [], total: 0, limit, offset };
   }
+  const query = buildQuery({
+    limit,
+    offset,
+    relative_path_prefix: relativePathPrefix || undefined
+  });
   const response = await fetchWithTimeout(
-    `${API_BASE_URL}/api/v1/batches/${encodeURIComponent(batchId)}/items?limit=${limit}&offset=${offset}`
+    `${API_BASE_URL}/api/v1/batches/${encodeURIComponent(batchId)}/items${query}`
   );
   if (!response.ok) {
     const payload = (await response.json()) as ApiError;

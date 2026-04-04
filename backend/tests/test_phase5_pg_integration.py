@@ -90,11 +90,15 @@ def test_phase5_batch_task_result_chain_with_real_postgres(
     ingest = client.post(
         f"/api/v1/batches/{batch_id}/items",
         files=[("files", ("bridge.jpg", b"fake-jpeg-data", "image/jpeg"))],
-        data={"model_policy": "fusion-default"},
+        data={
+            "model_policy": "fusion-default",
+            "relative_paths": "bridge-A/segment-01/bridge.jpg",
+        },
     )
     assert ingest.status_code == 200
     ingest_payload = ingest.json()
     assert ingest_payload["accepted_count"] == 1
+    assert ingest_payload["items"][0]["source_relative_path"] == "bridge-A/segment-01/bridge.jpg"
     task_id = ingest_payload["items"][0]["task_id"]
     batch_item_id = ingest_payload["items"][0]["batch_item_id"]
 
@@ -109,6 +113,7 @@ def test_phase5_batch_task_result_chain_with_real_postgres(
     item = client.get(f"/api/v1/batch-items/{batch_item_id}")
     assert item.status_code == 200
     assert item.json()["processing_status"] == "succeeded"
+    assert item.json()["media_asset"]["source_relative_path"] == "bridge-A/segment-01/bridge.jpg"
 
     result = client.get(f"/api/v1/batch-items/{batch_item_id}/result")
     assert result.status_code == 200
@@ -122,3 +127,12 @@ def test_phase5_batch_task_result_chain_with_real_postgres(
     stats_payload = stats.json()
     assert stats_payload["batch_id"] == batch_id
     assert stats_payload["status_breakdown"].get("succeeded", 0) >= 1
+
+    filtered_items = client.get(
+        f"/api/v1/batches/{batch_id}/items",
+        params={"relative_path_prefix": "bridge-A/segment-01"},
+    )
+    assert filtered_items.status_code == 200
+    filtered_payload = filtered_items.json()
+    assert filtered_payload["total"] >= 1
+    assert filtered_payload["items"][0]["source_relative_path"].startswith("bridge-A/segment-01")

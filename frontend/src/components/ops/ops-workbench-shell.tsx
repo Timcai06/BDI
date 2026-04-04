@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
 import {
+  createV1Bridge,
   createV1Batch,
   getV1Task,
   getV1BatchStats,
@@ -45,6 +46,41 @@ function countMapToText(map: Record<string, number>): string {
   return entries.map(([k, v]) => `${k}:${v}`).join(" | ");
 }
 
+type FileWithRelativePath = File & { webkitRelativePath?: string };
+const RECENT_PATH_PREFIXES_STORAGE_KEY = "ops.recentPathPrefixes.v1";
+
+function normalizePathPrefix(value: string): string {
+  return value.trim().replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+/g, "/");
+}
+
+function mergeRecentPathPrefixes(current: string[], next: string[], limit: number = 8): string[] {
+  const merged = [...next, ...current]
+    .map(normalizePathPrefix)
+    .filter(Boolean);
+  return Array.from(new Set(merged)).slice(0, limit);
+}
+
+function derivePathPrefixesFromItems(paths: Array<string | null | undefined>, limit: number = 6): string[] {
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of paths) {
+    const normalized = normalizePathPrefix(raw ?? "");
+    if (!normalized) {
+      continue;
+    }
+    const parts = normalized.split("/").filter(Boolean);
+    const prefix = parts.length >= 2 ? `${parts[0]}/${parts[1]}` : parts[0];
+    if (!seen.has(prefix)) {
+      seen.add(prefix);
+      result.push(prefix);
+    }
+    if (result.length >= limit) {
+      break;
+    }
+  }
+  return result;
+}
+
 export function OpsWorkbenchShell() {
   const router = useRouter();
   const pathname = usePathname();
@@ -66,13 +102,18 @@ export function OpsWorkbenchShell() {
   const [refreshTick, setRefreshTick] = useState(0);
 
   const [batchCode, setBatchCode] = useState("");
+  const [bridgeCodeInput, setBridgeCodeInput] = useState("");
+  const [bridgeNameInput, setBridgeNameInput] = useState("");
   const [sourceType, setSourceType] = useState("drone_image_stream");
   const [createdBy, setCreatedBy] = useState("ops-user");
   const [expectedItemCount, setExpectedItemCount] = useState("0");
   const [sourceDevice, setSourceDevice] = useState("drone-A");
   const [modelPolicy, setModelPolicy] = useState("fusion-default");
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
+  const [uploadInputMode, setUploadInputMode] = useState<"files" | "folder">("files");
   const [showFailedItemsOnly, setShowFailedItemsOnly] = useState(false);
+  const [relativePathPrefix, setRelativePathPrefix] = useState("");
+  const [recentPathPrefixes, setRecentPathPrefixes] = useState<string[]>([]);
   const [retryingTaskId, setRetryingTaskId] = useState<string | null>(null);
 
   const [stats, setStats] = useState<BatchStatsV1Response | null>(null);
@@ -110,6 +151,7 @@ export function OpsWorkbenchShell() {
     const urlAlertStatus = searchParams.get("aStatus");
     const urlAlertSortBy = searchParams.get("aSortBy");
     const urlAlertSortOrder = searchParams.get("aSortOrder");
+    const urlPathPrefix = searchParams.get("pathPrefix");
 
     if (batchId) {
       setSelectedBatchId(batchId);
@@ -144,9 +186,40 @@ export function OpsWorkbenchShell() {
     if (urlAlertSortOrder === "asc" || urlAlertSortOrder === "desc") {
       setAlertSortOrder(urlAlertSortOrder);
     }
+    if (urlPathPrefix !== null) {
+      setRelativePathPrefix(urlPathPrefix);
+    }
     setReady(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    try {
+      const value = window.localStorage.getItem(RECENT_PATH_PREFIXES_STORAGE_KEY);
+      if (!value) {
+        return;
+      }
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        setRecentPathPrefixes(
+          parsed
+            .map((item) => (typeof item === "string" ? normalizePathPrefix(item) : ""))
+            .filter(Boolean)
+            .slice(0, 8)
+        );
+      }
+    } catch {
+      // noop
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(RECENT_PATH_PREFIXES_STORAGE_KEY, JSON.stringify(recentPathPrefixes));
+    } catch {
+      // noop
+    }
+  }, [recentPathPrefixes]);
 
   useEffect(() => {
     if (!ready) {
@@ -186,6 +259,9 @@ export function OpsWorkbenchShell() {
     if (alertSortOrder !== "desc") {
       next.set("aSortOrder", alertSortOrder);
     }
+    if (relativePathPrefix.trim()) {
+      next.set("pathPrefix", relativePathPrefix.trim());
+    }
     const nextQuery = next.toString();
     const currentQuery = searchParams.toString();
     if (nextQuery !== currentQuery) {
@@ -204,6 +280,7 @@ export function OpsWorkbenchShell() {
     alertStatusFilter,
     alertSortBy,
     alertSortOrder,
+    relativePathPrefix,
     pathname,
     router,
     searchParams
@@ -269,7 +346,7 @@ export function OpsWorkbenchShell() {
       try {
         const [statsResp, itemsResp, detectionsResp, reviewsResp, alertsResp] = await Promise.all([
           getV1BatchStats(selectedBatchId),
-          listV1BatchItems(selectedBatchId, 100, 0),
+          listV1BatchItems(selectedBatchId, 100, 0, relativePathPrefix.trim() || undefined),
           listV1Detections({
             batchId: selectedBatchId,
             category: category || undefined,
@@ -305,6 +382,12 @@ export function OpsWorkbenchShell() {
         setDetections(detectionsResp.items);
         setReviews(reviewsResp.items);
         setAlerts(alertsResp.items);
+        setRecentPathPrefixes((current) =>
+          mergeRecentPathPrefixes(
+            current,
+            derivePathPrefixesFromItems(itemsResp.items.map((item) => item.source_relative_path))
+          )
+        );
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "批次详情加载失败");
@@ -332,6 +415,7 @@ export function OpsWorkbenchShell() {
     alertStatusFilter,
     alertSortBy,
     alertSortOrder,
+    relativePathPrefix,
     refreshTick
   ]);
 
@@ -373,6 +457,31 @@ export function OpsWorkbenchShell() {
     }
   }
 
+  async function handleCreateBridge() {
+    if (!bridgeCodeInput.trim() || !bridgeNameInput.trim()) {
+      setError("请先填写 bridge_code 和 bridge_name。");
+      return;
+    }
+    setActionLoading(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const created = await createV1Bridge({
+        bridgeCode: bridgeCodeInput.trim(),
+        bridgeName: bridgeNameInput.trim()
+      });
+      setNotice(`桥梁创建成功：${created.bridge_code} | ${created.bridge_name}`);
+      setBridgeCodeInput("");
+      setBridgeNameInput("");
+      setSelectedBridgeId(created.id);
+      setRefreshTick((v) => v + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "桥梁创建失败");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   async function handleIngestItems() {
     if (!selectedBatchId) {
       setError("请先选择批次。");
@@ -386,20 +495,44 @@ export function OpsWorkbenchShell() {
     setError(null);
     setNotice(null);
     try {
+      const relativePaths = uploadFiles.map((file) => {
+        const relativePath = (file as FileWithRelativePath).webkitRelativePath?.trim() ?? "";
+        return relativePath;
+      });
+      const hasRelativePath = relativePaths.some((item) => item.length > 0);
+      if (hasRelativePath) {
+        setRecentPathPrefixes((current) => mergeRecentPathPrefixes(current, derivePathPrefixesFromItems(relativePaths)));
+      }
       const response = await ingestV1BatchItems({
         batchId: selectedBatchId,
         files: uploadFiles,
+        relativePaths: hasRelativePath ? relativePaths : undefined,
         modelPolicy: modelPolicy.trim() || "fusion-default",
         sourceDevice: sourceDevice.trim() || undefined
       });
       setNotice(`上传完成：accepted=${response.accepted_count}, rejected=${response.rejected_count}`);
       setUploadFiles([]);
+      setUploadInputMode("files");
       setRefreshTick((v) => v + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "批次图片上传失败");
     } finally {
       setActionLoading(false);
     }
+  }
+
+  function normalizeSelectedFiles(fileList: FileList | null): File[] {
+    if (!fileList) {
+      return [];
+    }
+    const allowed = new Set(["image/jpeg", "image/png", "image/webp"]);
+    return Array.from(fileList).filter((file) => {
+      if (allowed.has(file.type)) {
+        return true;
+      }
+      const lower = file.name.toLowerCase();
+      return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".webp");
+    });
   }
 
   async function handleRetryBatchItemTask(taskId: string) {
@@ -443,6 +576,29 @@ export function OpsWorkbenchShell() {
       <SectionCard title="批次选择">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-3">
           <div className="rounded border border-white/10 bg-black/20 p-3 space-y-2">
+            <p className="text-xs text-white/60">先创建桥梁（无可选项时）</p>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                value={bridgeCodeInput}
+                onChange={(e) => setBridgeCodeInput(e.target.value)}
+                placeholder="bridge_code (e.g. BR-001)"
+                className="w-full rounded border border-white/15 bg-black/30 px-2 py-2 text-xs text-white"
+              />
+              <input
+                value={bridgeNameInput}
+                onChange={(e) => setBridgeNameInput(e.target.value)}
+                placeholder="bridge_name (e.g. 北江大桥)"
+                className="w-full rounded border border-white/15 bg-black/30 px-2 py-2 text-xs text-white"
+              />
+            </div>
+            <button
+              onClick={handleCreateBridge}
+              disabled={actionLoading}
+              className="rounded border border-white/20 bg-white/5 px-3 py-2 text-xs text-white/80 disabled:opacity-40"
+            >
+              创建桥梁并选中
+            </button>
+            <div className="h-px bg-white/10 my-1" />
             <p className="text-xs text-white/60">新建批次</p>
             <select
               value={selectedBridgeId}
@@ -493,13 +649,46 @@ export function OpsWorkbenchShell() {
 
           <div className="rounded border border-white/10 bg-black/20 p-3 space-y-2">
             <p className="text-xs text-white/60">批量上传并自动入队</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setUploadInputMode("files")}
+                className={`rounded border px-2 py-2 text-xs ${
+                  uploadInputMode === "files"
+                    ? "border-cyan-300/30 bg-cyan-300/10 text-cyan-200"
+                    : "border-white/15 bg-black/30 text-white/70"
+                }`}
+              >
+                选择文件
+              </button>
+              <button
+                type="button"
+                onClick={() => setUploadInputMode("folder")}
+                className={`rounded border px-2 py-2 text-xs ${
+                  uploadInputMode === "folder"
+                    ? "border-cyan-300/30 bg-cyan-300/10 text-cyan-200"
+                    : "border-white/15 bg-black/30 text-white/70"
+                }`}
+              >
+                选择文件夹
+              </button>
+            </div>
             <input
+              key={`upload-${uploadInputMode}`}
               type="file"
               multiple
               accept="image/jpeg,image/png,image/webp"
-              onChange={(e) => setUploadFiles(Array.from(e.target.files ?? []))}
+              {...(uploadInputMode === "folder"
+                ? ({ webkitdirectory: "", directory: "" } as unknown as Record<string, string>)
+                : {})}
+              onChange={(e) => setUploadFiles(normalizeSelectedFiles(e.target.files))}
               className="w-full rounded border border-white/15 bg-black/30 px-2 py-2 text-xs text-white"
             />
+            <p className="text-[11px] text-white/45">
+              {uploadInputMode === "folder"
+                ? "文件夹模式：会自动扫描子目录中的图片并批量入队。"
+                : "文件模式：手动多选图片后批量入队。"}
+            </p>
             <div className="grid grid-cols-2 gap-2">
               <input
                 value={modelPolicy}
@@ -590,24 +779,64 @@ export function OpsWorkbenchShell() {
                 <span className="text-white/50">
                   显示 {visibleItems.length}/{items.length} 项
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setShowFailedItemsOnly((prev) => !prev)}
-                  className="rounded border border-white/20 px-2 py-1 text-white/80 hover:bg-white/[0.06]"
-                >
-                  {showFailedItemsOnly ? "显示全部" : "仅看失败项"}
-                </button>
+                <div className="flex items-center gap-2">
+                  <input
+                    value={relativePathPrefix}
+                    onChange={(e) => setRelativePathPrefix(e.target.value)}
+                    placeholder="按目录前缀过滤，例如 bridge-A/segment-01"
+                    className="w-56 rounded border border-white/15 bg-black/30 px-2 py-1 text-[11px] text-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setRelativePathPrefix("")}
+                    disabled={!relativePathPrefix}
+                    className="rounded border border-white/20 px-2 py-1 text-white/80 hover:bg-white/[0.06] disabled:opacity-40"
+                  >
+                    清空筛选
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowFailedItemsOnly((prev) => !prev)}
+                    className="rounded border border-white/20 px-2 py-1 text-white/80 hover:bg-white/[0.06]"
+                  >
+                    {showFailedItemsOnly ? "显示全部" : "仅看失败项"}
+                  </button>
+                </div>
               </div>
+              {recentPathPrefixes.length > 0 && (
+                <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px]">
+                  <span className="text-white/45">最近目录:</span>
+                  {recentPathPrefixes.map((prefix) => (
+                    <button
+                      key={prefix}
+                      type="button"
+                      onClick={() => setRelativePathPrefix(prefix)}
+                      className={`rounded border px-2 py-1 ${
+                        relativePathPrefix === prefix
+                          ? "border-cyan-300/30 bg-cyan-300/10 text-cyan-200"
+                          : "border-white/15 bg-black/30 text-white/70 hover:bg-white/[0.06]"
+                      }`}
+                    >
+                      {prefix}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="max-h-56 overflow-auto space-y-2">
                 {visibleItems.map((item) => (
                   <div key={item.id} className="rounded-lg border border-white/10 bg-black/20 p-2 text-xs text-white/80">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <Link
-                        href={`/dashboard/ops/items/${encodeURIComponent(item.id)}`}
-                        className="hover:text-cyan-200"
-                      >
-                        #{item.sequence_no} | {item.processing_status} | defects={item.defect_count} | review={item.review_status} | alert={item.alert_status}
-                      </Link>
+                      <div className="min-w-0">
+                        <Link
+                          href={`/dashboard/ops/items/${encodeURIComponent(item.id)}`}
+                          className="hover:text-cyan-200"
+                        >
+                          #{item.sequence_no} | {item.processing_status} | defects={item.defect_count} | review={item.review_status} | alert={item.alert_status}
+                        </Link>
+                        <div className="mt-1 truncate text-[11px] text-white/55">
+                          路径: {item.source_relative_path || "(未提供目录路径)"}
+                        </div>
+                      </div>
                       {item.processing_status === "failed" && item.latest_task_id && (
                         <button
                           type="button"

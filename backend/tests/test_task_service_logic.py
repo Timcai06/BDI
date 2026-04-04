@@ -96,3 +96,26 @@ def test_build_auto_alert_candidates_skips_watchlist_below_confidence_threshold(
     candidates = service._build_auto_alert_candidates(raw)
 
     assert candidates == []
+
+
+def test_next_alert_level_escalates_until_critical() -> None:
+    assert TaskService._next_alert_level("low") == "medium"
+    assert TaskService._next_alert_level("medium") == "high"
+    assert TaskService._next_alert_level("high") == "critical"
+    assert TaskService._next_alert_level("critical") == "critical"
+
+
+def test_build_alert_trigger_payload_contains_sla_and_repeat_fields() -> None:
+    service = TaskService(
+        session_factory=SimpleNamespace(),
+        store=SimpleNamespace(),
+        runner_manager=SimpleNamespace(),
+    )
+
+    payload = service._build_alert_trigger_payload({"category": "seepage"}, "high")
+
+    assert payload["category"] == "seepage"
+    assert payload["repeat_hits"] == 1
+    assert isinstance(payload.get("first_triggered_at"), str)
+    assert isinstance(payload.get("last_triggered_at"), str)
+    assert isinstance(payload.get("sla_due_at"), str)

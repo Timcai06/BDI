@@ -33,7 +33,7 @@ alembic upgrade head
 
 关键环境变量：
 
-- `BDI_DATABASE_URL`（示例：`postgresql+psycopg://postgres:postgres@localhost:5432/bdi`）
+- `BDI_DATABASE_URL`（示例：`postgresql+psycopg://your_local_pg_role@localhost:5432/bdi`，本机常见为你的系统用户名）
 - `BDI_DATABASE_ECHO`（`true/false`）
 - `BDI_TASK_WORKER_ENABLED`（`true/false`）
 - `BDI_TASK_WORKER_INTERVAL_SECONDS`（默认 `1.0`）

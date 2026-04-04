@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from getpass import getuser
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -62,7 +63,7 @@ class Settings(BaseModel):
     llm_api_key: Optional[str] = None
     llm_base_url: str = "https://api.openai.com/v1"
     llm_model_name: str = "gpt-3.5-turbo"
-    database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/bdi"
+    database_url: str = f"postgresql+psycopg://{getuser()}@localhost:5432/bdi"
     database_echo: bool = False
     task_worker_enabled: bool = False
     task_worker_interval_seconds: float = 1.0
@@ -142,7 +143,7 @@ def get_settings() -> Settings:
         llm_model_name=os.getenv("BDI_LLM_MODEL_NAME", "gpt-3.5-turbo"),
         database_url=os.getenv(
             "BDI_DATABASE_URL",
-            "postgresql+psycopg://postgres:postgres@localhost:5432/bdi",
+            f"postgresql+psycopg://{getuser()}@localhost:5432/bdi",
         ),
         database_echo=_env_flag("BDI_DATABASE_ECHO", "false"),
         task_worker_enabled=_env_flag("BDI_TASK_WORKER_ENABLED", "false"),

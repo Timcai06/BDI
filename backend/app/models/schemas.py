@@ -258,6 +258,7 @@ class BatchIngestItemSuccess(BaseModel):
     batch_item_id: str
     media_asset_id: str
     original_filename: str
+    source_relative_path: Optional[str] = None
     processing_status: str
     task_id: str
 
@@ -282,6 +283,7 @@ class BatchItemResponse(BaseModel):
     id: str
     batch_id: str
     media_asset_id: str
+    source_relative_path: Optional[str] = None
     sequence_no: int
     processing_status: str
     review_status: str
@@ -353,6 +355,86 @@ class BatchStatsResponse(BaseModel):
     alert_breakdown: dict[str, int] = Field(default_factory=dict)
 
 
+class OpsMetricsResponse(BaseModel):
+    window_hours: int = Field(ge=1)
+    generated_at: datetime
+    total_tasks: int = Field(ge=0)
+    success_rate: float = Field(ge=0, le=1)
+    retry_recovery_rate: Optional[float] = Field(default=None, ge=0, le=1)
+    queued_tasks: int = Field(ge=0)
+    running_tasks: int = Field(ge=0)
+    failed_tasks: int = Field(ge=0)
+    p50_queue_wait_ms: Optional[int] = Field(default=None, ge=0)
+    p95_queue_wait_ms: Optional[int] = Field(default=None, ge=0)
+    p50_run_ms: Optional[int] = Field(default=None, ge=0)
+    p95_run_ms: Optional[int] = Field(default=None, ge=0)
+    status_breakdown: dict[str, int] = Field(default_factory=dict)
+    failure_code_breakdown: dict[str, int] = Field(default_factory=dict)
+
+
+class AlertRulesConfigResponse(BaseModel):
+    profile_name: str = "JTG-v1"
+    alert_auto_enabled: bool = True
+    count_threshold: int = Field(default=3, ge=1)
+    category_watchlist: list[str] = Field(default_factory=lambda: ["seepage"])
+    category_confidence_threshold: float = Field(default=0.8, ge=0, le=1)
+    repeat_escalation_hits: int = Field(default=2, ge=2)
+    sla_hours_by_level: dict[str, int] = Field(
+        default_factory=lambda: {
+            "low": 72,
+            "medium": 48,
+            "high": 24,
+            "critical": 12,
+        }
+    )
+    near_due_hours: int = Field(default=2, ge=1)
+    updated_at: datetime
+    updated_by: Optional[str] = None
+
+
+class AlertRulesUpdateRequest(BaseModel):
+    updated_by: str = Field(min_length=1, max_length=128)
+    profile_name: Optional[str] = Field(default=None, min_length=1, max_length=64)
+    alert_auto_enabled: Optional[bool] = None
+    count_threshold: Optional[int] = Field(default=None, ge=1)
+    category_watchlist: Optional[list[str]] = None
+    category_confidence_threshold: Optional[float] = Field(default=None, ge=0, le=1)
+    repeat_escalation_hits: Optional[int] = Field(default=None, ge=2)
+    sla_hours_by_level: Optional[dict[str, int]] = None
+    near_due_hours: Optional[int] = Field(default=None, ge=1)
+
+    @field_validator("category_watchlist", mode="before")
+    @classmethod
+    def normalize_watchlist(cls, value: Any) -> Any:
+        if value is None:
+            return None
+        if not isinstance(value, list):
+            return value
+        return [normalize_defect_category(str(item)) for item in value if str(item).strip()]
+
+
+class OpsAuditLogResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    audit_type: str
+    actor: str
+    target_key: Optional[str] = None
+    before_payload: dict[str, Any] = Field(default_factory=dict)
+    after_payload: dict[str, Any] = Field(default_factory=dict)
+    diff_payload: dict[str, Any] = Field(default_factory=dict)
+    note: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class OpsAuditLogListResponse(BaseModel):
+    items: list[OpsAuditLogResponse]
+    total: int
+    limit: int
+    offset: int
+
+
 class MediaAssetResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -367,6 +449,7 @@ class MediaAssetResponse(BaseModel):
     captured_at: Optional[datetime] = None
     uploaded_at: datetime
     source_device: Optional[str] = None
+    source_relative_path: Optional[str] = None
 
 
 class BatchItemDetailResponse(BatchItemResponse):

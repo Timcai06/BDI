@@ -190,6 +190,7 @@ export interface BatchIngestV1Response {
     batch_item_id: string;
     media_asset_id: string;
     original_filename: string;
+    source_relative_path?: string | null;
     processing_status: string;
     task_id: string;
   }>;
@@ -208,6 +209,56 @@ export interface BatchStatsV1Response {
   alert_breakdown: Record<string, number>;
 }
 
+export interface OpsMetricsV1Response {
+  window_hours: number;
+  generated_at: string;
+  total_tasks: number;
+  success_rate: number;
+  retry_recovery_rate?: number | null;
+  queued_tasks: number;
+  running_tasks: number;
+  failed_tasks: number;
+  p50_queue_wait_ms?: number | null;
+  p95_queue_wait_ms?: number | null;
+  p50_run_ms?: number | null;
+  p95_run_ms?: number | null;
+  status_breakdown: Record<string, number>;
+  failure_code_breakdown: Record<string, number>;
+}
+
+export interface AlertRulesConfigV1Response {
+  profile_name: string;
+  alert_auto_enabled: boolean;
+  count_threshold: number;
+  category_watchlist: string[];
+  category_confidence_threshold: number;
+  repeat_escalation_hits: number;
+  sla_hours_by_level: Record<string, number>;
+  near_due_hours: number;
+  updated_at: string;
+  updated_by?: string | null;
+}
+
+export interface OpsAuditLogV1 {
+  id: string;
+  audit_type: string;
+  actor: string;
+  target_key?: string | null;
+  before_payload: Record<string, unknown>;
+  after_payload: Record<string, unknown>;
+  diff_payload: Record<string, unknown>;
+  note?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OpsAuditLogListV1Response {
+  items: OpsAuditLogV1[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface MediaAssetV1 {
   id: string;
   media_type: string;
@@ -220,12 +271,14 @@ export interface MediaAssetV1 {
   captured_at?: string | null;
   uploaded_at: string;
   source_device?: string | null;
+  source_relative_path?: string | null;
 }
 
 export interface BatchItemV1 {
   id: string;
   batch_id: string;
   media_asset_id: string;
+  source_relative_path?: string | null;
   sequence_no: number;
   processing_status: string;
   review_status: string;

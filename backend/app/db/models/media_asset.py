@@ -36,6 +36,7 @@ class MediaAsset(Base, TimestampMixin):
         server_default=func.now(),
     )
     source_device: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    source_relative_path: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
     extra_metadata: Mapped[dict[str, Any]] = mapped_column(
         JSONB,
         nullable=False,

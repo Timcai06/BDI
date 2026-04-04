@@ -8,6 +8,9 @@ from fastapi import APIRouter, File, Form, Request, UploadFile, status
 from app.models.schemas import (
     AlertCreateRequest,
     AlertListResponse,
+    AlertRulesConfigResponse,
+    OpsAuditLogListResponse,
+    AlertRulesUpdateRequest,
     AlertResponse,
     AlertStatusUpdateRequest,
     BatchCreateRequest,
@@ -23,6 +26,7 @@ from app.models.schemas import (
     BridgeListResponse,
     BridgeResponse,
     DetectionListResponse,
+    OpsMetricsResponse,
     ReviewCreateRequest,
     ReviewListResponse,
     ReviewRecordResponse,
@@ -70,6 +74,7 @@ async def ingest_batch_items(
     request: Request,
     batch_id: str,
     files: Annotated[list[UploadFile], File(...)],
+    relative_paths: Annotated[Optional[list[str]], Form()] = None,
     source_device: Annotated[Optional[str], Form()] = None,
     captured_at: Annotated[Optional[datetime], Form()] = None,
     model_policy: Annotated[str, Form()] = "fusion-default",
@@ -77,6 +82,7 @@ async def ingest_batch_items(
     return await request.app.state.batch_service.ingest_items(
         batch_id=batch_id,
         files=files,
+        relative_paths=relative_paths,
         source_device=source_device,
         captured_at=captured_at,
         model_policy=model_policy,
@@ -89,8 +95,14 @@ async def list_batch_items(
     batch_id: str,
     limit: int = 50,
     offset: int = 0,
+    relative_path_prefix: Optional[str] = None,
 ) -> BatchItemListResponse:
-    return request.app.state.batch_service.list_batch_items(batch_id=batch_id, limit=limit, offset=offset)
+    return request.app.state.batch_service.list_batch_items(
+        batch_id=batch_id,
+        limit=limit,
+        offset=offset,
+        relative_path_prefix=relative_path_prefix,
+    )
 
 
 @router.get("/batches/{batch_id}/stats", response_model=BatchStatsResponse)
@@ -106,6 +118,46 @@ async def get_batch_item_detail(request: Request, batch_item_id: str) -> BatchIt
 @router.get("/batch-items/{batch_item_id}/result", response_model=BatchItemResultResponse)
 async def get_batch_item_result(request: Request, batch_item_id: str) -> BatchItemResultResponse:
     return request.app.state.batch_service.get_batch_item_result(batch_item_id=batch_item_id)
+
+
+@router.get("/ops/metrics", response_model=OpsMetricsResponse)
+async def get_ops_metrics(request: Request, window_hours: int = 24) -> OpsMetricsResponse:
+    return request.app.state.batch_service.get_ops_metrics(window_hours=window_hours)
+
+
+@router.get("/ops/alert-rules", response_model=AlertRulesConfigResponse)
+async def get_ops_alert_rules(request: Request) -> AlertRulesConfigResponse:
+    config = request.app.state.task_service.get_alert_rule_config()
+    request.app.state.batch_service.set_alert_sla_hours_by_level(config.sla_hours_by_level)
+    return config
+
+
+@router.put("/ops/alert-rules", response_model=AlertRulesConfigResponse)
+async def update_ops_alert_rules(
+    request: Request,
+    payload: AlertRulesUpdateRequest,
+) -> AlertRulesConfigResponse:
+    updated = request.app.state.task_service.update_alert_rule_config(payload)
+    request.app.state.batch_service.set_alert_sla_hours_by_level(updated.sla_hours_by_level)
+    return updated
+
+
+@router.get("/ops/alert-rules/audit", response_model=OpsAuditLogListResponse)
+async def list_ops_alert_rules_audit(
+    request: Request,
+    limit: int = 50,
+    offset: int = 0,
+    actor: Optional[str] = None,
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
+) -> OpsAuditLogListResponse:
+    return request.app.state.task_service.list_alert_rule_audit_logs(
+        limit=limit,
+        offset=offset,
+        actor=actor,
+        date_from=date_from,
+        date_to=date_to,
+    )
 
 
 @router.get("/tasks/{task_id}", response_model=TaskResponse)
