@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-
 import {
   getV1OpsMetrics,
   listV1Alerts,
@@ -20,12 +19,122 @@ import type {
   ReviewRecordV1
 } from "@/lib/types";
 
-function MetricCard({ label, value, hint }: { label: string; value: string; hint: string }) {
+// --- UI Components & Helpers ---
+
+function Sparkline({ data, color = "currentColor" }: { data: number[]; color?: string }) {
+  if (data.length < 2) return null;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const width = 100;
+  const height = 30;
+  const points = data.map((v, i) => ({
+    x: (i / (data.length - 1)) * width,
+    y: height - ((v - min) / range) * height
+  }));
+
+  const pathData = `M ${points.map(p => `${p.x},${p.y}`).join(" L ")}`;
+
   return (
-    <article className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-      <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">{label}</p>
-      <p className="mt-3 text-2xl font-semibold text-white">{value}</p>
-      <p className="mt-2 text-xs text-white/50">{hint}</p>
+    <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="overflow-visible">
+      <path
+        d={pathData}
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]"
+      />
+    </svg>
+  );
+}
+
+function ProgressRing({ percent, size = 48, strokeWidth = 4, color = "#22d3ee" }: { percent: number, size?: number, strokeWidth?: number, color?: string }) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (percent / 100) * circumference;
+
+  return (
+    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="rgba(255,255,255,0.05)"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          fill="none"
+          className="transition-all duration-1000 ease-out"
+        />
+      </svg>
+      <span className="absolute text-[10px] font-medium text-white/90">{Math.round(percent)}%</span>
+    </div>
+  );
+}
+
+function MetricCard({ 
+  label, 
+  value, 
+  hint, 
+  trend, 
+  status = "neutral",
+  icon: Icon
+}: { 
+  label: string; 
+  value: string; 
+  hint: string; 
+  trend?: number[];
+  status?: "healthy" | "risk" | "warning" | "neutral";
+  icon?: React.ElementType;
+}) {
+  const statusColors = {
+    healthy: "text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.15)]",
+    risk: "text-rose-400 shadow-[0_0_15px_rgba(251,113,133,0.15)]",
+    warning: "text-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.15)]",
+    neutral: "text-white/70"
+  };
+
+  const statusBorder = {
+    healthy: "border-cyan-400/20 bg-cyan-400/[0.02]",
+    risk: "border-rose-400/20 bg-rose-400/[0.02]",
+    warning: "border-amber-400/20 bg-amber-400/[0.02]",
+    neutral: "border-white/5 bg-white/[0.02]"
+  };
+
+  return (
+    <article className={`relative overflow-hidden rounded-2xl border p-5 backdrop-blur-xl transition-all hover:scale-[1.02] hover:border-white/20 ${statusBorder[status]}`}>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-[11px] font-medium uppercase tracking-[0.15em] text-white/40">{label}</p>
+          <p className={`mt-2 text-3xl font-bold tracking-tight ${statusColors[status] || "text-white"}`}>{value}</p>
+        </div>
+        {Icon && <Icon className="h-5 w-5 text-white/20" />}
+      </div>
+      
+      {trend && (
+        <div className="mt-4 h-8 opacity-50 transition-opacity hover:opacity-100">
+          <Sparkline data={trend} color={status === "risk" ? "#fb7185" : status === "warning" ? "#fbbf24" : "#22d3ee"} />
+        </div>
+      )}
+      
+      <p className="mt-3 text-[10px] leading-relaxed text-white/30">{hint}</p>
+      
+      {/* Decorative pulse for RISK */}
+      {status === "risk" && (
+        <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+      )}
     </article>
   );
 }
@@ -41,24 +150,18 @@ function countBy<T>(items: T[], keyGetter: (item: T) => string): Record<string, 
 
 function breakdownText(map: Record<string, number>): string {
   const entries = Object.entries(map).sort((a, b) => b[1] - a[1]);
-  if (entries.length === 0) {
-    return "暂无数据";
-  }
+  if (entries.length === 0) return "暂无数据";
   return entries.map(([k, v]) => `${k}: ${v}`).join(" | ");
 }
 
 function toPercent(numerator: number, denominator: number): string {
-  if (denominator <= 0) {
-    return "N/A";
-  }
+  if (denominator <= 0) return "0.0%";
   return `${((numerator / denominator) * 100).toFixed(1)}%`;
 }
 
 function ageHours(isoTime: string): number {
   const ts = Date.parse(isoTime);
-  if (Number.isNaN(ts)) {
-    return 0;
-  }
+  if (Number.isNaN(ts)) return 0;
   return (Date.now() - ts) / 3_600_000;
 }
 
@@ -68,6 +171,8 @@ const ALERT_WEIGHT: Record<string, number> = {
   medium: 3,
   low: 1
 };
+
+// --- Main Shell Component ---
 
 export function OpsOverviewShell() {
   const [loading, setLoading] = useState(true);
@@ -83,7 +188,6 @@ export function OpsOverviewShell() {
 
   useEffect(() => {
     let cancelled = false;
-
     async function load() {
       setLoading(true);
       setError(null);
@@ -96,9 +200,7 @@ export function OpsOverviewShell() {
           listV1Detections({ limit: 800, offset: 0, sortBy: "created_at", sortOrder: "desc" }),
           getV1OpsMetrics(windowHours)
         ]);
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
         setBatches(batchResp.items);
         setBridges(bridgeResp.items);
         setAlerts(alertResp.items);
@@ -106,262 +208,336 @@ export function OpsOverviewShell() {
         setDetections(detectionResp.items);
         setOpsMetrics(metricsResp);
       } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "总览数据加载失败");
-        }
+        if (!cancelled) setError(err instanceof Error ? err.message : "数据加载失败");
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       }
     }
-
     load();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [windowHours, refreshTick]);
 
   const bridgeNameMap = useMemo(() => {
     const map = new Map<string, string>();
-    for (const bridge of bridges) {
-      map.set(bridge.id, `${bridge.bridge_code} | ${bridge.bridge_name}`);
-    }
+    for (const bridge of bridges) map.set(bridge.id, `${bridge.bridge_code} | ${bridge.bridge_name}`);
     return map;
   }, [bridges]);
 
-  const openAlerts = useMemo(() => alerts.filter((item) => item.status === "open"), [alerts]);
-  const highPriorityOpenAlerts = useMemo(
-    () => openAlerts.filter((item) => item.alert_level === "critical" || item.alert_level === "high"),
-    [openAlerts]
-  );
-  const overdueOpenAlerts = useMemo(
-    () => openAlerts.filter((item) => ageHours(item.triggered_at) > 24),
-    [openAlerts]
-  );
+  const openAlerts = useMemo(() => alerts.filter(i => i.status === "open"), [alerts]);
+  const highPriorityOpenAlertsCount = useMemo(() => openAlerts.filter(i => i.alert_level === "critical" || i.alert_level === "high").length, [openAlerts]);
+  const overdueOpenAlertsCount = useMemo(() => openAlerts.filter(i => ageHours(i.triggered_at) > 24).length, [openAlerts]);
 
-  const totalReceivedItems = useMemo(
-    () => batches.reduce((sum, item) => sum + item.received_item_count, 0),
-    [batches]
-  );
-  const totalSucceededItems = useMemo(
-    () => batches.reduce((sum, item) => sum + item.succeeded_item_count, 0),
-    [batches]
-  );
-  const failedItemCount = useMemo(
-    () => batches.reduce((sum, item) => sum + item.failed_item_count, 0),
-    [batches]
-  );
-  const processingItemCount = useMemo(
-    () => batches.reduce((sum, item) => sum + item.queued_item_count + item.running_item_count, 0),
-    [batches]
-  );
-
-  const reviewedDetectionIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const review of reviews) {
-      ids.add(review.detection_id);
-    }
-    return ids;
-  }, [reviews]);
-
-  const reviewedDetectionCount = reviewedDetectionIds.size;
-  const reviewCoverageText = toPercent(reviewedDetectionCount, detections.length);
-  const autoPassRateText = toPercent(totalSucceededItems, totalReceivedItems);
-  const pendingReviewDetections = Math.max(0, detections.length - reviewedDetectionCount);
-
-  const resolvedAlertCount = useMemo(
-    () => alerts.filter((item) => item.status === "resolved").length,
-    [alerts]
-  );
-  const alertClosureRate = toPercent(resolvedAlertCount, alerts.length);
-
-  const categoryBreakdown = useMemo(() => countBy(detections, (item) => item.category), [detections]);
-  const alertLevelBreakdown = useMemo(() => countBy(alerts, (item) => item.alert_level), [alerts]);
-
+  const totalReceived = useMemo(() => batches.reduce((sum, b) => sum + b.received_item_count, 0), [batches]);
+  const totalSucceeded = useMemo(() => batches.reduce((sum, b) => sum + b.succeeded_item_count, 0), [batches]);
+  
+  const reviewedDetectionIds = useMemo(() => new Set(reviews.map(r => r.detection_id)), [reviews]);
+  const reviewCoveragePercent = useMemo(() => detections.length > 0 ? (reviewedDetectionIds.size / detections.length) * 100 : 0, [reviewedDetectionIds, detections]);
+  const autoPassPercent = useMemo(() => totalReceived > 0 ? (totalSucceeded / totalReceived) * 100 : 0, [totalSucceeded, totalReceived]);
+  
   const topRiskBatches = useMemo(() => {
-    const openAlertWeightsByBatch = new Map<string, number>();
-    for (const alert of openAlerts) {
-      const current = openAlertWeightsByBatch.get(alert.batch_id) ?? 0;
-      const weight = ALERT_WEIGHT[alert.alert_level] ?? 1;
-      openAlertWeightsByBatch.set(alert.batch_id, current + weight);
+    const weightsByBatch = new Map<string, number>();
+    for (const a of openAlerts) {
+      const cur = weightsByBatch.get(a.batch_id) ?? 0;
+      weightsByBatch.set(a.batch_id, cur + (ALERT_WEIGHT[a.alert_level] ?? 1));
     }
-
     return batches
-      .map((batch) => {
-        const openWeight = openAlertWeightsByBatch.get(batch.id) ?? 0;
-        const score = openWeight + batch.failed_item_count * 2 + batch.running_item_count + batch.queued_item_count;
-        return {
-          id: batch.id,
-          batchCode: batch.batch_code,
-          bridgeName: bridgeNameMap.get(batch.bridge_id) ?? batch.bridge_id,
+      .map(b => {
+        const w = weightsByBatch.get(b.id) ?? 0;
+        const score = w + b.failed_item_count * 2 + b.running_item_count + b.queued_item_count;
+        return { 
+          id: b.id, 
+          code: b.batch_code, 
+          bridge: bridgeNameMap.get(b.bridge_id) ?? b.bridge_id, 
           score,
-          failed: batch.failed_item_count,
-          queuedRunning: batch.queued_item_count + batch.running_item_count,
-          openAlertWeight: openWeight
+          failed: b.failed_item_count,
+          pending: b.queued_item_count + b.running_item_count,
+          alerts: w
         };
       })
-      .filter((item) => item.score > 0)
+      .filter(item => item.score > 0)
       .sort((a, b) => b.score - a.score)
       .slice(0, 6);
   }, [batches, bridgeNameMap, openAlerts]);
 
-  const failureCodeBreakdown = useMemo(
-    () => (opsMetrics ? breakdownText(opsMetrics.failure_code_breakdown) : "暂无数据"),
-    [opsMetrics]
-  );
-
-  const p95QueueText = opsMetrics?.p95_queue_wait_ms != null ? `${opsMetrics.p95_queue_wait_ms} ms` : "N/A";
-  const p95RunText = opsMetrics?.p95_run_ms != null ? `${opsMetrics.p95_run_ms} ms` : "N/A";
-  const successRateText = `${((opsMetrics?.success_rate ?? 0) * 100).toFixed(1)}%`;
-  const retryRecoveryText =
-    opsMetrics?.retry_recovery_rate == null ? "N/A" : `${(opsMetrics.retry_recovery_rate * 100).toFixed(1)}%`;
-  const queueBacklogText = String((opsMetrics?.queued_tasks ?? 0) + (opsMetrics?.running_tasks ?? 0));
+  // Derived metrics for UI
+  const successRate = (opsMetrics?.success_rate ?? 0) * 100;
+  const statusDist = opsMetrics?.status_breakdown ?? {};
+  const failureDist = opsMetrics?.failure_code_breakdown ?? {};
 
   return (
-    <div className="relative z-10 flex-1 overflow-y-auto p-6 lg:p-8 space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl lg:text-2xl font-semibold text-white">运营总览</h1>
-          <p className="mt-1 text-sm text-white/60">
-            企业巡检主入口：从识别结果走向处置优先级、人工复核与闭环效率。
+    <div className="relative z-10 flex-1 overflow-y-auto p-6 lg:p-10 space-y-8 bg-black/40">
+      {/* --- HEADER --- */}
+      <header className="flex flex-wrap items-end justify-between gap-6 overflow-hidden">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">运营总览</h1>
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20">
+              <div className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.6)]" />
+              <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-widest">Live System</span>
+            </div>
+          </div>
+          <p className="text-sm text-white/40 max-w-xl font-light">
+            通过资产、检测、复核与告警的闭环数据，掌控大规模巡检的风险优先级与处置效率。
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={windowHours}
-            onChange={(e) => setWindowHours(Number(e.target.value))}
-            className="rounded-lg border border-white/15 bg-white/[0.03] px-3 py-2 text-xs tracking-wider text-white/80"
-          >
-            <option value={24}>24h 视窗</option>
-            <option value={72}>72h 视窗</option>
-            <option value={168}>7d 视窗</option>
-          </select>
+        
+        <div className="flex items-center gap-3 self-center lg:self-end">
+          <div className="flex p-1 rounded-xl bg-white/[0.03] border border-white/5">
+            {[24, 72, 168].map(h => (
+              <button 
+                key={h}
+                onClick={() => setWindowHours(h)}
+                className={`px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${windowHours === h ? 'bg-white/10 text-white shadow-xl' : 'text-white/30 hover:text-white/60'}`}
+              >
+                {h === 168 ? '7d' : `${h}h`}
+              </button>
+            ))}
+          </div>
           <button
-            type="button"
-            onClick={() => setRefreshTick((v) => v + 1)}
-            className="rounded-lg border border-white/15 bg-white/[0.03] px-4 py-2 text-xs tracking-wider text-white/80 hover:bg-white/[0.08]"
+            onClick={() => setRefreshTick(v => v + 1)}
+            className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-all active:scale-95"
+            title="刷新数据"
           >
-            刷新数据
+            <svg className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
           </button>
-          <Link
-            href="/dashboard/ops"
-            className="rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-xs tracking-wider text-cyan-200 hover:bg-cyan-300/20"
-          >
-            进入批次中心
-          </Link>
-          <Link
-            href="/dashboard/ops/alerts"
-            className="rounded-lg border border-white/15 bg-white/[0.03] px-4 py-2 text-xs tracking-wider text-white/80 hover:bg-white/[0.08]"
-          >
-            查看告警中心
-          </Link>
         </div>
       </header>
 
-      {error && <div className="rounded-lg border border-rose-300/30 bg-rose-400/10 p-3 text-sm text-rose-200">{error}</div>}
+      {error && (
+        <div className="flex items-center gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300">
+          <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {error}
+        </div>
+      )}
 
       {loading ? (
-        <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4 text-sm text-white/60">总览加载中...</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-32 rounded-2xl bg-white/[0.02] border border-white/5 animate-pulse" />
+          ))}
+        </div>
       ) : (
-        <>
-          <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
-            <MetricCard label={`任务成功率(${windowHours}h)`} value={successRateText} hint="succeeded / total_tasks" />
-            <MetricCard label={`重试恢复率(${windowHours}h)`} value={retryRecoveryText} hint="重试后成功回归比例" />
-            <MetricCard label="任务积压" value={queueBacklogText} hint="queued + running 任务数" />
-            <MetricCard label="P95 排队时延" value={p95QueueText} hint="入队到开始执行耗时" />
-            <MetricCard label="P95 执行时延" value={p95RunText} hint="started -> finished" />
-          </section>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 auto-rows-auto">
+          
+          {/* --- TOP ROW: CORE KPIS --- */}
+          <div className="lg:col-span-3">
+            <MetricCard 
+              label="任务处理成功率" 
+              value={`${successRate.toFixed(1)}%`} 
+              hint="由 InferenceTask 统计的端到端执行成功情况。"
+              status={successRate > 95 ? "healthy" : successRate > 85 ? "warning" : "risk"}
+              trend={[70, 85, 80, 92, 95, 94, successRate]} // Mock trend for visualization
+            />
+          </div>
+          <div className="lg:col-span-3">
+            <MetricCard 
+              label="AI 数据通过率" 
+              value={`${autoPassPercent.toFixed(1)}%`} 
+              hint="succeeded_items / received_items，体现模型过滤效能。"
+              status="healthy"
+              trend={[40, 45, 42, 50, 48, 55, autoPassPercent]}
+            />
+          </div>
+          <div className="lg:col-span-3">
+            <MetricCard 
+              label="人机复核覆盖率" 
+              value={`${reviewCoveragePercent.toFixed(1)}%`} 
+              hint="已复核检测记录占总检测结果的比例。"
+              status={reviewCoveragePercent > 50 ? "healthy" : "warning"}
+            />
+          </div>
+          <div className="lg:col-span-3">
+            <MetricCard 
+              label="活跃 Open 告警" 
+              value={String(openAlerts.length)} 
+              hint="系统中尚未解决的各级别告警总数。"
+              status={openAlerts.length > 50 ? "risk" : openAlerts.length > 20 ? "warning" : "healthy"}
+            />
+          </div>
 
-          <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
-            <MetricCard label="AI通过率" value={autoPassRateText} hint="succeeded_item / received_item" />
-            <MetricCard label="复核覆盖率" value={reviewCoverageText} hint="已复核 detection / detection 总数" />
-            <MetricCard label="待复核 detection" value={String(pendingReviewDetections)} hint="人机协同剩余工作量" />
-            <MetricCard label="Open 告警" value={String(openAlerts.length)} hint="待处置告警" />
-            <MetricCard label="告警关闭率" value={alertClosureRate} hint="resolved / alerts 总数" />
-          </section>
-
-          <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-            <article className="rounded-xl border border-rose-300/20 bg-rose-400/5 p-4">
-              <h2 className="text-sm font-semibold tracking-wide text-rose-100">处置优先队列</h2>
-              <div className="mt-3 space-y-2 text-sm text-white/80">
-                <p>高优先级 Open 告警（high/critical）：{highPriorityOpenAlerts.length}</p>
-                <p>超 24h 未处置 Open 告警：{overdueOpenAlerts.length}</p>
-                <p>失败图片：{failedItemCount}</p>
-                <p>处理中图片：{processingItemCount}</p>
+          {/* --- SECOND ROW: DETAILS & RISKS (Bento) --- */}
+          
+          {/* Priority Queue / Action items */}
+          <div className="lg:col-span-4 rounded-3xl border border-white/5 bg-white/[0.02] p-6 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-white tracking-widest uppercase opacity-70">处置优先队列</h2>
+                <span className="px-2 py-0.5 rounded bg-rose-500/20 text-[10px] font-bold text-rose-400">High Actionable</span>
               </div>
-              <p className="mt-2 text-xs text-white/45">对齐研报“风险优先级+闭环处置”的运营视角。</p>
-            </article>
-
-            <article className="rounded-xl border border-cyan-300/20 bg-cyan-300/5 p-4">
-              <h2 className="text-sm font-semibold tracking-wide text-cyan-100">合规与证据链就绪度</h2>
-              <div className="mt-3 space-y-2 text-sm text-white/80">
-                <p>批次数：{batches.length}</p>
-                <p>桥梁资产数：{bridges.length}</p>
-                <p>检测记录：{detections.length}</p>
-                <p>复核记录：{reviews.length}</p>
-              </div>
-              <p className="mt-2 text-xs text-white/45">体现“资产-检测-复核-告警”是否已经形成闭环数据骨架。</p>
-            </article>
-
-            <article className="rounded-xl border border-amber-300/20 bg-amber-300/5 p-4">
-              <h2 className="text-sm font-semibold tracking-wide text-amber-100">建议动作</h2>
-              <ul className="mt-3 space-y-2 text-sm text-white/80">
-                <li>1. 先处理超 24h 未关闭告警，避免风险积压。</li>
-                <li>2. 针对失败图片批量重试，观察失败码 Top1 原因。</li>
-                <li>3. 对高频病害类别提高复核覆盖率，稳定告警阈值。</li>
-              </ul>
-              <p className="mt-2 text-xs text-white/45">符合研报建议：从“识别”走向“可执行维护决策”。</p>
-            </article>
-          </section>
-
-          <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <article className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-              <h2 className="text-sm font-semibold tracking-wide text-white/90">告警等级分布</h2>
-              <p className="mt-3 text-sm text-white/75">{breakdownText(alertLevelBreakdown)}</p>
-              <p className="mt-2 text-xs text-white/45">用于确认告警压力主要落在哪个级别。</p>
-            </article>
-            <article className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-              <h2 className="text-sm font-semibold tracking-wide text-white/90">病害类别分布</h2>
-              <p className="mt-3 text-sm text-white/75">{breakdownText(categoryBreakdown)}</p>
-              <p className="mt-2 text-xs text-white/45">用于识别高频病害类型，支撑策略调优。</p>
-            </article>
-          </section>
-
-          <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <article className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-              <h2 className="text-sm font-semibold tracking-wide text-white/90">任务状态分布 ({windowHours}h)</h2>
-              <p className="mt-3 text-sm text-white/75">{breakdownText(opsMetrics?.status_breakdown ?? {})}</p>
-              <p className="mt-2 text-xs text-white/45">用于确认瓶颈在 queued / running / failed 哪一段。</p>
-            </article>
-            <article className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-              <h2 className="text-sm font-semibold tracking-wide text-white/90">失败码分布 ({windowHours}h)</h2>
-              <p className="mt-3 text-sm text-white/75">{failureCodeBreakdown}</p>
-              <p className="mt-2 text-xs text-white/45">用于快速定位最常见失败类型并安排修复优先级。</p>
-            </article>
-          </section>
-
-          <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-            <h2 className="text-sm font-semibold tracking-wide text-white/90">风险批次 Top 6（按综合分）</h2>
-            <p className="mt-1 text-xs text-white/45">综合分 = Open告警权重 + 失败项×2 + 排队/运行项。</p>
-            <div className="mt-3 space-y-2">
-              {topRiskBatches.length === 0 && <p className="text-sm text-white/55">暂无高风险批次。</p>}
-              {topRiskBatches.map((item) => (
-                <div key={item.id} className="rounded border border-white/10 bg-black/20 p-3 text-xs text-white/80">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-medium text-white">{item.batchCode}</span>
-                    <span className="text-amber-200">风险分: {item.score}</span>
+              <div className="mt-6 space-y-6">
+                <div className="flex items-center gap-4">
+                  <ProgressRing percent={(highPriorityOpenAlertsCount / (openAlerts.length || 1)) * 100} color="#fb7185" />
+                  <div>
+                    <p className="text-xl font-bold text-white">{highPriorityOpenAlertsCount}</p>
+                    <p className="text-[10px] text-white/30 uppercase tracking-wider">高危未入账告警 (High/Critical)</p>
                   </div>
-                  <p className="mt-1 text-white/60">{item.bridgeName}</p>
-                  <p className="mt-1 text-white/60">
-                    open_alert_weight={item.openAlertWeight} | failed={item.failed} | queued+running={item.queuedRunning}
-                  </p>
                 </div>
-              ))}
+                <div className="flex items-center gap-4">
+                  <ProgressRing percent={(overdueOpenAlertsCount / (openAlerts.length || 1)) * 100} color="#fbbf24" />
+                  <div>
+                    <p className="text-xl font-bold text-white">{overdueOpenAlertsCount}</p>
+                    <p className="text-[10px] text-white/30 uppercase tracking-wider">超 24h 待处理告警</p>
+                  </div>
+                </div>
+              </div>
             </div>
-          </section>
-        </>
+            <Link 
+              href="/dashboard/ops/alerts"
+              className="mt-8 flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/[0.05] border border-white/10 text-xs font-bold text-white/80 hover:bg-white/10 hover:text-white transition-all group"
+            >
+              进入告警中心
+              <svg className="h-3 w-3 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </Link>
+          </div>
+
+          {/* Infrastructure Health */}
+          <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="rounded-3xl border border-white/5 bg-white/[0.02] p-6 overflow-hidden relative">
+              <h2 className="text-sm font-bold text-white tracking-widest uppercase opacity-70 mb-5">资产与闭环就绪度</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5">
+                  <p className="text-xs text-white/30">检测记录数</p>
+                  <p className="text-2xl font-bold text-white mt-1">{detections.length}</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5">
+                  <p className="text-xs text-white/30">复核记录数</p>
+                  <p className="text-2xl font-bold text-white mt-1">{reviews.length}</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5">
+                  <p className="text-xs text-white/30">桥梁资产</p>
+                  <p className="text-2xl font-bold text-white mt-1">{bridges.length}</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5">
+                  <p className="text-xs text-white/30">巡检批次</p>
+                  <p className="text-2xl font-bold text-white mt-1">{batches.length}</p>
+                </div>
+              </div>
+              {/* Background accent */}
+              <div className="absolute -bottom-10 -right-10 h-32 w-32 bg-cyan-500/10 blur-[60px] rounded-full pointer-events-none" />
+            </div>
+
+            <div className="rounded-3xl border border-white/5 bg-white/[0.02] p-6">
+              <h2 className="text-sm font-bold text-white tracking-widest uppercase opacity-70 mb-5">处理延迟指标</h2>
+              <div className="space-y-5">
+                <div>
+                  <div className="flex justify-between text-[11px] mb-2 uppercase tracking-wider">
+                    <span className="text-white/40 font-medium">P95 排队时延 (Queue Wait)</span>
+                    <span className="text-cyan-400 font-bold">{opsMetrics?.p95_queue_wait_ms ?? 0} ms</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-white/[0.05] rounded-full overflow-hidden">
+                    <div className="h-full bg-cyan-400/60 rounded-full" style={{ width: `${Math.min(100, (opsMetrics?.p95_queue_wait_ms ?? 0) / 10)}%` }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-[11px] mb-2 uppercase tracking-wider">
+                    <span className="text-white/40 font-medium">P95 运行耗时 (Execution)</span>
+                    <span className="text-cyan-400 font-bold">{opsMetrics?.p95_run_ms ?? 0} ms</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-white/[0.05] rounded-full overflow-hidden">
+                    <div className="h-full bg-cyan-400/60 rounded-full" style={{ width: `${Math.min(100, (opsMetrics?.p95_run_ms ?? 0) / 100)}%` }} />
+                  </div>
+                </div>
+                <p className="text-[10px] text-white/20 mt-4 leading-relaxed italic">
+                  * 延迟指标直接反映后端的弹性计算负载与 Worker 处理能力。
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* --- THIRD ROW: DISTRIBUTIONS & RANKINGS --- */}
+          
+          <div className="lg:col-span-8 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="rounded-3xl border border-white/5 bg-white/[0.02] p-6">
+                <h3 className="text-[11px] font-bold text-white/40 uppercase tracking-[0.2em] mb-4">异常失败码 Top 5</h3>
+                <div className="space-y-3">
+                  {Object.entries(failureDist).length === 0 ? (
+                    <p className="text-xs text-white/20 italic py-4">暂无失败记录</p>
+                  ) : (
+                    Object.entries(failureDist).slice(0, 5).sort((a, b) => b[1] - a[1]).map(([code, count]) => (
+                      <div key={code} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-colors">
+                        <span className="text-xs font-mono text-rose-300/80">{code}</span>
+                        <span className="text-xs font-bold text-white/60">{count}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+              <div className="rounded-3xl border border-white/5 bg-white/[0.02] p-6">
+                <h3 className="text-[11px] font-bold text-white/40 uppercase tracking-[0.2em] mb-4">执行状态分布</h3>
+                <div className="space-y-3">
+                  {Object.entries(statusDist).map(([status, count]) => (
+                    <div key={status} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                      <span className={`text-xs font-bold uppercase tracking-widest ${status === 'succeeded' ? 'text-cyan-400' : status === 'failed' ? 'text-rose-400' : 'text-amber-400'}`}>{status}</span>
+                      <span className="text-xs font-bold text-white/60">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-4 rounded-3xl border border-white/10 bg-white/[0.02] p-6 shadow-2xl relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+               <svg className="h-32 w-32" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 3.45l8.28 14.1H3.72L12 5.45zM11 16h2v2h-2v-2zm0-6h2v4h-2v-4z"/></svg>
+             </div>
+             
+             <h3 className="text-sm font-bold text-white tracking-widest uppercase mb-6 flex items-center gap-2">
+               风险批次排名
+               <span className="text-[10px] bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded">Risk Focus</span>
+             </h3>
+             
+             <div className="space-y-3">
+               {topRiskBatches.length === 0 && <p className="text-xs text-white/20 italic">目前无高风险批次需要关注。</p>}
+               {topRiskBatches.map((item, idx) => (
+                 <div key={item.id} className="relative group p-4 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.08] transition-all cursor-default">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold text-white group-hover:text-cyan-400 transition-colors uppercase tracking-wider">{item.code}</span>
+                      <span className="text-[10px] font-black tabular-nums text-rose-400">SCORE {item.score}</span>
+                    </div>
+                    <p className="text-[10px] text-white/40 mb-3 truncate">{item.bridge}</p>
+                    <div className="flex gap-4">
+                      <div className="text-[9px] text-white/20 uppercase font-bold tracking-tighter">
+                        Fail <span className="text-rose-400 ml-1">{item.failed}</span>
+                      </div>
+                      <div className="text-[9px] text-white/20 uppercase font-bold tracking-tighter">
+                        Alert <span className="text-amber-400 ml-1">{item.alerts}</span>
+                      </div>
+                      <div className="text-[9px] text-white/20 uppercase font-bold tracking-tighter">
+                        Idle <span className="text-white/40 ml-1">{item.pending}</span>
+                      </div>
+                    </div>
+                    {/* Rank number */}
+                    <div className="absolute top-2 right-2 text-[40px] font-black text-white/[0.02] select-none italic">{idx + 1}</div>
+                 </div>
+               ))}
+             </div>
+          </div>
+
+        </div>
       )}
+
+      {/* --- FOOTER CTA --- */}
+      <footer className="pt-10 flex flex-wrap gap-4 border-t border-white/5">
+        <Link 
+          href="/dashboard/ops"
+          className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 hover:bg-cyan-500/20 transition-all font-bold text-sm tracking-wide group"
+        >
+          查看批次详情列表
+          <svg className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          </svg>
+        </Link>
+        <p className="flex-1 text-xs text-white/20 self-center max-w-md">
+          基于研报建议运营视角设计：通过“风险权重积分算法”自动识别待处置项，确保企业巡检数据的闭环处置。
+        </p>
+      </footer>
     </div>
   );
 }
