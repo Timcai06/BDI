@@ -7,12 +7,16 @@ from typing import Tuple
 
 from fastapi import UploadFile, status
 
+from app.adapters.enhancement_runner import DualBranchEnhanceRunner
 from app.adapters.manager import RunnerManager
 from app.adapters.base import ModelRunner
 from app.adapters.registry import ModelSpec
 from app.core.errors import AppError
 from app.models.schemas import ArtifactLinks, Detection, PredictOptions, PredictResponse, RawPrediction
 from app.storage.local import LocalArtifactStore
+
+from PIL import Image as PILImage
+import io
 
 logger = logging.getLogger(__name__)
 
@@ -54,10 +58,12 @@ class PredictService:
         *,
         store: LocalArtifactStore,
         runner_manager: RunnerManager,
+        enhance_runner: Optional[DualBranchEnhanceRunner] = None,
         max_upload_size_bytes: int,
     ) -> None:
         self.store = store
         self.runner_manager = runner_manager
+        self.enhance_runner = enhance_runner
         self.max_upload_size_bytes = max_upload_size_bytes
 
     async def predict(self, *, file: UploadFile, options: PredictOptions) -> PredictResponse:
@@ -67,6 +73,7 @@ class PredictService:
         self._validate_model_capabilities(model_spec=model_spec, options=options)
         normalized_options = options.model_copy(update={"model_version": model_spec.model_version})
 
+        # Track A: Original (Baseline)
         raw_prediction = await self._run_prediction(
             file=file,
             content=content,
@@ -79,6 +86,54 @@ class PredictService:
             upload_path=upload_path,
             raw_prediction=raw_prediction,
         )
+
+        # Track B: Enhanced (Twin-track)
+        if options.enhance and self.enhance_runner:
+            try:
+                loop = asyncio.get_event_loop()
+                # 1. Image Enhancement
+                orig_img = PILImage.open(io.BytesIO(content))
+                enhanced_img = await loop.run_in_executor(None, self.enhance_runner.enhance, orig_img)
+                
+                # 2. Save Enhanced Image
+                buf = io.BytesIO()
+                # Use WEBP for artifacts to save space, but high quality
+                enhanced_img.save(buf, format="WEBP", quality=90)
+                enhanced_content = buf.getvalue()
+                enhanced_path = self.store.save_enhanced(image_id=image_id, content=enhanced_content)
+                response.artifacts.enhanced_path = enhanced_path
+                
+                # 3. Detection on Enhanced Image
+                enhanced_raw = await self._run_prediction(
+                    file=file,
+                    content=enhanced_content,
+                    model_spec=model_spec,
+                    runner=runner,
+                    options=normalized_options,
+                )
+                
+                secondary_response = self._build_response(
+                    image_id=image_id,
+                    upload_path=enhanced_path, # Show enhanced path as its source
+                    raw_prediction=enhanced_raw,
+                )
+                
+                # Special artifact handling for secondaryoverlay
+                if normalized_options.return_overlay and enhanced_raw.overlay_png:
+                    secondary_overlay_path = self.store.save_enhanced_overlay(
+                        image_id=image_id, 
+                        content=enhanced_raw.overlay_png
+                    )
+                    secondary_response.artifacts.overlay_path = secondary_overlay_path
+                    response.artifacts.enhanced_overlay_path = secondary_overlay_path
+                
+                response.secondary_result = secondary_response
+                logger.info("Twin-track prediction complete: image=%s", file.filename)
+                
+            except Exception:
+                logger.error("Enhancement track failed for %s", file.filename, exc_info=True)
+                # Fallback: response still contains the original detection results
+
         self._log_detection_metrics(
             file=file,
             options=normalized_options,

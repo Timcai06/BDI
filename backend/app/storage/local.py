@@ -12,11 +12,12 @@ class LocalArtifactStore:
         self.uploads_dir = self.root / "uploads"
         self.results_dir = self.root / "results"
         self.overlays_dir = self.root / "overlays"
+        self.enhanced_dir = self.root / "enhanced"
         self.diagnoses_dir = self.root / "diagnoses"
         self.ensure_dirs()
 
     def ensure_dirs(self) -> None:
-        for directory in (self.root, self.uploads_dir, self.results_dir, self.overlays_dir, self.diagnoses_dir):
+        for directory in (self.root, self.uploads_dir, self.results_dir, self.overlays_dir, self.enhanced_dir, self.diagnoses_dir):
             directory.mkdir(parents=True, exist_ok=True)
 
     def build_image_id(self, original_name: str) -> str:
@@ -44,6 +45,26 @@ class LocalArtifactStore:
         tmp.write_bytes(content)
         tmp.rename(destination)
         return str(destination)
+
+    def save_enhanced(self, *, image_id: str, content: bytes) -> str:
+        destination = self.enhanced_dir / f"{image_id}.webp"
+        tmp = destination.with_suffix(".webp.tmp")
+        tmp.write_bytes(content)
+        tmp.rename(destination)
+        return str(destination)
+
+    def save_enhanced_overlay(self, *, image_id: str, content: bytes) -> str:
+        destination = self.overlays_dir / f"{image_id}_enhanced.webp"
+        tmp = destination.with_suffix(".webp.tmp")
+        tmp.write_bytes(content)
+        tmp.rename(destination)
+        return str(destination)
+
+    def enhanced_path(self, image_id: str) -> Path:
+        return self.enhanced_dir / f"{image_id}.webp"
+
+    def enhanced_overlay_path(self, image_id: str) -> Path:
+        return self.overlays_dir / f"{image_id}_enhanced.webp"
 
     def result_path(self, image_id: str) -> Path:
         return self.results_dir / f"{image_id}.json"

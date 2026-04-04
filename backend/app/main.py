@@ -9,6 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.adapters.enhancement_runner import DualBranchEnhanceRunner
 from app.adapters.manager import RunnerManager
 from app.adapters.registry import ModelRegistry
 from app.api.routes import router
@@ -58,9 +59,22 @@ def create_app() -> FastAPI:
             exc_info=True,
         )
         active_spec, active_runner = runner_manager.resolve("mock-v1")
+
+    enhance_runner = None
+    if settings.enhance_enabled:
+        try:
+            enhance_runner = DualBranchEnhanceRunner(
+                revised_weights_path=settings.enhance_revised_weights,
+                bridge_weights_path=settings.enhance_bridge_weights,
+                device=settings.model_device,
+            )
+        except Exception:
+            logger.warning("Enhancement runner failed to load", exc_info=True)
+
     predict_service = PredictService(
         store=store,
         runner_manager=runner_manager,
+        enhance_runner=enhance_runner,
         max_upload_size_bytes=settings.max_upload_size_bytes,
     )
     result_service = ResultService(store=store)

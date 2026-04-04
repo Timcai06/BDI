@@ -53,6 +53,9 @@ class Settings(BaseModel):
     model_supports_sliced_inference: bool = False
     pixels_per_mm: float = Field(default=10.0, description="Pixel to millimeter conversion factor")
     allow_mock_fallback: bool = True
+    enhance_enabled: bool = True
+    enhance_revised_weights: Optional[Path] = Field(default=Path("backend/models/enhancement/revised/best_psnr.pth"))
+    enhance_bridge_weights: Optional[Path] = Field(default=Path("backend/models/enhancement/bridge/best_psnr.pth"))
     extra_models: list[ConfiguredModel] = Field(default_factory=list)
     cors_allow_origins: list[str] = Field(
         default_factory=lambda: [
@@ -136,6 +139,9 @@ def get_settings() -> Settings:
         ),
         pixels_per_mm=float(os.getenv("BDI_PIXELS_PER_MM", "10.0")),
         allow_mock_fallback=_env_flag("BDI_ALLOW_MOCK_FALLBACK", "true"),
+        enhance_enabled=_env_flag("BDI_ENHANCE_ENABLED", "true"),
+        enhance_revised_weights=_env_path("BDI_ENHANCE_REVISED_WEIGHTS") or Path("backend/models/enhancement/revised/best_psnr.pth"),
+        enhance_bridge_weights=_env_path("BDI_ENHANCE_BRIDGE_WEIGHTS") or Path("backend/models/enhancement/bridge/best_psnr.pth"),
         extra_models=_load_extra_models(extra_models_raw),
         cors_allow_origins=_load_cors_origins(cors_origins),
         llm_api_key=os.getenv("BDI_LLM_API_KEY"),

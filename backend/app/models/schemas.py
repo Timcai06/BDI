@@ -15,6 +15,7 @@ class PredictOptions(BaseModel):
     model_version: Optional[str] = Field(default=None, min_length=1, max_length=64)
     return_overlay: bool = False
     pixels_per_mm: float = Field(default=10.0, gt=0)
+    enhance: bool = True
 
 
 class BoundingBox(BaseModel):
@@ -56,6 +57,8 @@ class ArtifactLinks(BaseModel):
     upload_path: str
     json_path: str
     overlay_path: Optional[str] = None
+    enhanced_path: Optional[str] = None
+    enhanced_overlay_path: Optional[str] = None
 
 
 class PredictResponse(BaseModel):
@@ -71,6 +74,7 @@ class PredictResponse(BaseModel):
     has_masks: bool = False
     mask_detection_count: int = Field(default=0, ge=0)
     artifacts: ArtifactLinks
+    secondary_result: Optional[PredictResponse] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
