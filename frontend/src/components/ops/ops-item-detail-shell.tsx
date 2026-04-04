@@ -1,17 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type SyntheticEvent } from "react";
 
 import {
   createV1Review,
+  getEnhancedImageUrl,
+  getEnhancedOverlayUrl,
   getV1BatchItemDetail,
   getV1BatchItemResult,
+  getOverlayDownloadUrl,
+  getResultImageUrl,
   listV1Alerts,
   listV1Reviews,
   updateV1AlertStatus
 } from "@/lib/predict-client";
 import type { AlertV1, BatchItemDetailV1Response, BatchItemResultV1Response, ReviewRecordV1 } from "@/lib/types";
+import { getDefectColorHex, getDefectLabel } from "@/lib/defect-visuals";
+import { getDetectionOverlayStyle } from "@/lib/result-utils";
 
 export function OpsItemDetailShell({ batchItemId }: { batchItemId: string }) {
   const [loading, setLoading] = useState(true);
@@ -32,6 +38,11 @@ export function OpsItemDetailShell({ batchItemId }: { batchItemId: string }) {
   const [alertAction, setAlertAction] = useState<"acknowledge" | "resolve">("acknowledge");
   const [alertOperator, setAlertOperator] = useState("manual-reviewer");
   const [alertNote, setAlertNote] = useState("");
+  const [resultSource, setResultSource] = useState<"original" | "enhanced">("original");
+  const [resultViewMode, setResultViewMode] = useState<"image" | "result">("image");
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
+  const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
 
   async function loadData() {
     setLoading(true);
@@ -53,6 +64,9 @@ export function OpsItemDetailShell({ batchItemId }: { batchItemId: string }) {
 
       setDetail(detailResp);
       setResult(resultResp);
+      if (!resultResp.secondary_result) {
+        setResultSource("original");
+      }
       setReviewHistory(reviewsResp.items);
       setAlerts(linkedAlerts);
 
@@ -74,10 +88,80 @@ export function OpsItemDetailShell({ batchItemId }: { batchItemId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchItemId]);
 
+  useEffect(() => {
+    const node = frameRef.current;
+    if (!node) {
+      return;
+    }
+    const updateFrameSize = () => {
+      const rect = node.getBoundingClientRect();
+      setFrameSize({ width: rect.width, height: rect.height });
+    };
+    updateFrameSize();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateFrameSize);
+      return () => window.removeEventListener("resize", updateFrameSize);
+    }
+    const observer = new ResizeObserver(updateFrameSize);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  function handleImageLoad(event: SyntheticEvent<HTMLImageElement>) {
+    const target = event.currentTarget;
+    setImageSize({ width: target.naturalWidth, height: target.naturalHeight });
+  }
+
   const selectedAlert = useMemo(
     () => alerts.find((item) => item.id === selectedAlertId) ?? null,
     [alerts, selectedAlertId]
   );
+  const enhancedAvailable = Boolean(result?.secondary_result);
+  const activeDetections = useMemo(() => {
+    if (!result) {
+      return [];
+    }
+    if (resultSource === "enhanced" && result.secondary_result) {
+      return result.secondary_result.detections.map((item) => ({
+        id: item.id,
+        category: item.category,
+        confidence: item.confidence,
+        bbox: item.bbox,
+        isValid: true
+      }));
+    }
+    return result.detections.map((item) => ({
+      id: item.id,
+      category: item.category,
+      confidence: item.confidence,
+      bbox: item.bbox,
+      isValid: item.is_valid
+    }));
+  }, [result, resultSource]);
+  const previewUrl = useMemo(() => {
+    if (!result) {
+      return null;
+    }
+    if (resultSource === "enhanced" && enhancedAvailable) {
+      if (resultViewMode === "result") {
+        return getEnhancedOverlayUrl(result.id) ?? getEnhancedImageUrl(result.id);
+      }
+      return getEnhancedImageUrl(result.id);
+    }
+    if (resultViewMode === "result") {
+      return getOverlayDownloadUrl(result.id) ?? getResultImageUrl(result.id);
+    }
+    return getResultImageUrl(result.id);
+  }, [enhancedAvailable, result, resultSource, resultViewMode]);
+  const activeModelLabel = useMemo(() => {
+    if (!result) {
+      return "--";
+    }
+    if (resultSource === "enhanced" && result.secondary_result) {
+      return `${result.secondary_result.model_name}:${result.secondary_result.model_version}`;
+    }
+    return `${result.model_name}:${result.model_version}`;
+  }, [result, resultSource]);
 
   async function submitReview() {
     setNotice(null);
@@ -151,26 +235,108 @@ export function OpsItemDetailShell({ batchItemId }: { batchItemId: string }) {
             </div>
           </section>
 
-          <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-            <h3 className="text-sm font-semibold text-white/90 mb-2">识别结果</h3>
-            <p className="text-xs text-white/60 mb-3">
-              model={result?.model_name}:{result?.model_version} | detections={result?.detection_count ?? 0} | inference_ms={result?.inference_ms ?? 0}
+          <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="text-sm font-semibold text-white/90">识别结果</h3>
+              <div className="inline-flex rounded-lg border border-white/15 bg-black/25 p-1 text-xs">
+                <button
+                  className={`rounded px-3 py-1 ${resultSource === "original" ? "bg-cyan-300/20 text-cyan-100" : "text-white/70 hover:bg-white/10"}`}
+                  onClick={() => setResultSource("original")}
+                  type="button"
+                >
+                  原图识别
+                </button>
+                <button
+                  className={`rounded px-3 py-1 ${resultSource === "enhanced" ? "bg-cyan-300/20 text-cyan-100" : "text-white/70 hover:bg-white/10"} disabled:opacity-40`}
+                  disabled={!enhancedAvailable}
+                  onClick={() => setResultSource("enhanced")}
+                  type="button"
+                >
+                  增强后识别
+                </button>
+              </div>
+            </div>
+            <p className="text-xs text-white/60">
+              source={resultSource === "enhanced" ? "enhanced" : "original"} | model={activeModelLabel} | detections={activeDetections.length} | inference_ms=
+              {resultSource === "enhanced" ? result?.secondary_result?.inference_ms ?? 0 : result?.inference_ms ?? 0}
             </p>
+            <div className="inline-flex rounded-lg border border-white/15 bg-black/25 p-1 text-xs">
+              <button
+                className={`rounded px-3 py-1 ${resultViewMode === "image" ? "bg-cyan-300/20 text-cyan-100" : "text-white/70 hover:bg-white/10"}`}
+                onClick={() => setResultViewMode("image")}
+                type="button"
+              >
+                原图
+              </button>
+              <button
+                className={`rounded px-3 py-1 ${resultViewMode === "result" ? "bg-cyan-300/20 text-cyan-100" : "text-white/70 hover:bg-white/10"}`}
+                onClick={() => setResultViewMode("result")}
+                type="button"
+              >
+                结果图
+              </button>
+            </div>
+            <div
+              ref={frameRef}
+              className="relative mx-auto aspect-[4/3] w-full overflow-hidden rounded-lg border border-white/10 bg-[#050b16]"
+            >
+              {previewUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  alt="Inspection"
+                  className="absolute inset-0 h-full w-full object-contain"
+                  onLoad={handleImageLoad}
+                  src={previewUrl}
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center text-xs text-white/50">当前结果缺少预览图</div>
+              )}
+              {resultViewMode === "image" && (
+                <div className="absolute inset-0">
+                  {activeDetections.map((item) => {
+                    const bboxStyle = getDetectionOverlayStyle(item.bbox, imageSize, frameSize);
+                    const color = getDefectColorHex(item.category);
+                    return (
+                      <div
+                        key={`${resultSource}-${item.id}`}
+                        className="absolute rounded-sm border-[1.5px]"
+                        style={{ ...bboxStyle, borderColor: color }}
+                        title={`${getDefectLabel(item.category)} ${(item.confidence * 100).toFixed(1)}%`}
+                      >
+                        <span
+                          className="absolute left-0 top-0 -translate-y-[calc(100%+4px)] rounded border px-1.5 py-0.5 text-[10px] font-mono"
+                          style={{ backgroundColor: color, borderColor: color, color: "#06131F" }}
+                        >
+                          {getDefectLabel(item.category)} {(item.confidence * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
             <div className="max-h-72 overflow-auto space-y-2">
-              {result?.detections.map((item) => (
-                <label key={item.id} className="flex items-center justify-between rounded border border-white/10 bg-black/20 p-2 text-xs text-white/80">
+              {activeDetections.map((item) => (
+                <label key={`${resultSource}-${item.id}`} className="flex items-center justify-between rounded border border-white/10 bg-black/20 p-2 text-xs text-white/80">
                   <span>
-                    {item.category} | conf={item.confidence.toFixed(3)} | valid={String(item.is_valid)}
+                    {item.category} | conf={item.confidence.toFixed(3)}
+                    {resultSource === "original" ? ` | valid=${String(item.isValid)}` : ""}
                   </span>
-                  <input
-                    type="radio"
-                    name="detectionId"
-                    checked={detectionId === item.id}
-                    onChange={() => setDetectionId(item.id)}
-                  />
+                  {resultSource === "original" ? (
+                    <input
+                      type="radio"
+                      name="detectionId"
+                      checked={detectionId === item.id}
+                      onChange={() => setDetectionId(item.id)}
+                    />
+                  ) : (
+                    <span className="rounded border border-amber-300/40 bg-amber-300/10 px-2 py-0.5 text-[10px] text-amber-100">
+                      仅查看
+                    </span>
+                  )}
                 </label>
               ))}
-              {(result?.detections.length ?? 0) === 0 && <div className="text-xs text-white/50">暂无病害记录</div>}
+              {activeDetections.length === 0 && <div className="text-xs text-white/50">暂无病害记录</div>}
             </div>
           </section>
 
@@ -217,12 +383,15 @@ export function OpsItemDetailShell({ batchItemId }: { batchItemId: string }) {
                 className="w-full h-20 rounded border border-white/15 bg-black/30 px-2 py-2 text-xs text-white"
               />
               <button
-                disabled={!detectionId}
+                disabled={!detectionId || resultSource === "enhanced"}
                 onClick={submitReview}
                 className="rounded border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-200 disabled:opacity-50"
               >
                 提交复核
               </button>
+              {resultSource === "enhanced" ? (
+                <p className="text-xs text-amber-100/90">增强后识别结果当前为只读查看模式，请切回“原图识别”后提交复核。</p>
+              ) : null}
             </section>
 
             <section className="rounded-xl border border-white/10 bg-white/[0.03] p-4 space-y-3">

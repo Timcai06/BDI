@@ -467,6 +467,9 @@ export interface BatchItemResultV1Response {
   overlay_uri?: string | null;
   json_uri?: string | null;
   diagnosis_uri?: string | null;
+  enhanced_path?: string | null;
+  enhanced_overlay_path?: string | null;
+  secondary_result?: PredictResponse | null;
   created_at: string;
   detections: ResultDetectionV1[];
 }
