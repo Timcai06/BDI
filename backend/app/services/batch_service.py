@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
@@ -50,6 +51,7 @@ from app.models.schemas import (
     DetectionRecordResponse,
     MediaAssetResponse,
     OpsMetricsResponse,
+    PredictResponse,
     ReviewCreateRequest,
     ReviewListResponse,
     ReviewRecordResponse,
@@ -539,6 +541,26 @@ class BatchService:
                 .where(Detection.result_id == result.id)
                 .order_by(Detection.created_at.asc())
             ).all()
+            enhanced_path: Optional[str] = None
+            enhanced_overlay_path: Optional[str] = None
+            secondary_result: Optional[PredictResponse] = None
+
+            if result.json_uri:
+                try:
+                    payload = json.loads(Path(result.json_uri).read_text(encoding="utf-8"))
+                    artifacts = payload.get("artifacts")
+                    if isinstance(artifacts, dict):
+                        raw_enhanced_path = artifacts.get("enhanced_path")
+                        raw_enhanced_overlay_path = artifacts.get("enhanced_overlay_path")
+                        if isinstance(raw_enhanced_path, str):
+                            enhanced_path = raw_enhanced_path or None
+                        if isinstance(raw_enhanced_overlay_path, str):
+                            enhanced_overlay_path = raw_enhanced_overlay_path or None
+                    raw_secondary = payload.get("secondary_result")
+                    if isinstance(raw_secondary, dict):
+                        secondary_result = PredictResponse.model_validate(raw_secondary)
+                except Exception:
+                    secondary_result = None
 
             detections = [
                 ResultDetectionResponse(
@@ -583,6 +605,9 @@ class BatchService:
                 overlay_uri=result.overlay_uri,
                 json_uri=result.json_uri,
                 diagnosis_uri=result.diagnosis_uri,
+                enhanced_path=enhanced_path,
+                enhanced_overlay_path=enhanced_overlay_path,
+                secondary_result=secondary_result,
                 created_at=result.created_at,
                 detections=detections,
             )
@@ -977,9 +1002,7 @@ class BatchService:
                             model_policy=model_policy_value,
                             requested_model_version=requested_model_version,
                             queued_at=datetime.now(timezone.utc),
-                            # Default to baseline track for stable throughput in batch mode.
-                            # Enhancement can be enabled later by policy/config when needed.
-                            runtime_payload={"enhance": False},
+                            runtime_payload={"enhance": True},
                         )
                         session.add(batch_item)
                         session.add(task)

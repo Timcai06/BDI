@@ -511,6 +511,9 @@ class BatchItemResultResponse(BaseModel):
     overlay_uri: Optional[str] = None
     json_uri: Optional[str] = None
     diagnosis_uri: Optional[str] = None
+    enhanced_path: Optional[str] = None
+    enhanced_overlay_path: Optional[str] = None
+    secondary_result: Optional[PredictResponse] = None
     created_at: datetime
     detections: list[ResultDetectionResponse] = Field(default_factory=list)
 
