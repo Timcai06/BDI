@@ -22,6 +22,7 @@ import { BatchHeader } from "./batch-header";
 import { BatchAnalytics } from "./batch-analytics";
 import { ItemGrid } from "./item-grid";
 import { IngestionWizard } from "./ingestion-wizard";
+import { OpsPageLayout } from "./ops-page-layout";
 import type { BatchWizardPayload } from "./ingestion-wizard";
 import { BatchEmptyState } from "./batch-empty-state";
 import type {
@@ -575,13 +576,16 @@ export function OpsWorkbenchShell() {
   }
 
   return (
-    <div className="relative z-10 flex flex-1 flex-col overflow-hidden bg-black/40 backdrop-blur-3xl">
-      <BatchHeader 
-        batch={selectedBatch} 
-        lastRefreshedAt={lastRefreshedAt}
-      />
-
-      <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8">
+    <>
+      <OpsPageLayout
+        contentClassName="space-y-8"
+        header={
+          <BatchHeader 
+            batch={selectedBatch} 
+            lastRefreshedAt={lastRefreshedAt}
+          />
+        }
+      >
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-3">
           <div className="text-xs uppercase tracking-[0.2em] text-white/35">
             {selectedBatch
@@ -750,10 +754,8 @@ export function OpsWorkbenchShell() {
             />
           </div>
         )}
-      </main>
-
-      <footer className="border-t border-white/5 bg-white/[0.01] px-6 py-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <footer className="border-t border-white/5 bg-white/[0.01] px-4 py-4 rounded-2xl">
+          <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <select
               value={selectedBatchId}
@@ -786,8 +788,9 @@ export function OpsWorkbenchShell() {
               NEXT
             </button>
           </div>
-        </div>
-      </footer>
+          </div>
+        </footer>
+      </OpsPageLayout>
 
       <IngestionWizard 
         isOpen={isWizardOpen}
@@ -799,6 +802,6 @@ export function OpsWorkbenchShell() {
         onSelectedBridgeChange={setSelectedBridgeId}
         isLoading={actionLoading}
       />
-    </div>
+    </>
   );
 }
