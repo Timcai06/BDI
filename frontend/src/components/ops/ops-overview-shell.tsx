@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { OpsPageHeader } from "@/components/ops/ops-page-header";
+import { OpsPageLayout } from "@/components/ops/ops-page-layout";
 import {
   getV1OpsMetrics,
   listV1Alerts,
@@ -140,26 +141,6 @@ function MetricCard({
   );
 }
 
-function countBy<T>(items: T[], keyGetter: (item: T) => string): Record<string, number> {
-  const output: Record<string, number> = {};
-  for (const item of items) {
-    const key = keyGetter(item);
-    output[key] = (output[key] ?? 0) + 1;
-  }
-  return output;
-}
-
-function breakdownText(map: Record<string, number>): string {
-  const entries = Object.entries(map).sort((a, b) => b[1] - a[1]);
-  if (entries.length === 0) return "暂无数据";
-  return entries.map(([k, v]) => `${k}: ${v}`).join(" | ");
-}
-
-function toPercent(numerator: number, denominator: number): string {
-  if (denominator <= 0) return "0.0%";
-  return `${((numerator / denominator) * 100).toFixed(1)}%`;
-}
-
 function ageHours(isoTime: string): number {
   const ts = Date.parse(isoTime);
   if (Number.isNaN(ts)) return 0;
@@ -266,39 +247,42 @@ export function OpsOverviewShell() {
   const failureDist = opsMetrics?.failure_code_breakdown ?? {};
 
   return (
-    <div className="relative z-10 flex flex-1 flex-col overflow-y-auto bg-black/40 p-6 backdrop-blur-3xl lg:p-8 space-y-8">
-      {/* --- HEADER --- */}
-      <OpsPageHeader
-        eyebrow="OVERVIEW"
-        title="运营总览"
-        subtitle="闭环数据看板 / 风险优先级与处置效率"
-        actions={
-          <>
-            <div className="flex rounded-xl border border-white/5 bg-white/[0.03] p-1">
-              {[24, 72, 168].map((h) => (
-                <button
-                  key={h}
-                  onClick={() => setWindowHours(h)}
-                  className={`rounded-lg px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all ${
-                    windowHours === h ? "bg-white/10 text-white shadow-xl" : "text-white/30 hover:text-white/60"
-                  }`}
-                >
-                  {h === 168 ? "7d" : `${h}h`}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => setRefreshTick((v) => v + 1)}
-              className="rounded-xl border border-white/5 bg-white/[0.03] p-2.5 text-white/60 transition-all hover:bg-white/10 hover:text-white active:scale-95"
-              title="刷新数据"
-            >
-              <svg className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
-          </>
-        }
-      />
+    <OpsPageLayout
+      contentClassName="space-y-8"
+      header={
+        <OpsPageHeader
+          eyebrow="OVERVIEW"
+          title="运营总览"
+          subtitle="闭环数据看板 / 风险优先级与处置效率"
+          actions={
+            <>
+              <div className="flex rounded-xl border border-white/5 bg-white/[0.03] p-1">
+                {[24, 72, 168].map((h) => (
+                  <button
+                    key={h}
+                    onClick={() => setWindowHours(h)}
+                    className={`rounded-lg px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all ${
+                      windowHours === h ? "bg-white/10 text-white shadow-xl" : "text-white/30 hover:text-white/60"
+                    }`}
+                  >
+                    {h === 168 ? "7d" : `${h}h`}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setRefreshTick((v) => v + 1)}
+                className="rounded-xl border border-white/5 bg-white/[0.03] p-2.5 text-white/60 transition-all hover:bg-white/10 hover:text-white active:scale-95"
+                title="刷新数据"
+              >
+                <svg className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </>
+          }
+        />
+      }
+    >
 
       {error && (
         <div className="flex items-center gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300">
@@ -533,6 +517,6 @@ export function OpsOverviewShell() {
           基于研报建议运营视角设计：通过“风险权重积分算法”自动识别待处置项，确保企业巡检数据的闭环处置。
         </p>
       </footer>
-    </div>
+    </OpsPageLayout>
   );
 }

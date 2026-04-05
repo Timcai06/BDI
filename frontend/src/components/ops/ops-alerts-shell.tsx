@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { OpsPageHeader } from "@/components/ops/ops-page-header";
+import { OpsPageLayout } from "@/components/ops/ops-page-layout";
 import { listV1Alerts, updateV1AlertStatus } from "@/lib/predict-client";
 import type { AlertV1 } from "@/lib/types";
 
@@ -187,8 +188,9 @@ export function OpsAlertsShell() {
   const nearDueCount = useMemo(() => displayedAlerts.filter((item) => item.isNearDue).length, [displayedAlerts]);
 
   return (
-    <div className="relative z-10 flex flex-1 flex-col overflow-hidden bg-black/40 backdrop-blur-3xl">
-      <div className="relative flex-1 overflow-y-auto p-6 lg:p-8 space-y-6">
+    <OpsPageLayout
+      contentClassName="space-y-6"
+      header={
         <OpsPageHeader
           eyebrow="ALERTS"
           title="告警中心"
@@ -208,7 +210,8 @@ export function OpsAlertsShell() {
             </Link>
           }
         />
-
+      }
+    >
         <section className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           <div className="xl:col-span-8 rounded-2xl border border-white/10 bg-white/[0.02] p-5 space-y-4">
             <div className="flex items-center justify-between">
@@ -489,7 +492,6 @@ export function OpsAlertsShell() {
             </div>
           )}
         </section>
-      </div>
-    </div>
+    </OpsPageLayout>
   );
 }

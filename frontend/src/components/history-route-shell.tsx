@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { HistoryPanel } from "@/components/history";
+import { OpsPageLayout } from "@/components/ops/ops-page-layout";
 import { OpsPageHeader } from "@/components/ops/ops-page-header";
 import { getCanonicalCategoryOptions, getDefectLabel } from "@/lib/defect-visuals";
 import type { HistorySortMode } from "@/lib/history-utils";
@@ -268,28 +269,30 @@ export function HistoryRouteShell() {
   }
 
   return (
-    <section className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden bg-black/40 backdrop-blur-3xl">
-        <div className="relative flex-1 overflow-y-auto p-6 lg:p-8">
-          <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col space-y-6">
-            <OpsPageHeader
-              eyebrow="ARCHIVE"
-              title="任务历史"
-              subtitle={
-                <>
-                  BATCH REGISTRY /{" "}
-                  <span className="font-mono text-amber-200/50">{batches.length} RECORDS ATTESTED</span>
-                </>
-              }
-              accent="amber"
-              actions={
-                <Link
-                  href="/dashboard/ops"
-                  className="rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-xs font-bold text-white/70 transition-all hover:bg-white/10 hover:text-white"
-                >
-                  返回实时工作台
-                </Link>
-              }
-            />
+    <OpsPageLayout
+      containerClassName="min-h-full"
+      header={
+        <OpsPageHeader
+          eyebrow="ARCHIVE"
+          title="任务历史"
+          subtitle={
+            <>
+              BATCH REGISTRY /{" "}
+              <span className="font-mono text-amber-200/50">{batches.length} RECORDS ATTESTED</span>
+            </>
+          }
+          accent="amber"
+          actions={
+            <Link
+              href="/dashboard/ops"
+              className="rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-xs font-bold text-white/70 transition-all hover:bg-white/10 hover:text-white"
+            >
+              返回实时工作台
+            </Link>
+          }
+        />
+      }
+    >
 
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/6 bg-white/[0.025] px-4 py-3 text-sm text-white/55">
               <span>{status.message}</span>
@@ -473,8 +476,6 @@ export function HistoryRouteShell() {
                 />
               </div>
             </div>
-          </div>
-        </div>
-    </section>
+    </OpsPageLayout>
   );
 }

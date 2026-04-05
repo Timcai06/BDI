@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { OpsPageHeader } from "@/components/ops/ops-page-header";
+import { OpsPageLayout } from "@/components/ops/ops-page-layout";
 import {
   getV1AlertRules,
   listV1AlertRulesAudit,
@@ -109,23 +110,24 @@ export function OpsSettingsShell() {
   }
 
   return (
-    <div className="relative z-10 flex flex-1 flex-col overflow-hidden bg-black/40 backdrop-blur-3xl">
-      <div className="relative flex-1 overflow-y-auto p-6 lg:p-8">
-        <div className="mx-auto flex w-full max-w-7xl flex-col space-y-6">
-          <OpsPageHeader
-            eyebrow="SETTINGS"
-            title="全局配置与审计"
-            subtitle={
-              <>
-                SYSTEM PREFERENCES /{" "}
-                <span className="font-mono text-cyan-200/40">RUNTIME ENVIRONMENT</span>
-              </>
-            }
-            accent="slate"
-          />
+    <OpsPageLayout
+      header={
+        <OpsPageHeader
+          eyebrow="SETTINGS"
+          title="全局配置与审计"
+          subtitle={
+            <>
+              SYSTEM PREFERENCES /{" "}
+              <span className="font-mono text-cyan-200/40">RUNTIME ENVIRONMENT</span>
+            </>
+          }
+          accent="slate"
+        />
+      }
+    >
 
-          <div className="flex justify-start">
-            <div className="flex rounded-2xl border border-white/5 bg-white/[0.03] p-1 shadow-2xl">
+      <div className="flex justify-start">
+        <div className="flex rounded-2xl border border-white/5 bg-white/[0.03] p-1 shadow-2xl">
             <button
               onClick={() => {
                 setActiveTab("config");
@@ -150,24 +152,24 @@ export function OpsSettingsShell() {
             >
               操作审计 / AUDIT
             </button>
-            </div>
-          </div>
+        </div>
+      </div>
 
-          {notice && (
-            <div className="fixed bottom-10 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-emerald-500/30 bg-[rgba(16,185,129,0.15)] px-8 py-5 text-emerald-100 backdrop-blur-3xl animate-in fade-in slide-in-from-bottom-6 shadow-[0_30px_70px_rgba(0,0,0,0.6)]">
+      {notice && (
+        <div className="fixed bottom-10 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-2xl border border-emerald-500/30 bg-[rgba(16,185,129,0.15)] px-8 py-5 text-emerald-100 backdrop-blur-3xl animate-in fade-in slide-in-from-bottom-6 shadow-[0_30px_70px_rgba(0,0,0,0.6)]">
              <div className="h-6 w-6 rounded-full bg-emerald-500 flex items-center justify-center text-black font-black text-xs">✓</div>
              <span className="text-sm font-bold uppercase tracking-tight">{notice}</span>
-            </div>
-          )}
+        </div>
+      )}
 
-          {error && (
-            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5 text-sm text-rose-200 shadow-[0_0_30px_rgba(244,63,94,0.1)]">
-              {error}
-            </div>
-          )}
+      {error && (
+        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5 text-sm text-rose-200 shadow-[0_0_30px_rgba(244,63,94,0.1)]">
+          {error}
+        </div>
+      )}
 
-          {activeTab === "config" && config && (
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+      {activeTab === "config" && config && (
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
             <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 space-y-8 shadow-[0_20px_50px_rgba(0,0,0,0.2)] lg:p-7">
               <div>
                 <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/30 mb-2">告警触发逻辑 / ALERT GENERATION</h3>
@@ -282,11 +284,11 @@ export function OpsSettingsShell() {
                 {loading ? "COMMITTING CHANGES..." : "SYNC GLOBAL PREFERENCES"}
               </button>
             </div>
-          </div>
-          )}
+        </div>
+      )}
 
-          {activeTab === "audit" && (
-            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
+      {activeTab === "audit" && (
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
             <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 space-y-6 shadow-[0_20px_50px_rgba(0,0,0,0.3)] lg:p-7">
               <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/30 m-0">规则变更审计 / RULE AUDIT STREAM</h3>
               <div className="space-y-3 max-h-[800px] overflow-auto pr-2 custom-scrollbar">
@@ -371,10 +373,8 @@ export function OpsSettingsShell() {
                 </div>
               )}
             </section>
-            </div>
-          )}
         </div>
-      </div>
-    </div>
+      )}
+    </OpsPageLayout>
   );
 }

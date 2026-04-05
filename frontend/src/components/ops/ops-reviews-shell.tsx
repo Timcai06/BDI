@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { OpsPageHeader } from "@/components/ops/ops-page-header";
+import { OpsPageLayout } from "@/components/ops/ops-page-layout";
 import { listV1Batches, listV1Reviews } from "@/lib/predict-client";
 import type { BatchV1, ReviewRecordV1 } from "@/lib/types";
 
@@ -91,8 +92,9 @@ export function OpsReviewsShell() {
   })();
 
   return (
-    <div className="relative z-10 flex flex-1 flex-col overflow-hidden bg-black/40 backdrop-blur-3xl">
-      <div className="relative flex-1 overflow-y-auto p-6 lg:p-8 space-y-6">
+    <OpsPageLayout
+      contentClassName="space-y-6"
+      header={
         <OpsPageHeader
           eyebrow="REVIEWS"
           title="复核中心"
@@ -114,7 +116,8 @@ export function OpsReviewsShell() {
             </button>
           }
         />
-
+      }
+    >
         <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 m-0">查询参数 / QUERY PARAMETERS</h3>
@@ -243,7 +246,6 @@ export function OpsReviewsShell() {
             )}
           </div>
         </section>
-      </div>
-    </div>
+    </OpsPageLayout>
   );
 }
