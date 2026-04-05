@@ -215,6 +215,12 @@ class BridgeResponse(BaseModel):
     longitude: Optional[float] = None
     latitude: Optional[float] = None
     status: str
+    latest_batch_id: Optional[str] = None
+    latest_batch_code: Optional[str] = None
+    latest_batch_status: Optional[str] = None
+    latest_batch_created_at: Optional[datetime] = None
+    active_batch_count: int = 0
+    abnormal_batch_count: int = 0
     created_at: datetime
     updated_at: datetime
 
@@ -228,10 +234,12 @@ class BridgeListResponse(BaseModel):
 
 class BatchCreateRequest(BaseModel):
     bridge_id: str = Field(min_length=1, max_length=64)
-    batch_code: str = Field(min_length=1, max_length=128)
+    batch_code: Optional[str] = Field(default=None, min_length=1, max_length=128)
     source_type: str = Field(min_length=1, max_length=64)
     expected_item_count: int = Field(default=0, ge=0)
     created_by: Optional[str] = Field(default=None, max_length=64)
+    inspection_label: Optional[str] = Field(default=None, max_length=128)
+    enhancement_mode: Literal["off", "auto", "always"] = "auto"
 
 
 class BatchResponse(BaseModel):
@@ -239,6 +247,8 @@ class BatchResponse(BaseModel):
 
     id: str
     bridge_id: str
+    bridge_code: Optional[str] = None
+    bridge_name: Optional[str] = None
     batch_code: str
     source_type: str
     status: str
@@ -251,6 +261,8 @@ class BatchResponse(BaseModel):
     succeeded_item_count: int
     failed_item_count: int
     created_by: Optional[str] = None
+    inspection_label: Optional[str] = None
+    enhancement_mode: Literal["off", "auto", "always"] = "auto"
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
     created_at: datetime

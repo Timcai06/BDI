@@ -79,13 +79,14 @@ def test_phase5_batch_task_result_chain_with_real_postgres(
         "/api/v1/batches",
         json={
             "bridge_id": bridge_id,
-            "batch_code": f"batch-{uuid4().hex[:6]}",
             "source_type": "drone_image_stream",
             "expected_item_count": 1,
+            "enhancement_mode": "off",
         },
     )
     assert batch.status_code == 201
     batch_id = batch.json()["id"]
+    assert batch.json()["batch_code"].startswith("B-")
 
     ingest = client.post(
         f"/api/v1/batches/{batch_id}/items",
@@ -93,6 +94,7 @@ def test_phase5_batch_task_result_chain_with_real_postgres(
         data={
             "model_policy": "fusion-default",
             "relative_paths": "bridge-A/segment-01/bridge.jpg",
+            "enhancement_mode": "off",
         },
     )
     assert ingest.status_code == 200
@@ -109,6 +111,7 @@ def test_phase5_batch_task_result_chain_with_real_postgres(
     assert task.status_code == 200
     task_payload = task.json()
     assert task_payload["status"] == "succeeded"
+    assert task_payload["runtime_payload"]["enhance"] is False
 
     item = client.get(f"/api/v1/batch-items/{batch_item_id}")
     assert item.status_code == 200

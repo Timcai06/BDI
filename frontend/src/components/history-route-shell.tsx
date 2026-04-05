@@ -18,8 +18,9 @@ import {
   listAllResults,
   listV1BatchItems,
   listV1Batches,
+  listV1Bridges,
 } from "@/lib/predict-client";
-import type { BatchItemV1, BatchV1, PredictState, PredictionHistoryItem } from "@/lib/types";
+import type { BatchItemV1, BatchV1, BridgeV1, PredictState, PredictionHistoryItem } from "@/lib/types";
 
 const initialStatus: PredictState = {
   phase: "idle",
@@ -54,6 +55,8 @@ export function HistoryRouteShell() {
   );
 
   const [batches, setBatches] = useState<BatchV1[]>([]);
+  const [bridges, setBridges] = useState<BridgeV1[]>([]);
+  const [selectedBridgeId, setSelectedBridgeId] = useState(searchParams.get("bridgeId") ?? "");
   const [selectedBatchId, setSelectedBatchId] = useState(searchParams.get("batchId") ?? "");
   const [selectedBatchItems, setSelectedBatchItems] = useState<BatchItemV1[]>([]);
   const [batchLoading, setBatchLoading] = useState(false);
@@ -77,8 +80,13 @@ export function HistoryRouteShell() {
     () => batches.find((item) => item.id === selectedBatchId) ?? null,
     [batches, selectedBatchId],
   );
+  const selectedBridge = useMemo(
+    () => bridges.find((item) => item.id === selectedBridgeId) ?? null,
+    [bridges, selectedBridgeId],
+  );
   const currentHistoryHref = useMemo(() => {
     const params = new URLSearchParams();
+    if (selectedBridgeId) params.set("bridgeId", selectedBridgeId);
     if (selectedBatchId) params.set("batchId", selectedBatchId);
     if (batchOffset > 0) params.set("batchOffset", String(batchOffset));
     if (historySearchQuery) params.set("search", historySearchQuery);
@@ -92,6 +100,7 @@ export function HistoryRouteShell() {
     historySearchQuery,
     historySortMode,
     pathname,
+    selectedBridgeId,
     selectedBatchId,
   ]);
 
@@ -137,10 +146,17 @@ export function HistoryRouteShell() {
     setBatchLoading(true);
     setBatchError(null);
     try {
-      const response = await listV1Batches(batchLimit, offset);
-      setBatches((current) => (append ? [...current, ...response.items] : response.items));
-      setHasMoreBatches(response.items.length === batchLimit);
-      const firstBatchId = response.items[0]?.id ?? "";
+      const [batchResponse, bridgeResponse] = await Promise.all([
+        listV1Batches({ limit: batchLimit, offset, bridgeId: selectedBridgeId || undefined }),
+        listV1Bridges(200, 0),
+      ]);
+      setBridges(bridgeResponse.items);
+      if (!selectedBridgeId && bridgeResponse.items[0]?.id) {
+        setSelectedBridgeId(bridgeResponse.items[0].id);
+      }
+      setBatches((current) => (append ? [...current, ...batchResponse.items] : batchResponse.items));
+      setHasMoreBatches(batchResponse.items.length === batchLimit);
+      const firstBatchId = batchResponse.items[0]?.id ?? "";
       setSelectedBatchId((current) => current || firstBatchId);
     } catch (error) {
       const message = error instanceof Error ? error.message : "批次历史读取失败";
@@ -148,7 +164,7 @@ export function HistoryRouteShell() {
     } finally {
       setBatchLoading(false);
     }
-  }, []);
+  }, [selectedBridgeId]);
 
   const loadSelectedBatchItems = useCallback(async (batchId: string) => {
     if (!batchId) {
@@ -175,11 +191,18 @@ export function HistoryRouteShell() {
   }, [loadBatches, loadHistory]);
 
   useEffect(() => {
+    setBatchOffset(0);
+    setSelectedBatchId("");
+    void loadBatches(0, false);
+  }, [selectedBridgeId, loadBatches]);
+
+  useEffect(() => {
     void loadSelectedBatchItems(selectedBatchId);
   }, [loadSelectedBatchItems, selectedBatchId]);
 
   useEffect(() => {
     const params = new URLSearchParams();
+    if (selectedBridgeId) params.set("bridgeId", selectedBridgeId);
     if (selectedBatchId) params.set("batchId", selectedBatchId);
     if (batchOffset > 0) params.set("batchOffset", String(batchOffset));
     if (historySearchQuery) params.set("search", historySearchQuery);
@@ -194,6 +217,7 @@ export function HistoryRouteShell() {
     historySortMode,
     pathname,
     router,
+    selectedBridgeId,
     selectedBatchId,
   ]);
 
@@ -317,16 +341,33 @@ export function HistoryRouteShell() {
                     批次切换、批次内图片浏览、单图详情入口都保留在这里。
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBatchOffset(0);
-                  }}
-                  className="rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs text-cyan-100 hover:bg-cyan-500/20"
-                >
-                  刷新批次历史
-                </button>
+                <div className="min-w-[240px] rounded-lg border border-white/10 bg-black/20 px-2">
+                  <select
+                    value={selectedBridgeId}
+                    onChange={(e) => setSelectedBridgeId(e.target.value)}
+                    className="w-full bg-transparent px-2 py-2 text-sm font-semibold text-white outline-none"
+                  >
+                    <option value="">选择桥梁资产...</option>
+                    {bridges.map((bridge) => (
+                      <option key={bridge.id} value={bridge.id}>
+                        {bridge.bridge_code} | {bridge.bridge_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
+
+              {selectedBridge ? (
+                <div className="mb-5 flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-white/55">
+                  <span>当前桥梁：{selectedBridge.bridge_name} / {selectedBridge.bridge_code}</span>
+                  <Link
+                    href={`/dashboard/bridges/${encodeURIComponent(selectedBridge.id)}`}
+                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 font-bold text-white/60 hover:bg-white/10 hover:text-white"
+                  >
+                    查看桥梁详情
+                  </Link>
+                </div>
+              ) : null}
 
               {batchError ? (
                 <div className="mb-5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">

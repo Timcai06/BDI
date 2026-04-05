@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
@@ -97,6 +98,7 @@ export function OpsWorkbenchShell() {
   const [recentPathPrefixes, setRecentPathPrefixes] = useState<string[]>([]);
   const [retryingTaskId, setRetryingTaskId] = useState<string | null>(null);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [currentEnhancementMode, setCurrentEnhancementMode] = useState<"off" | "auto" | "always">("auto");
 
   const [stats, setStats] = useState<BatchStatsV1Response | null>(null);
   const [items, setItems] = useState<BatchItemV1[]>([]);
@@ -118,6 +120,7 @@ export function OpsWorkbenchShell() {
 
   useEffect(() => {
     const batchId = searchParams.get("batchId");
+    const bridgeId = searchParams.get("bridgeId");
     const offset = Number(searchParams.get("batchOffset") ?? "0");
     const urlCategory = searchParams.get("category");
     const urlMinConfidence = searchParams.get("minConfidence");
@@ -125,6 +128,9 @@ export function OpsWorkbenchShell() {
     const urlDetSortOrder = searchParams.get("dSortOrder");
     const urlPathPrefix = searchParams.get("pathPrefix");
 
+    if (bridgeId) {
+      setSelectedBridgeId(bridgeId);
+    }
     if (batchId) {
       setSelectedBatchId(batchId);
     }
@@ -186,6 +192,9 @@ export function OpsWorkbenchShell() {
     if (selectedBatchId) {
       next.set("batchId", selectedBatchId);
     }
+    if (selectedBridgeId) {
+      next.set("bridgeId", selectedBridgeId);
+    }
     if (batchOffset > 0) {
       next.set("batchOffset", String(batchOffset));
     }
@@ -212,6 +221,7 @@ export function OpsWorkbenchShell() {
   }, [
     ready,
     selectedBatchId,
+    selectedBridgeId,
     batchOffset,
     category,
     minConfidence,
@@ -234,7 +244,7 @@ export function OpsWorkbenchShell() {
       setError(null);
       try {
         const [batchResp, bridgeResp] = await Promise.all([
-          listV1Batches(batchLimit, batchOffset),
+          listV1Batches({ limit: batchLimit, offset: batchOffset, bridgeId: selectedBridgeId || undefined }),
           listV1Bridges(200, 0)
         ]);
         if (cancelled) {
@@ -248,6 +258,8 @@ export function OpsWorkbenchShell() {
         }
         if (batchResp.items.length > 0) {
           setSelectedBatchId((prev) => prev || batchResp.items[0].id);
+        } else {
+          setSelectedBatchId("");
         }
       } catch (err) {
         if (!cancelled) {
@@ -264,7 +276,7 @@ export function OpsWorkbenchShell() {
     return () => {
       cancelled = true;
     };
-  }, [ready, batchOffset, refreshTick]);
+  }, [ready, batchOffset, refreshTick, selectedBridgeId]);
 
   useEffect(() => {
     if (!selectedBatchId) {
@@ -354,26 +366,47 @@ export function OpsWorkbenchShell() {
     () => batches.find((item) => item.id === selectedBatchId) ?? null,
     [batches, selectedBatchId]
   );
+  const selectedBridge = useMemo(
+    () => bridges.find((item) => item.id === selectedBridgeId) ?? null,
+    [bridges, selectedBridgeId]
+  );
 
   useEffect(() => {
     setBatchItemOffset(0);
     setSelectedItemIds([]);
   }, [selectedBatchId, relativePathPrefix, showFailedItemsOnly]);
 
-  async function handleCreateBatch(bridgeId: string, payload: { batchCode: string; sourceType: string; expectedItemCount: number; createdBy?: string }) {
+  useEffect(() => {
+    setBatchOffset(0);
+    setSelectedBatchId("");
+  }, [selectedBridgeId]);
+
+  async function handleCreateBatch(
+    bridgeId: string,
+    payload: {
+      sourceType: string;
+      expectedItemCount: number;
+      createdBy?: string;
+      inspectionLabel?: string;
+      enhancementMode: "off" | "auto" | "always";
+    },
+  ) {
     setActionLoading(true);
     setError(null);
     setNotice(null);
     try {
       const created = await createV1Batch({
         bridgeId,
-        batchCode: payload.batchCode.trim(),
         sourceType: payload.sourceType || "drone_image_stream",
         expectedItemCount: payload.expectedItemCount,
-        createdBy: payload.createdBy || createdBy
+        createdBy: payload.createdBy || createdBy,
+        inspectionLabel: payload.inspectionLabel,
+        enhancementMode: payload.enhancementMode,
       });
       setNotice(`批次创建成功：${created.batch_code}`);
+      setCurrentEnhancementMode(payload.enhancementMode);
       setBatchOffset(0);
+      setSelectedBridgeId(bridgeId);
       setSelectedBatchId(created.id);
       setRefreshTick((v) => v + 1);
       return created;
@@ -430,6 +463,7 @@ export function OpsWorkbenchShell() {
           files: chunkFiles,
           relativePaths: chunkRelativePaths,
           modelPolicy: modelPolicy.trim() || "fusion-default",
+          enhancementMode: selectedBatch?.enhancement_mode ?? currentEnhancementMode,
           sourceDevice: sourceDevice.trim() || undefined
         });
         acceptedCount += response.accepted_count;
@@ -456,6 +490,7 @@ export function OpsWorkbenchShell() {
 
   async function handleWizardFinish(bridgeId: string, batchPayload: BatchWizardPayload, files: File[]) {
     try {
+      setCurrentEnhancementMode(batchPayload.enhancementMode);
       const batch = await handleCreateBatch(bridgeId, batchPayload);
       if (files.length > 0) {
         await handleIngestItems(batch.id, files);
@@ -580,9 +615,30 @@ export function OpsWorkbenchShell() {
       >
         <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 shadow-[0_14px_32px_rgba(0,0,0,0.16)]">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
-              Batch
-            </span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Bridge</span>
+            <div className="min-w-[220px] rounded-xl border border-white/10 bg-black/30 px-2">
+              <select
+                value={selectedBridgeId}
+                onChange={(e) => setSelectedBridgeId(e.target.value)}
+                className="w-full bg-transparent px-2 py-2 text-sm font-bold text-white outline-none"
+              >
+                <option value="">选择桥梁资产...</option>
+                {bridges.map((bridge) => (
+                  <option key={bridge.id} value={bridge.id}>
+                    {bridge.bridge_code} | {bridge.bridge_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {selectedBridge ? (
+              <Link
+                href={`/dashboard/bridges/${encodeURIComponent(selectedBridge.id)}`}
+                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white/60 hover:bg-white/10 hover:text-white"
+              >
+                查看桥梁详情
+              </Link>
+            ) : null}
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Batch</span>
             <div className="min-w-[240px] flex-1 rounded-xl border border-white/10 bg-black/30 px-2">
               <select
                 value={selectedBatchId}
@@ -652,6 +708,29 @@ export function OpsWorkbenchShell() {
           <BatchEmptyState onCreateClick={() => setIsWizardOpen(true)} />
         ) : (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-700">
+            {selectedBridge ? (
+              <section className="grid gap-4 md:grid-cols-4">
+                <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">当前桥梁</p>
+                  <p className="mt-2 text-sm font-black text-white">{selectedBridge.bridge_name}</p>
+                  <p className="mt-1 text-xs text-white/45">{selectedBridge.bridge_code}</p>
+                </div>
+                <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">活跃批次</p>
+                  <p className="mt-2 text-sm font-black text-white">{selectedBridge.active_batch_count}</p>
+                </div>
+                <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">异常批次</p>
+                  <p className="mt-2 text-sm font-black text-white">{selectedBridge.abnormal_batch_count}</p>
+                </div>
+                <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">增强策略</p>
+                  <p className="mt-2 text-sm font-black text-white">
+                    {selectedBatch?.enhancement_mode === "always" ? "全量增强" : selectedBatch?.enhancement_mode === "off" ? "关闭增强" : "低照度自动增强"}
+                  </p>
+                </div>
+              </section>
+            ) : null}
             <BatchAnalytics stats={stats} />
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -724,6 +803,12 @@ export function OpsWorkbenchShell() {
                   <div>
                     <p className="text-[10px] text-white/20 uppercase font-bold tracking-tighter">Model Policy</p>
                     <p className="text-xs font-bold text-white/70 mt-0.5 truncate">{modelPolicy}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-white/20 uppercase font-bold tracking-tighter">Enhancement</p>
+                    <p className="text-xs font-bold text-white/70 mt-0.5 truncate">
+                      {selectedBatch?.enhancement_mode === "always" ? "always" : selectedBatch?.enhancement_mode === "off" ? "off" : "auto-lowlight"}
+                    </p>
                   </div>
                   <div>
                     <p className="text-[10px] text-white/20 uppercase font-bold tracking-tighter">Collector</p>

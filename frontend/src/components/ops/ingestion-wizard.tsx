@@ -6,9 +6,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { BridgeV1 } from "@/lib/types";
 
 export interface BatchWizardPayload {
-  batchCode: string;
   sourceType: string;
   expectedItemCount: number;
+  inspectionLabel?: string;
+  enhancementMode: "off" | "auto" | "always";
 }
 
 interface IngestionWizardProps {
@@ -35,8 +36,9 @@ export function IngestionWizard({
   const [step, setStep] = useState(1);
   const [bridgeCode, setBridgeCode] = useState("");
   const [bridgeName, setBridgeName] = useState("");
-  const [batchCode, setBatchCode] = useState(`B${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-001`);
   const [sourceType, setSourceType] = useState("drone-survey");
+  const [inspectionLabel, setInspectionLabel] = useState("");
+  const [enhancementMode, setEnhancementMode] = useState<"off" | "auto" | "always">("auto");
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [uploadMode, setUploadMode] = useState<"files" | "folder">("files");
   const folderInputProps: Record<string, string> =
@@ -52,7 +54,7 @@ export function IngestionWizard({
       setStep(2);
     } else if (step === 1 && (selectedBridgeId || (bridgeCode && bridgeName))) {
       setStep(2);
-    } else if (step === 2 && batchCode) {
+    } else if (step === 2) {
       // Logic for creating batch will happen in parent, we just transition UI
       setStep(3);
     }
@@ -60,9 +62,10 @@ export function IngestionWizard({
 
   const handleFinish = async () => {
     const payload: BatchWizardPayload = {
-      batchCode,
       sourceType,
-      expectedItemCount: 0
+      expectedItemCount: 0,
+      inspectionLabel: inspectionLabel.trim() || undefined,
+      enhancementMode
     };
     await onFinish(selectedBridgeId, payload, uploadFiles);
     onClose();
@@ -167,17 +170,19 @@ export function IngestionWizard({
               >
                 <div>
                   <h2 className="text-2xl font-light text-white">批次扫描属性</h2>
-                  <p className="text-sm text-white/40 mt-1">定义任务的基础元数据，用于后续指标聚合</p>
+                  <p className="text-sm text-white/40 mt-1">定义巡检来源与增强策略，批次编号由系统自动生成</p>
                 </div>
 
                 <div className="grid gap-5">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-white/30 px-1">批次编号 (Batch Code)</label>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-white/30 px-1">巡检标识 (Optional)</label>
                     <input
-                      value={batchCode}
-                      onChange={(e) => setBatchCode(e.target.value)}
-                      className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 font-mono text-sm text-cyan-400 outline-none focus:border-cyan-500/50"
+                      value={inspectionLabel}
+                      onChange={(e) => setInspectionLabel(e.target.value)}
+                      placeholder="例如：主桥上行 4 月无人机巡检"
+                      className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-cyan-500/50"
                     />
+                    <p className="px-1 text-[11px] text-white/35">系统将自动生成批次编码，避免重复和手工错误。</p>
                   </div>
                   
                   <div className="space-y-2">
@@ -191,6 +196,19 @@ export function IngestionWizard({
                       <option value="crawler-inspection">机器人巡检 (Crawler)</option>
                       <option value="manual-capture">手动离线上传 (Manual)</option>
                       <option value="fixed-camera">固定监测点 (Fixed)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-white/30 px-1">增强策略 (Enhancement Strategy)</label>
+                    <select
+                      value={enhancementMode}
+                      onChange={(e) => setEnhancementMode(e.target.value as "off" | "auto" | "always")}
+                      className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white outline-none focus:border-cyan-500/50 appearance-none transition-all hover:bg-white/[0.05]"
+                    >
+                      <option value="auto">自动增强低照度图片</option>
+                      <option value="always">本批次全部增强后复检</option>
+                      <option value="off">仅保留原图识别</option>
                     </select>
                   </div>
                 </div>

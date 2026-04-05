@@ -32,7 +32,7 @@ export function OpsSearchShell() {
     let cancelled = false;
     async function loadBatches() {
       try {
-        const resp = await listV1Batches(200, 0);
+        const resp = await listV1Batches({ limit: 200, offset: 0 });
         if (!cancelled) {
           setBatches(resp.items);
         }

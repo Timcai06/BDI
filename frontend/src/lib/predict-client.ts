@@ -660,11 +660,26 @@ export async function* getDiagnosisStream(imageId: string): AsyncGenerator<strin
   }
 }
 
-export async function listV1Batches(limit: number = 50, offset: number = 0): Promise<BatchListV1Response> {
+export async function listV1Batches(params?: {
+  limit?: number;
+  offset?: number;
+  bridgeId?: string;
+  statusFilter?: string;
+  hasFailures?: boolean;
+}): Promise<BatchListV1Response> {
+  const limit = params?.limit ?? 50;
+  const offset = params?.offset ?? 0;
   if (!API_BASE_URL) {
     return { items: [], total: 0, limit, offset };
   }
-  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/batches?limit=${limit}&offset=${offset}`);
+  const query = buildQuery({
+    limit,
+    offset,
+    bridge_id: params?.bridgeId,
+    status_filter: params?.statusFilter,
+    has_failures: params?.hasFailures,
+  });
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/batches${query}`);
   if (!response.ok) {
     const payload = (await response.json()) as ApiError;
     throw new Error(getErrorMessage(payload, "批次列表加载失败。"));
@@ -718,10 +733,12 @@ export async function createV1Bridge(payload: {
 
 export async function createV1Batch(payload: {
   bridgeId: string;
-  batchCode: string;
   sourceType: string;
   expectedItemCount: number;
   createdBy?: string;
+  inspectionLabel?: string;
+  enhancementMode?: "off" | "auto" | "always";
+  batchCode?: string;
 }): Promise<BatchListV1Response["items"][number]> {
   if (!API_BASE_URL) {
     throw new Error("演示模式下无法创建批次。");
@@ -731,10 +748,12 @@ export async function createV1Batch(payload: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       bridge_id: payload.bridgeId,
-      batch_code: payload.batchCode,
+      batch_code: payload.batchCode ?? null,
       source_type: payload.sourceType,
       expected_item_count: payload.expectedItemCount,
-      created_by: payload.createdBy ?? null
+      created_by: payload.createdBy ?? null,
+      inspection_label: payload.inspectionLabel ?? null,
+      enhancement_mode: payload.enhancementMode ?? "auto",
     })
   });
   if (!response.ok) {
@@ -763,6 +782,7 @@ export async function ingestV1BatchItems(payload: {
   files: File[];
   relativePaths?: string[];
   modelPolicy?: string;
+  enhancementMode?: "off" | "auto" | "always";
   sourceDevice?: string;
   capturedAt?: string;
 }): Promise<BatchIngestV1Response> {
@@ -773,6 +793,7 @@ export async function ingestV1BatchItems(payload: {
   payload.files.forEach((file) => formData.append("files", file));
   payload.relativePaths?.forEach((relativePath) => formData.append("relative_paths", relativePath));
   formData.append("model_policy", payload.modelPolicy ?? "fusion-default");
+  formData.append("enhancement_mode", payload.enhancementMode ?? "auto");
   if (payload.sourceDevice) {
     formData.append("source_device", payload.sourceDevice);
   }

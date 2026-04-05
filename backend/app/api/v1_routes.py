@@ -61,8 +61,21 @@ async def create_batch(request: Request, payload: BatchCreateRequest) -> BatchCr
 
 
 @router.get("/batches", response_model=BatchListResponse)
-async def list_batches(request: Request, limit: int = 20, offset: int = 0) -> BatchListResponse:
-    return request.app.state.batch_service.list_batches(limit=limit, offset=offset)
+async def list_batches(
+    request: Request,
+    limit: int = 20,
+    offset: int = 0,
+    bridge_id: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    has_failures: Optional[bool] = None,
+) -> BatchListResponse:
+    return request.app.state.batch_service.list_batches(
+        limit=limit,
+        offset=offset,
+        bridge_id=bridge_id,
+        status_filter=status_filter,
+        has_failures=has_failures,
+    )
 
 
 @router.get("/batches/{batch_id}", response_model=BatchResponse)
@@ -84,6 +97,7 @@ async def ingest_batch_items(
     source_device: Annotated[Optional[str], Form()] = None,
     captured_at: Annotated[Optional[datetime], Form()] = None,
     model_policy: Annotated[str, Form()] = "fusion-default",
+    enhancement_mode: Annotated[str, Form()] = "auto",
 ) -> BatchIngestResponse:
     return await request.app.state.batch_service.ingest_items(
         batch_id=batch_id,
@@ -92,6 +106,7 @@ async def ingest_batch_items(
         source_device=source_device,
         captured_at=captured_at,
         model_policy=model_policy,
+        enhancement_mode=enhancement_mode,
     )
 
 

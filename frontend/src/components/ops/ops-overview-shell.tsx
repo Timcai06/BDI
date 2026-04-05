@@ -175,7 +175,7 @@ export function OpsOverviewShell() {
       setError(null);
       try {
         const [batchResp, bridgeResp, alertResp, reviewResp, detectionResp, metricsResp] = await Promise.all([
-          listV1Batches(500, 0),
+          listV1Batches({ limit: 500, offset: 0 }),
           listV1Bridges(500, 0),
           listV1Alerts({ limit: 500, offset: 0, sortBy: "triggered_at", sortOrder: "desc" }),
           listV1Reviews({ limit: 500, offset: 0, sortBy: "reviewed_at", sortOrder: "desc" }),

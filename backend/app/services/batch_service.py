@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import hashlib
 import json
 import math
@@ -9,6 +10,7 @@ from typing import Any, Optional
 from uuid import uuid4
 
 from fastapi import UploadFile, status
+from PIL import Image as PILImage, ImageStat
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
@@ -124,6 +126,106 @@ class BatchService:
             return policy
         return registry.active_version
 
+    def _build_bridge_response(self, *, session: Session, bridge: Bridge) -> BridgeResponse:
+        latest_batch = session.scalar(
+            select(InspectionBatch)
+            .where(InspectionBatch.bridge_id == bridge.id)
+            .order_by(InspectionBatch.created_at.desc())
+            .limit(1)
+        )
+        active_batch_count = session.scalar(
+            select(func.count())
+            .select_from(InspectionBatch)
+            .where(
+                InspectionBatch.bridge_id == bridge.id,
+                InspectionBatch.status.in_(("created", "ingesting", "running")),
+            )
+        ) or 0
+        abnormal_batch_count = session.scalar(
+            select(func.count())
+            .select_from(InspectionBatch)
+            .where(
+                InspectionBatch.bridge_id == bridge.id,
+                (InspectionBatch.failed_item_count > 0) | (InspectionBatch.status.in_(("failed", "partial_failed"))),
+            )
+        ) or 0
+        payload = BridgeResponse.model_validate(bridge).model_dump()
+        payload["latest_batch_id"] = latest_batch.id if latest_batch is not None else None
+        payload["latest_batch_code"] = latest_batch.batch_code if latest_batch is not None else None
+        payload["latest_batch_status"] = latest_batch.status if latest_batch is not None else None
+        payload["latest_batch_created_at"] = latest_batch.created_at if latest_batch is not None else None
+        payload["active_batch_count"] = active_batch_count
+        payload["abnormal_batch_count"] = abnormal_batch_count
+        return BridgeResponse.model_validate(payload)
+
+    def _resolve_batch_enhancement_mode(
+        self,
+        *,
+        session: Session,
+        batch_id: str,
+        fallback: str = "auto",
+    ) -> str:
+        runtime_payload = session.execute(
+            select(InferenceTask.runtime_payload)
+            .join(BatchItem, BatchItem.id == InferenceTask.batch_item_id)
+            .where(BatchItem.batch_id == batch_id)
+            .order_by(InferenceTask.created_at.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        if isinstance(runtime_payload, dict):
+            mode = runtime_payload.get("enhancement_mode")
+            if isinstance(mode, str) and mode in {"off", "auto", "always"}:
+                return mode
+        return fallback
+
+    def _build_batch_payload(
+        self,
+        *,
+        session: Session,
+        batch: InspectionBatch,
+        bridge: Optional[Bridge],
+        payload: Optional[BatchCreateRequest] = None,
+    ) -> dict[str, Any]:
+        data = BatchResponse.model_validate(batch).model_dump()
+        data["bridge_code"] = bridge.bridge_code if bridge is not None else None
+        data["bridge_name"] = bridge.bridge_name if bridge is not None else None
+        data["inspection_label"] = payload.inspection_label if payload is not None else None
+        fallback = payload.enhancement_mode if payload is not None else "auto"
+        data["enhancement_mode"] = self._resolve_batch_enhancement_mode(session=session, batch_id=batch.id, fallback=fallback)
+        return data
+
+    def _generate_batch_code(self, *, session: Session, bridge: Bridge, attempt_offset: int = 0) -> str:
+        date_prefix = datetime.now(timezone.utc).strftime("%Y%m%d")
+        base = f"{bridge.bridge_code}-{date_prefix}"
+        rows = session.scalars(
+            select(InspectionBatch.batch_code).where(InspectionBatch.batch_code.like(f"{base}-%"))
+        ).all()
+        used_numbers: set[int] = set()
+        for code in rows:
+            try:
+                used_numbers.add(int(str(code).rsplit("-", 1)[-1]))
+            except (TypeError, ValueError):
+                continue
+        next_index = 1
+        while next_index in used_numbers:
+            next_index += 1
+        next_index += attempt_offset
+        return f"{base}-{next_index:03d}"
+
+    def _should_enable_enhancement(self, *, content: bytes, enhancement_mode: str) -> bool:
+        mode = (enhancement_mode or "auto").strip().lower()
+        if mode == "off":
+            return False
+        if mode == "always":
+            return True
+        try:
+            img = PILImage.open(io.BytesIO(content))
+        except Exception:
+            return False
+        stat = ImageStat.Stat(img.convert("L"))
+        mean_luma = stat.mean[0] if stat.mean else 255
+        return mean_luma < 92
+
     def create_bridge(self, payload: BridgeCreateRequest) -> BridgeResponse:
         with self.session_factory() as session:
             existing = session.scalar(select(Bridge).where(Bridge.bridge_code == payload.bridge_code))
@@ -149,7 +251,7 @@ class BatchService:
             session.add(bridge)
             session.commit()
             session.refresh(bridge)
-            return BridgeResponse.model_validate(bridge)
+            return self._build_bridge_response(session=session, bridge=bridge)
 
     def list_bridges(self, *, limit: int, offset: int) -> BridgeListResponse:
         with self.session_factory() as session:
@@ -161,7 +263,7 @@ class BatchService:
                 .limit(limit)
             ).all()
 
-            items = [BridgeResponse.model_validate(row) for row in rows]
+            items = [self._build_bridge_response(session=session, bridge=row) for row in rows]
             return BridgeListResponse(items=items, total=total, limit=limit, offset=offset)
 
     def get_bridge(self, bridge_id: str) -> BridgeResponse:
@@ -174,7 +276,7 @@ class BatchService:
                     status_code=status.HTTP_404_NOT_FOUND,
                     details={"bridge_id": bridge_id},
                 )
-            return BridgeResponse.model_validate(bridge)
+            return self._build_bridge_response(session=session, bridge=bridge)
 
     def create_batch(self, payload: BatchCreateRequest) -> BatchCreateResponse:
         with self.session_factory() as session:
@@ -187,21 +289,26 @@ class BatchService:
                     details={"bridge_id": payload.bridge_id},
                 )
 
-            existing = session.scalar(
-                select(InspectionBatch).where(InspectionBatch.batch_code == payload.batch_code)
-            )
+            batch_code = self._generate_batch_code(session=session, bridge=bridge)
+            if payload.batch_code:
+                normalized = payload.batch_code.strip()
+                if normalized:
+                    batch_code = normalized
+            existing = session.scalar(select(InspectionBatch).where(InspectionBatch.batch_code == batch_code))
             if existing is not None:
-                raise AppError(
-                    code="BATCH_CODE_CONFLICT",
-                    message="Batch code already exists.",
-                    status_code=status.HTTP_409_CONFLICT,
-                    details={"batch_code": payload.batch_code},
-                )
+                if payload.batch_code:
+                    raise AppError(
+                        code="BATCH_CODE_CONFLICT",
+                        message="Batch code already exists.",
+                        status_code=status.HTTP_409_CONFLICT,
+                        details={"batch_code": batch_code},
+                    )
+                batch_code = self._generate_batch_code(session=session, bridge=bridge, attempt_offset=1)
 
             batch = InspectionBatch(
                 id=_new_id("bat"),
                 bridge_id=payload.bridge_id,
-                batch_code=payload.batch_code,
+                batch_code=batch_code,
                 source_type=payload.source_type,
                 status="ingesting",
                 expected_item_count=payload.expected_item_count,
@@ -211,23 +318,43 @@ class BatchService:
             session.add(batch)
             session.commit()
             session.refresh(batch)
-            return BatchCreateResponse.model_validate(batch)
+            return BatchCreateResponse.model_validate(self._build_batch_payload(session=session, batch=batch, bridge=bridge, payload=payload))
 
-    def list_batches(self, *, limit: int, offset: int) -> BatchListResponse:
+    def list_batches(
+        self,
+        *,
+        limit: int,
+        offset: int,
+        bridge_id: Optional[str] = None,
+        status_filter: Optional[str] = None,
+        has_failures: Optional[bool] = None,
+    ) -> BatchListResponse:
         with self.session_factory() as session:
-            total = session.scalar(select(func.count()).select_from(InspectionBatch)) or 0
-            rows = session.scalars(
-                select(InspectionBatch)
-                .order_by(InspectionBatch.created_at.desc())
-                .offset(offset)
-                .limit(limit)
+            query = select(InspectionBatch, Bridge).join(Bridge, Bridge.id == InspectionBatch.bridge_id)
+            count_query = select(func.count()).select_from(InspectionBatch)
+            if bridge_id is not None:
+                query = query.where(InspectionBatch.bridge_id == bridge_id)
+                count_query = count_query.where(InspectionBatch.bridge_id == bridge_id)
+            if status_filter is not None:
+                query = query.where(InspectionBatch.status == status_filter)
+                count_query = count_query.where(InspectionBatch.status == status_filter)
+            if has_failures is True:
+                query = query.where(InspectionBatch.failed_item_count > 0)
+                count_query = count_query.where(InspectionBatch.failed_item_count > 0)
+            elif has_failures is False:
+                query = query.where(InspectionBatch.failed_item_count == 0)
+                count_query = count_query.where(InspectionBatch.failed_item_count == 0)
+            total = session.scalar(count_query) or 0
+            rows = session.execute(
+                query.order_by(InspectionBatch.created_at.desc()).offset(offset).limit(limit)
             ).all()
             dirty = False
-            for batch in rows:
+            items: list[BatchResponse] = []
+            for batch, bridge in rows:
                 dirty = self._reconcile_batch_aggregates(session=session, batch=batch) or dirty
+                items.append(BatchResponse.model_validate(self._build_batch_payload(session=session, batch=batch, bridge=bridge)))
             if dirty:
                 session.commit()
-            items = [BatchResponse.model_validate(row) for row in rows]
             return BatchListResponse(items=items, total=total, limit=limit, offset=offset)
 
     def get_batch(self, batch_id: str) -> BatchResponse:
@@ -242,7 +369,8 @@ class BatchService:
                 )
             if self._reconcile_batch_aggregates(session=session, batch=batch):
                 session.commit()
-            return BatchResponse.model_validate(batch)
+            bridge = session.get(Bridge, batch.bridge_id)
+            return BatchResponse.model_validate(self._build_batch_payload(session=session, batch=batch, bridge=bridge))
 
     def delete_batch(self, batch_id: str) -> BatchDeleteResponse:
         with self.session_factory() as session:
@@ -908,6 +1036,7 @@ class BatchService:
         source_device: Optional[str],
         captured_at: Optional[datetime],
         model_policy: str,
+        enhancement_mode: str,
     ) -> BatchIngestResponse:
         with self.session_factory() as session:
             batch = session.get(InspectionBatch, batch_id)
@@ -948,6 +1077,10 @@ class BatchService:
 
                 try:
                     content = await self._read_upload_content(file)
+                    enhance_enabled = self._should_enable_enhancement(
+                        content=content,
+                        enhancement_mode=enhancement_mode,
+                    )
                     file_hash = hashlib.sha256(content).hexdigest()
                     duplicated = session.scalar(
                         select(func.count())
@@ -1002,7 +1135,10 @@ class BatchService:
                             model_policy=model_policy_value,
                             requested_model_version=requested_model_version,
                             queued_at=datetime.now(timezone.utc),
-                            runtime_payload={"enhance": True},
+                            runtime_payload={
+                                "enhance": enhance_enabled,
+                                "enhancement_mode": enhancement_mode,
+                            },
                         )
                         session.add(batch_item)
                         session.add(task)

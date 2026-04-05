@@ -158,6 +158,12 @@ export interface BridgeV1 {
   longitude?: number | null;
   latitude?: number | null;
   status: string;
+  latest_batch_id?: string | null;
+  latest_batch_code?: string | null;
+  latest_batch_status?: string | null;
+  latest_batch_created_at?: string | null;
+  active_batch_count: number;
+  abnormal_batch_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -172,6 +178,8 @@ export interface BridgeListV1Response {
 export interface BatchV1 {
   id: string;
   bridge_id: string;
+  bridge_code?: string | null;
+  bridge_name?: string | null;
   batch_code: string;
   source_type: string;
   status: string;
@@ -183,6 +191,8 @@ export interface BatchV1 {
   succeeded_item_count: number;
   failed_item_count: number;
   created_by?: string | null;
+  inspection_label?: string | null;
+  enhancement_mode?: "off" | "auto" | "always";
   started_at?: string | null;
   finished_at?: string | null;
   created_at: string;

@@ -14,7 +14,10 @@ function navButtonClass(active: boolean) {
 export function DashboardSidebar() {
   const pathname = usePathname();
   const isOverview = pathname.startsWith("/dashboard/ops/overview");
-  const isBatches = pathname === "/dashboard/ops" || pathname.startsWith("/dashboard/ops/items");
+  const isBatches =
+    pathname === "/dashboard/ops" ||
+    pathname.startsWith("/dashboard/ops/items") ||
+    pathname.startsWith("/dashboard/bridges");
   const isSearch = pathname.startsWith("/dashboard/ops/search");
   const isHistory = pathname.startsWith("/dashboard/history");
   const isReviews = pathname.startsWith("/dashboard/ops/reviews");

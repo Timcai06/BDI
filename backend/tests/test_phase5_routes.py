@@ -45,12 +45,16 @@ class StubBatchService:
             bridge_code="B-001",
             bridge_name="Bridge 1",
             status="active",
+            active_batch_count=1,
+            abnormal_batch_count=0,
             created_at=now,
             updated_at=now,
         )
         self.batch = BatchResponse(
             id="bat_1",
             bridge_id="br_1",
+            bridge_code="B-001",
+            bridge_name="Bridge 1",
             batch_code="batch-1",
             source_type="drone_image_stream",
             status="running",
@@ -77,7 +81,7 @@ class StubBatchService:
     def create_batch(self, _payload):
         return BatchCreateResponse.model_validate(self.batch.model_dump())
 
-    def list_batches(self, *, limit: int, offset: int):
+    def list_batches(self, *, limit: int, offset: int, bridge_id=None, status_filter=None, has_failures=None):
         return BatchListResponse(items=[self.batch], total=1, limit=limit, offset=offset)
 
     def get_batch(self, _batch_id: str):
