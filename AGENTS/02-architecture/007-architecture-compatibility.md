@@ -31,7 +31,7 @@
 - 调用入口
 - 结果协议
 
-模型配置至少保留：
+ 模型配置至少保留：
 
 - `model_name`
 - `model_version`
@@ -41,6 +41,8 @@
 - `device`
 - `supports_masks`
 - `supports_sliced_inference`
+- `fusion_strategy`（融合策略：`none` / `priority_takeover` / `union_merge`）
+- `source_priority`（来源优先级：如渗水类优先专项模型）
 
 ### 推理兼容
 
@@ -62,6 +64,8 @@
 - `inference_mode`
 - `detections`
 - `artifacts`
+- `fusion_info`（融合信息：融合策略、处理时长拆解）
+- `detections[].source_model`（检测来源：`general` / `specialist` / `fusion`）
 
 ## YOLOv8 接入
 
@@ -72,12 +76,13 @@
 
 ## 新模型接入
 
-新模型不是“临时替换文件”，而是“注册一个新版本”。
+新模型不是"临时替换文件"，而是"注册一个新版本"。
 
 接入时只改：
 
 - 模型注册表
 - 适配层
+- 融合策略配置（如涉及多模型融合）
 
 不改：
 
@@ -95,6 +100,7 @@
 4. 前端展示正常
 5. `JSON` 和叠加图可导出
 6. 批量和历史不被破坏
+7. 如涉及融合：融合结果来源标注正确、专项优先策略生效
 
 ## 边界
 

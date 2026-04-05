@@ -49,8 +49,8 @@
 
 ### 结论
 
-- `Phase 4` 已全部完成：多模型骨架、第二模型验证机制、批量与可用性提示已落地
-- 当前已进入 `Phase 5`
+- `Phase 5` 后端核心链路 + 前端 ops 工作台已基本收口
+- 当前已进入 `Phase 6`
 
 ## 阶段五：真实巡检业务流程系统化
 
@@ -63,17 +63,27 @@
 ### 当前阶段进展（已确认）
 
 - 已完成 `SQLAlchemy + Alembic + psycopg` 基础接入
-- 已完成核心表结构与迁移：`bridge / inspection_batch / media_asset / batch_item / inference_task / inference_result / detection / review_record / alert_event`
+- 已完成核心表结构与迁移：`bridge / inspection_batch / media_asset / batch_item / inference_task / inference_result / detection / review_record / alert_event / ops_audit_log / ops_config`
 - 已完成 `/api/v1/bridges`、`/api/v1/batches`、`/api/v1/batch-items`、`/api/v1/tasks` 基础接口
 - 已完成本地异步 worker 轮询与任务重试机制
 - 已完成批次统计接口与 Phase 5 后端核心测试
+- 已完成 `detections / reviews / alerts` 业务 API 与运营支撑接口
+- 已完成规则型自动预警触发（按病害数量阈值与重点类别命中）
+- 已完成病害检索、复核记录、预警列表的排序与组合筛选
+- 已完成企业化前端 ops 工作台：运营总览、批次中心、病害检索、复核中心、告警中心、系统设置
+- 已完成桥梁资产作为一级入口的 UX 重构
+- 已完成批次详情项级展示与增强检测结果透出
+- 已完成共享页面壳统一与头部语义收口
+- 已完成历史流程精简与 lab 死状态清理
+- 已完成 Phase 5 后端单元测试与路由契约测试
 
 ### 下一步执行顺序
 
-1. 完成企业化 dashboard 主入口改造（默认进入 `ops` 流程）
-2. 完成 `批次中心 / 病害检索 / 复核中心 / 告警中心 / 设置` 页面骨架与导航收口
-3. 完成 `detections / reviews / alerts` 业务 API 与前端页面联调收口
-4. 完善数据库检索与复核、预警状态流转
+1. 推进 Phase 6 稳定性指标埋点与看板基础（成功率、重试恢复率、P50/P95）
+2. 落地评级与优先级规则引擎首版（JTG 口径）
+3. 补齐 critical finding 与告警时效字段及筛选能力
+4. 推进前端运营效率视图（高风险优先、复核积压、时效看板）
+5. 推进最小工单接口与结构化导出规范
 
 ## 阶段六：业务稳定性与决策能力优化
 
@@ -86,11 +96,12 @@
 
 ### 当前阶段结论
 
-- `Phase 6` 已定义并进入开工准备
+- `Phase 6` 已进入优化实施阶段，首版稳定性指标与规则引擎待落地
 
 ### 下一步执行顺序
 
-1. 建立稳定性指标基线并完成第一轮任务链路优化
-2. 落地评级与优先级规则引擎的首版数据模型和接口
+1. 建立稳定性指标基线并完成第一轮任务链路优化（成功率、重试恢复率、P50/P95 时延）
+2. 落地评级与优先级规则引擎的首版数据模型和接口（JTG 口径）
 3. 补齐 critical finding 与告警时效字段及筛选能力
-4. 推进前端运营效率视图与外部工单接口联调
+4. 推进前端运营效率视图（高风险优先、复核积压、时效看板）
+5. 推进最小工单接口联调与结构化导出规范

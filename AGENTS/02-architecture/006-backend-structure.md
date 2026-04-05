@@ -17,11 +17,13 @@
 
 后端按职责分层，不把所有逻辑塞进路由。
 
-- `API` 层：路由、参数、校验、状态码
-- `Service` 层：任务编排、调用适配层、组织返回结果
-- `Model Adapter` 层：模型加载、版本切换、后端切换、屏蔽实现差异
-- `Postprocess` 层：结果标准化、`Mask`、量化字段、可视化
-- `Storage` 层：原图、`JSON`、叠加图、任务记录、日志
+- `API` 层：路由、参数、校验、状态码（`routes.py` 遗留接口 + `v1_routes.py` Phase 5 接口）
+- `Service` 层：任务编排、调用适配层、组织返回结果（predict_service、result_service、batch_service、task_service、llm_service）
+- `Model Adapter` 层：模型加载、版本切换、后端切换、屏蔽实现差异（4 种 Runner + 工厂注册 + LRU 管理）
+- `Postprocess` 层：结果标准化、`Mask`、量化字段、可视化（output_adapter、category_mapper、metrics_calculator）
+- `Storage` 层：原图、`JSON`、叠加图、任务记录、日志（local artifact store）
+- `DB` 层：`SQLAlchemy 2.0` + `Alembic` + 13 个 ORM 模型，承接结构化查询（PostgreSQL 生产 / SQLite 开发）
+- `Async Worker` 层：`task_worker` 后台轮询、任务入队、重试、告警触发
 - `LLM Service` 层：AI专家诊断、流式markdown输出
 - `Metrics Calculator` 层：物理测量计算（长度mm、宽度mm、面积mm²）
 
@@ -54,15 +56,63 @@
 - 保存失败状态
 - 支持历史查询
 
-## 最小接口
+## 接口清单
 
-- `POST /predict`
-- `POST /predict-batch`
-- `GET /results/{id}`
-- `GET /results/{id}/overlay`
-- `GET /tasks/{id}`
+### Legacy 接口（`routes.py`，单图演示路径）
+
 - `GET /health`
+- `GET /models`
+- `POST /predict`
+- `GET /results/{result_id}`
+- `GET /results/{result_id}/overlay`
+- `GET /results/{result_id}/diagnosis`
 - `POST /diagnosis/stream`（LLM流式诊断）
+
+### Phase 5 接口（`v1_routes.py`，真实巡检路径）
+
+**桥梁资产**：
+- `POST /api/v1/bridges` — 创建桥梁
+- `GET /api/v1/bridges` — 桥梁列表
+- `GET /api/v1/bridges/{bridge_id}` — 桥梁详情
+- `DELETE /api/v1/bridges/{bridge_id}` — 删除桥梁
+
+**批次工作流**：
+- `POST /api/v1/batches` — 创建批次
+- `GET /api/v1/batches` — 批次列表
+- `GET /api/v1/batches/{batch_id}` — 批次详情
+- `DELETE /api/v1/batches/{batch_id}` — 删除批次
+- `GET /api/v1/batches/{batch_id}/stats` — 批次统计
+- `POST /api/v1/batches/{batch_id}/ingest` — 批量图片入库
+- `GET /api/v1/batches/{batch_id}/items` — 批次条目列表
+- `GET /api/v1/batches/{batch_id}/items/{item_id}` — 条目详情
+- `GET /api/v1/batches/{batch_id}/items/{item_id}/result` — 条目推理结果
+
+**任务管理**：
+- `GET /api/v1/tasks/{task_id}` — 任务详情
+- `POST /api/v1/tasks/{task_id}/process` — 触发任务处理
+- `POST /api/v1/tasks/{task_id}/retry` — 任务重试
+
+**病害检索**：
+- `GET /api/v1/detections` — 检测列表（支持排序/筛选）
+
+**人工复核**：
+- `POST /api/v1/reviews` — 创建复核记录
+- `GET /api/v1/reviews` — 复核列表
+- `GET /api/v1/reviews/{review_id}` — 复核详情
+
+**预警事件**：
+- `POST /api/v1/alerts` — 创建告警
+- `GET /api/v1/alerts` — 告警列表
+- `GET /api/v1/alerts/{alert_id}` — 告警详情
+- `PUT /api/v1/alerts/{alert_id}/status` — 状态更新
+- `POST /api/v1/alerts/bulk` — 批量操作
+- `GET /api/v1/alerts/rules` — 告警规则配置
+- `PUT /api/v1/alerts/rules` — 更新告警规则
+
+**运营支撑**：
+- `GET /api/v1/ops/metrics` — 运营指标
+- `GET /api/v1/ops/audit-logs` — 审计日志
+- `GET /api/v1/ops/config` — 运营配置
 
 ## LLM智能诊断
 
@@ -122,8 +172,8 @@
 
 ## 存储策略
 
-- 第一阶段只用本地文件系统
-- 结果、叠加图、日志先落本地
+- 本地文件系统：原始图片、叠加图、JSON 结果产物
+- PostgreSQL（生产）/ SQLite（开发）：结构化数据（桥梁、批次、任务、检测、复核、告警、审计）
 - 用抽象接口隔离未来云端存储
 
 ## 状态模型
@@ -132,7 +182,9 @@
 - `running`
 - `success`
 - `failed`
-- 批量可扩展 `partial_success`
+- `partial_success`（批量部分成功）
+- `retried`（已重试）
+- `cancelled`（已取消）
 
 ## 错误返回
 
@@ -151,7 +203,33 @@
 
 前端看到的应始终是“系统结果”，而不是“模型原始输出”。
 
-## 与算法层的关系
+## Runner 类型
+
+后端当前支持 4 种 Runner，通过 `factory.py` 注册表和 `manager.py` LRU 管理：
+
+- `mock_runner` — 开发调试用，返回模拟检测结果
+- `ultralytics_runner` — 真实 YOLOv8 推理，加载 `.pt` 权重
+- `fusion_runner` — 双模型融合推理（桥梁通用检测模型 + 渗水专项检测模型），渗水类结果优先采用专项模型，其余由通用模型负责，输出来源标注（`source_model`）
+- `enhancement_runner` — 双分支增强推理，对同一图片并行跑两个模型后合并结果
+
+## 数据库模型
+
+当前 13 个 ORM 模型（`app/db/models/`）：
+
+- `bridge.py` — 桥梁资产（名称、位置、类型、状态）
+- `inspection_batch.py` — 巡检批次（关联桥梁、批次状态、统计字段）
+- `media_asset.py` — 媒体资产（原始图片、叠加图、产物路径）
+- `batch_item.py` — 批次条目（批次内的单张图片记录）
+- `inference_task.py` — 推理任务（状态机：pending/running/success/failed/retried）
+- `inference_result.py` — 推理结果（统一协议 JSON、模型版本、耗时）
+- `detection.py` — 检测明细（类别、置信度、bbox、metrics、来源模型）
+- `review_record.py` — 人工复核记录（复核人、结论、备注、时间）
+- `alert_event.py` — 预警事件（触发规则、级别、状态、处置时效）
+- `ops_audit_log.py` — 运营审计日志（操作人、动作、目标、时间）
+- `ops_config.py` — 运营配置（告警规则、阈值、动态参数）
+- `mixins.py` — 公共字段混入（created_at、updated_at、soft delete）
+
+## 存储策略
 
 后端对算法层的核心约束是：
 

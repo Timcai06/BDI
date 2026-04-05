@@ -18,7 +18,7 @@
 2. `../01-product/002-prd.md`
 3. `../01-product/003-app-flow.md`
 4. `../02-architecture/004-tech-stack.md`
-5. `../02-architecture/006-backend-structure.md`
+5. `../02-architecture/006-backend-structure.md`（注：接口列表需对照 `app/api/routes.py` 和 `v1_routes.py` 实际代码）
 6. `../02-architecture/007-architecture-compatibility.md`
 7. `../02-architecture/005-frontend-guidelines.md`
 8. `../03-execution/008-implementation-plan.md`
@@ -64,10 +64,21 @@
 
 - `Phase 2` 已完成
 - `Phase 3` 已完成
-- `Phase 4` 已全部完成：多模型骨架、第二模型验证机制、批量与可用性提示已落地
-- `Phase 5` 正式启动：真实巡检业务流程系统化
-- `Phase 6` 已定义并启动：业务稳定性与决策能力优化
-- 当前重点：稳定性指标、规则引擎、critical finding 时效追踪、运营处置效率提升
+- `Phase 4` 已全部完成：多模型骨架、双模型融合（通用+渗水专项）、批量与可用性提示已落地
+- `Phase 5` 后端核心链路 + 前端 ops 工作台已基本收口：桥梁资产管理、批次工作流、异步任务、病害检索、人工复核、预警事件、运营指标
+- `Phase 6` 已定义并进入优化实施阶段：业务稳定性与决策能力优化
+- 当前重点：Phase 6 稳定性指标基线、规则引擎首版、critical finding 时效追踪、运营处置效率视图
+
+## 最新 UI 状态
+
+- 侧边栏新增"桥梁资产"导航入口（位于运营总览与批次工作台之间）
+- 新增 `/dashboard/bridges` 桥梁资产列表页与 `/dashboard/bridges/[bridgeId]` 资产驾驶舱详情页
+- Ops 工作台采用 Bento 式分步导航布局：左侧桥梁资产选择（第一阶段）→ 右侧批次工作台（第二阶段），中间动画箭头连接
+- 批次摘要栏改为可折叠设计，含图标化指标卡片与动画进度条
+- 巡检档案中心（历史页）新增桥梁资产筛选器与单图库切换按钮
+- 全量页面完成中文化：英文标签替换为中文，按钮图标化，圆角统一升级至 `rounded-[2.5rem]`
+- 全面接入 Framer Motion 动画：页面入场、状态提示、进度条、折叠面板
+- 预测客户端增加 demo 降级：无后端时自动回退到演示产物路径
 
 ## 当前项目定位
 

@@ -6,14 +6,21 @@
 
 ## 前端
 
-- `Next.js`
+- `Next.js 16`
+- `React 19`
 - `TypeScript`
-- `Tailwind CSS`
+- `Tailwind CSS 4`
+- `Framer Motion`
+- `react-markdown`（LLM 诊断报告渲染）
+- `Vitest`（前端测试）
 
 ## 后端
 
 - `FastAPI`
 - `Pydantic`
+- `SQLAlchemy 2.0`
+- `Alembic`
+- `psycopg`（PostgreSQL 驱动）
 - `OpenAI`（LLM智能诊断API调用）
 - `opencv-python-headless`（图像处理）
 - `python-dotenv`（环境变量配置）
@@ -30,9 +37,8 @@
 
 ## 存储
 
-- 第一阶段以本地文件存储为主
-- 保存 `JSON` 结果文件
-- 保存可视化叠加图
+- PostgreSQL（生产）/ SQLite（开发）：结构化数据（桥梁、批次、任务、检测、复核、告警、审计）
+- 本地文件存储：原始图片、JSON 结果、叠加图产物
 - 结构上预留未来接 `Supabase` 或其他 BaaS
 
 ## 部署
