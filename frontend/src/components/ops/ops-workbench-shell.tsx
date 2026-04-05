@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
@@ -593,12 +592,6 @@ export function OpsWorkbenchShell() {
               : "WORKBENCH ACTIONS / SELECT OR CREATE A BATCH"}
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/dashboard/history"
-              className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-white/65 transition-all hover:bg-white/10 hover:text-white"
-            >
-              历史档案
-            </Link>
             {selectedBatch ? (
               <button
                 onClick={handleDeleteCurrentBatch}
@@ -608,12 +601,6 @@ export function OpsWorkbenchShell() {
                 {deletingBatch ? "删除中..." : "删除当前批次"}
               </button>
             ) : null}
-            <button
-              onClick={() => setRefreshTick((v) => v + 1)}
-              className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-white/70 transition-all hover:bg-white/10 hover:text-white"
-            >
-              刷新数据
-            </button>
             <button
               onClick={() => setIsWizardOpen(true)}
               className="rounded-xl bg-cyan-500 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-black transition-all hover:bg-cyan-400 active:scale-95"

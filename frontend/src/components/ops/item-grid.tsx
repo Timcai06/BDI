@@ -23,10 +23,12 @@ interface ItemGridProps {
 
 function renderStatusBadge(status: string): React.ReactElement {
   const tones: Record<string, string> = {
-    succeeded: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
+    succeeded: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
     failed: "bg-rose-500/10 text-rose-400 border-rose-500/20",
     running: "bg-sky-500/10 text-sky-400 border-sky-500/20 animate-pulse",
-    queued: "bg-white/5 text-white/40 border-white/10"
+    queued: "bg-amber-500/10 text-amber-300 border-amber-500/20",
+    pending: "bg-white/5 text-white/40 border-white/10",
+    reviewed: "bg-cyan-500/10 text-cyan-300 border-cyan-500/20"
   };
   const tone = tones[status] ?? "bg-white/5 text-white/40 border-white/10";
   return (
@@ -142,11 +144,6 @@ export function ItemGrid({
         <table className="w-full text-left border-collapse">
           <thead className="sticky top-0 z-10 bg-[#05080A]/80 backdrop-blur-xl border-b border-white/10 shadow-xl">
             <tr className="text-[9px] font-black uppercase tracking-[0.2em] text-white/30">
-              <th className="px-6 py-4">
-                 <div className="flex items-center justify-center">
-                   <div className="h-3 w-3 rounded border border-white/20" />
-                 </div>
-              </th>
               <th className="px-6 py-4 font-black">MATERIAL / PATH</th>
               <th className="px-6 py-4 text-center">STATUS</th>
               <th className="px-6 py-4">TASK CONTEXT</th>
@@ -162,18 +159,9 @@ export function ItemGrid({
               return (
                 <tr
                   key={item.id}
-                  className={`group transition-all duration-300 ${isSelected ? 'bg-cyan-500/[0.03]' : 'hover:bg-white/[0.02]'}`}
+                  onClick={() => onToggleSelectItem(item.id)}
+                  className={`group cursor-pointer transition-all duration-300 ${isSelected ? 'bg-cyan-500/[0.03]' : 'hover:bg-white/[0.02]'}`}
                 >
-                  <td className="px-6 py-5">
-                    <div className="flex items-center justify-center">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => onToggleSelectItem(item.id)}
-                        className="h-4 w-4 rounded-md border-white/10 bg-black/40 text-cyan-500 focus:ring-cyan-500/20 cursor-pointer"
-                      />
-                    </div>
-                  </td>
                   <td className="px-6 py-5">
                     <div className="flex flex-col gap-1.5">
                       <span className="text-xs font-bold text-white/80 group-hover:text-white transition-colors">{displayName}</span>
@@ -185,11 +173,14 @@ export function ItemGrid({
                     </div>
                   </td>
                   <td className="px-6 py-5 text-center">
-                    {renderStatusBadge(item.processing_status)}
+                    <div className="flex flex-col items-center gap-1.5">
+                      {renderStatusBadge(item.processing_status)}
+                      {item.latest_task_status ? renderStatusBadge(item.latest_task_status) : null}
+                    </div>
                   </td>
                   <td className="px-6 py-5">
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[9px] font-black uppercase tracking-tighter text-white/30">
-                      <span>Task: <span className="text-white/50">{item.latest_task_status ?? "-"}</span></span>
+                      <span>Task: <span className="text-white/50">{item.latest_task_id ? item.latest_task_id.slice(0, 8) : "-"}</span></span>
                       <span>Retry: <span className="text-white/50">{item.latest_task_attempt_no ?? "0"}</span></span>
                       <span className="col-span-2">Policy: <span className="text-cyan-400/40">{item.model_policy ?? "default"}</span></span>
                     </div>
@@ -202,17 +193,18 @@ export function ItemGrid({
                        </div>
                        <div className="w-px h-6 bg-white/5 self-center" />
                        <div className="flex flex-col gap-1 items-center">
-                         <span className={`text-[14px] font-bold tabular-nums ${item.review_status === 'reviewed' ? 'text-cyan-400/60' : 'text-white/20'}`}>
-                           {item.review_status === 'reviewed' ? 'Y' : 'N'}
-                         </span>
-                         <span className="text-[8px] font-black uppercase tracking-tighter text-white/20">Rev</span>
+                         {renderStatusBadge(item.review_status === "reviewed" ? "reviewed" : "pending")}
+                         <span className="text-[8px] font-black uppercase tracking-tighter text-white/20">Review</span>
                        </div>
                     </div>
                   </td>
                   <td className="px-6 py-5 text-right">
                     {item.latest_task_id && item.processing_status === "failed" ? (
                       <button
-                        onClick={() => onRetryTask(item.latest_task_id!)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onRetryTask(item.latest_task_id!);
+                        }}
                         disabled={retryingTaskId === item.latest_task_id}
                         className="group/btn relative px-4 py-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 text-[9px] font-black uppercase tracking-widest text-rose-400 hover:bg-rose-500/20 transition-all disabled:opacity-30 overflow-hidden"
                       >
@@ -231,7 +223,7 @@ export function ItemGrid({
 
             {items.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-6 py-20 text-center">
+                <td colSpan={5} className="px-6 py-20 text-center">
                   <div className="flex flex-col items-center gap-3 animate-pulse">
                      <div className="h-8 w-8 rounded-full border border-white/5 bg-white/[0.02] flex items-center justify-center">
                         <div className="h-1.5 w-1.5 rounded-full bg-white/10" />
