@@ -12,12 +12,10 @@ import {
   getV1Task,
   getV1BatchStats,
   ingestV1BatchItems,
-  listV1Alerts,
   listV1BatchItems,
   listV1Batches,
   listV1Bridges,
   listV1Detections,
-  listV1Reviews,
   retryV1Task
 } from "@/lib/predict-client";
 import { BatchHeader } from "./batch-header";
@@ -27,13 +25,11 @@ import { IngestionWizard } from "./ingestion-wizard";
 import type { BatchWizardPayload } from "./ingestion-wizard";
 import { BatchEmptyState } from "./batch-empty-state";
 import type {
-  AlertV1,
   BatchItemV1,
   BatchStatsV1Response,
   BatchV1,
   BridgeV1,
-  DetectionRecordV1,
-  ReviewRecordV1
+  DetectionRecordV1
 } from "@/lib/types";
 
 type FileWithRelativePath = File & { webkitRelativePath?: string };
@@ -109,20 +105,11 @@ export function OpsWorkbenchShell() {
   const batchItemLimit = 50;
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [detections, setDetections] = useState<DetectionRecordV1[]>([]);
-  const [reviews, setReviews] = useState<ReviewRecordV1[]>([]);
-  const [alerts, setAlerts] = useState<AlertV1[]>([]);
 
   const [category, setCategory] = useState("");
   const [minConfidence, setMinConfidence] = useState("0.0");
   const [detectionSortBy, setDetectionSortBy] = useState<"created_at" | "confidence" | "area_mm2">("created_at");
   const [detectionSortOrder, setDetectionSortOrder] = useState<"asc" | "desc">("desc");
-
-  const [reviewSortBy, setReviewSortBy] = useState<"reviewed_at" | "created_at">("reviewed_at");
-  const [reviewSortOrder, setReviewSortOrder] = useState<"asc" | "desc">("desc");
-
-  const [alertStatusFilter, setAlertStatusFilter] = useState("");
-  const [alertSortBy, setAlertSortBy] = useState<"triggered_at" | "created_at" | "updated_at">("triggered_at");
-  const [alertSortOrder, setAlertSortOrder] = useState<"asc" | "desc">("desc");
 
   const visibleItems = useMemo(
     () => (showFailedItemsOnly ? items.filter((item) => item.processing_status === "failed") : items),
@@ -136,11 +123,6 @@ export function OpsWorkbenchShell() {
     const urlMinConfidence = searchParams.get("minConfidence");
     const urlDetSortBy = searchParams.get("dSortBy");
     const urlDetSortOrder = searchParams.get("dSortOrder");
-    const urlReviewSortBy = searchParams.get("rSortBy");
-    const urlReviewSortOrder = searchParams.get("rSortOrder");
-    const urlAlertStatus = searchParams.get("aStatus");
-    const urlAlertSortBy = searchParams.get("aSortBy");
-    const urlAlertSortOrder = searchParams.get("aSortOrder");
     const urlPathPrefix = searchParams.get("pathPrefix");
 
     if (batchId) {
@@ -160,21 +142,6 @@ export function OpsWorkbenchShell() {
     }
     if (urlDetSortOrder === "asc" || urlDetSortOrder === "desc") {
       setDetectionSortOrder(urlDetSortOrder);
-    }
-    if (urlReviewSortBy === "reviewed_at" || urlReviewSortBy === "created_at") {
-      setReviewSortBy(urlReviewSortBy);
-    }
-    if (urlReviewSortOrder === "asc" || urlReviewSortOrder === "desc") {
-      setReviewSortOrder(urlReviewSortOrder);
-    }
-    if (urlAlertStatus !== null) {
-      setAlertStatusFilter(urlAlertStatus);
-    }
-    if (urlAlertSortBy === "triggered_at" || urlAlertSortBy === "created_at" || urlAlertSortBy === "updated_at") {
-      setAlertSortBy(urlAlertSortBy);
-    }
-    if (urlAlertSortOrder === "asc" || urlAlertSortOrder === "desc") {
-      setAlertSortOrder(urlAlertSortOrder);
     }
     if (urlPathPrefix !== null) {
       setRelativePathPrefix(urlPathPrefix);
@@ -234,21 +201,6 @@ export function OpsWorkbenchShell() {
     if (detectionSortOrder !== "desc") {
       next.set("dSortOrder", detectionSortOrder);
     }
-    if (reviewSortBy !== "reviewed_at") {
-      next.set("rSortBy", reviewSortBy);
-    }
-    if (reviewSortOrder !== "desc") {
-      next.set("rSortOrder", reviewSortOrder);
-    }
-    if (alertStatusFilter) {
-      next.set("aStatus", alertStatusFilter);
-    }
-    if (alertSortBy !== "triggered_at") {
-      next.set("aSortBy", alertSortBy);
-    }
-    if (alertSortOrder !== "desc") {
-      next.set("aSortOrder", alertSortOrder);
-    }
     if (relativePathPrefix.trim()) {
       next.set("pathPrefix", relativePathPrefix.trim());
     }
@@ -265,11 +217,6 @@ export function OpsWorkbenchShell() {
     minConfidence,
     detectionSortBy,
     detectionSortOrder,
-    reviewSortBy,
-    reviewSortOrder,
-    alertStatusFilter,
-    alertSortBy,
-    alertSortOrder,
     relativePathPrefix,
     pathname,
     router,
@@ -337,8 +284,6 @@ export function OpsWorkbenchShell() {
       setBatchItemTotal(0);
       setSelectedItemIds([]);
       setDetections([]);
-      setReviews([]);
-      setAlerts([]);
       return;
     }
 
@@ -346,7 +291,7 @@ export function OpsWorkbenchShell() {
       setLoading(true);
       setError(null);
       try {
-        const [statsResp, itemsResp, detectionsResp, reviewsResp, alertsResp] = await Promise.all([
+        const [statsResp, itemsResp, detectionsResp] = await Promise.all([
           getV1BatchStats(selectedBatchId),
           listV1BatchItems(selectedBatchId, batchItemLimit, batchItemOffset, relativePathPrefix.trim() || undefined),
           listV1Detections({
@@ -355,21 +300,6 @@ export function OpsWorkbenchShell() {
             minConfidence: minConfidence ? Number(minConfidence) : undefined,
             sortBy: detectionSortBy,
             sortOrder: detectionSortOrder,
-            limit: 100,
-            offset: 0
-          }),
-          listV1Reviews({
-            batchId: selectedBatchId,
-            sortBy: reviewSortBy,
-            sortOrder: reviewSortOrder,
-            limit: 100,
-            offset: 0
-          }),
-          listV1Alerts({
-            batchId: selectedBatchId,
-            statusFilter: alertStatusFilter || undefined,
-            sortBy: alertSortBy,
-            sortOrder: alertSortOrder,
             limit: 100,
             offset: 0
           })
@@ -386,8 +316,6 @@ export function OpsWorkbenchShell() {
           current.filter((itemId) => itemsResp.items.some((item) => item.id === itemId))
         );
         setDetections(detectionsResp.items);
-        setReviews(reviewsResp.items);
-        setAlerts(alertsResp.items);
         setLastRefreshedAt(new Date().toISOString());
         setRecentPathPrefixes((current) =>
           mergeRecentPathPrefixes(
@@ -417,11 +345,6 @@ export function OpsWorkbenchShell() {
     minConfidence,
     detectionSortBy,
     detectionSortOrder,
-    reviewSortBy,
-    reviewSortOrder,
-    alertStatusFilter,
-    alertSortBy,
-    alertSortOrder,
     relativePathPrefix,
     batchItemOffset,
     refreshTick
