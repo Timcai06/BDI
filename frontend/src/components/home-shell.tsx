@@ -27,7 +27,6 @@ import {
   predictImage
 } from "@/lib/predict-client";
 import {
-  MAX_UPLOAD_SIZE_MB,
   getUploadSizeError
 } from "@/lib/upload-validation";
 import type { PredictState, PredictionResult } from "@/lib/types";
@@ -64,7 +63,6 @@ export function HomeShell() {
   const [isDragging, setIsDragging] = useState(false);
   const [confidence, setConfidence] = useState(0.45);
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
-  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
 
   const [exportOverlay, setExportOverlay] = useState(true);
   const [enhance, setEnhance] = useState(true);
@@ -84,9 +82,7 @@ export function HomeShell() {
     type: ErrorType;
     message: string;
   } | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
   const [, setValidationErrors] = useState<ValidationError[]>([]);
-  const MAX_RETRIES = 3;
   const [categoryFilter, setCategoryFilter] = useState("全部");
   const [minConfidence, setMinConfidence] = useState(0.0);
   const [selectedDetectionId, setSelectedDetectionId] = useState<string | null>(null);
@@ -308,7 +304,6 @@ export function HomeShell() {
       
       setValidationErrors([]);
       setLastError(null);
-      setRetryCount(0);
       if (previewUrlRef.current) {
         URL.revokeObjectURL(previewUrlRef.current);
       }
@@ -330,7 +325,6 @@ export function HomeShell() {
     setStatus(initialState);
     setValidationErrors([]);
     setLastError(null);
-    setRetryCount(0);
   }
 
   // File validation helper
@@ -362,10 +356,7 @@ export function HomeShell() {
 
   const selectedModel =
     availableModels.find((model) => model.model_version === selectedModelVersion) ?? null;
-  const selectedModelSupportsMasks = selectedModel?.supports_masks ?? true;
   const selectedModelSupportsOverlay = selectedModel?.supports_overlay ?? true;
-  const selectedModelSupportsSlicedInference =
-    selectedModel?.supports_sliced_inference ?? false;
 
   async function handleRerunCurrentImage() {
     if (!selectedFile) {

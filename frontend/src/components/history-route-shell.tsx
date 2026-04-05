@@ -51,7 +51,6 @@ export function HistoryRouteShell() {
   const [historySortMode, setHistorySortMode] = useState<HistorySortMode>(
     (searchParams.get("sort") as HistorySortMode) || "newest",
   );
-  const [showLegacyHistory, setShowLegacyHistory] = useState(searchParams.get("legacy") === "1");
 
   const [batches, setBatches] = useState<BatchV1[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState(searchParams.get("batchId") ?? "");
@@ -81,7 +80,6 @@ export function HistoryRouteShell() {
     const params = new URLSearchParams();
     if (selectedBatchId) params.set("batchId", selectedBatchId);
     if (batchOffset > 0) params.set("batchOffset", String(batchOffset));
-    if (showLegacyHistory) params.set("legacy", "1");
     if (historySearchQuery) params.set("search", historySearchQuery);
     if (historyCategoryFilter !== "全部") params.set("category", historyCategoryFilter);
     if (historySortMode !== "newest") params.set("sort", historySortMode);
@@ -94,7 +92,6 @@ export function HistoryRouteShell() {
     historySortMode,
     pathname,
     selectedBatchId,
-    showLegacyHistory,
   ]);
 
   const getHistoryPreviewUrl = useCallback(
@@ -184,7 +181,6 @@ export function HistoryRouteShell() {
     const params = new URLSearchParams();
     if (selectedBatchId) params.set("batchId", selectedBatchId);
     if (batchOffset > 0) params.set("batchOffset", String(batchOffset));
-    if (showLegacyHistory) params.set("legacy", "1");
     if (historySearchQuery) params.set("search", historySearchQuery);
     if (historyCategoryFilter !== "全部") params.set("category", historyCategoryFilter);
     if (historySortMode !== "newest") params.set("sort", historySortMode);
@@ -198,7 +194,6 @@ export function HistoryRouteShell() {
     pathname,
     router,
     selectedBatchId,
-    showLegacyHistory,
   ]);
 
   async function handleDeleteHistory(imageId: string) {
@@ -298,13 +293,9 @@ export function HistoryRouteShell() {
 
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/6 bg-white/[0.025] px-4 py-3 text-sm text-white/55">
               <span>{status.message}</span>
-              <button
-                type="button"
-                onClick={() => setShowLegacyHistory((current) => !current)}
-                className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-2 text-xs font-bold text-cyan-100 transition-all hover:bg-cyan-500/20"
-              >
-                {showLegacyHistory ? "收起单图历史" : "展开单图历史"}
-              </button>
+              <span className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-white/45">
+                批次视图与单图历史已统一展示
+              </span>
             </div>
 
             {historyError ? (
@@ -440,43 +431,47 @@ export function HistoryRouteShell() {
             </section>
 
             <div className="min-h-0 flex-1">
-              {showLegacyHistory ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.3)] lg:p-6">
-                  <HistoryPanel
-                    items={historyItems}
-                    totalCount={historyTotal}
-                    loading={historyLoading}
-                    errorMessage={historyError}
-                    deletingImageId={deletingImageId}
-                    deleteSuccessMessage={deleteSuccessMessage}
-                    searchQuery={historySearchQuery}
-                    categoryFilter={historyCategoryFilter}
-                    sortMode={historySortMode}
-                    availableCategories={availableHistoryCategories}
-                    getImageUrl={getHistoryPreviewUrl}
-                    onDeleteRequest={(imageId) => {
-                      void handleDeleteHistory(imageId);
-                    }}
-                    onBatchDelete={handleBatchDeleteHistory}
-                    onBatchExportJson={(imageIds) => handleBatchExportHistory(imageIds, "json")}
-                    onBatchExportOverlay={(imageIds) => handleBatchExportHistory(imageIds, "overlay")}
-                    onSearchQueryChange={setHistorySearchQuery}
-                    onCategoryFilterChange={setHistoryCategoryFilter}
-                    onSortModeChange={setHistorySortMode}
-                    onOpenUploader={() => router.push("/dashboard/lab-single")}
-                    onRefresh={() => {
-                      void loadHistory();
-                    }}
-                    onSelect={(imageId) => {
-                      router.push(`/dashboard/history/${encodeURIComponent(imageId)}?returnTo=${encodeURIComponent(currentHistoryHref)}`);
-                    }}
-                  />
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.3)] lg:p-6">
+                <div className="mb-5 flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/30">
+                      单图历史 / Individual Result Archive
+                    </h2>
+                    <p className="mt-2 text-sm text-white/45">
+                      原始历史记录、筛选、批量导出与详情跳转统一保留在这里。
+                    </p>
+                  </div>
                 </div>
-              ) : (
-                <div className="rounded-2xl border border-white/6 bg-white/[0.02] px-4 py-5 text-sm text-white/45">
-                  默认展示企业批次视图。需要按旧方式查看单图历史时，展开上方“单图历史”即可。
-                </div>
-              )}
+                <HistoryPanel
+                  items={historyItems}
+                  totalCount={historyTotal}
+                  loading={historyLoading}
+                  errorMessage={historyError}
+                  deletingImageId={deletingImageId}
+                  deleteSuccessMessage={deleteSuccessMessage}
+                  searchQuery={historySearchQuery}
+                  categoryFilter={historyCategoryFilter}
+                  sortMode={historySortMode}
+                  availableCategories={availableHistoryCategories}
+                  getImageUrl={getHistoryPreviewUrl}
+                  onDeleteRequest={(imageId) => {
+                    void handleDeleteHistory(imageId);
+                  }}
+                  onBatchDelete={handleBatchDeleteHistory}
+                  onBatchExportJson={(imageIds) => handleBatchExportHistory(imageIds, "json")}
+                  onBatchExportOverlay={(imageIds) => handleBatchExportHistory(imageIds, "overlay")}
+                  onSearchQueryChange={setHistorySearchQuery}
+                  onCategoryFilterChange={setHistoryCategoryFilter}
+                  onSortModeChange={setHistorySortMode}
+                  onOpenUploader={() => router.push("/dashboard/lab-single")}
+                  onRefresh={() => {
+                    void loadHistory();
+                  }}
+                  onSelect={(imageId) => {
+                    router.push(`/dashboard/history/${encodeURIComponent(imageId)}?returnTo=${encodeURIComponent(currentHistoryHref)}`);
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
