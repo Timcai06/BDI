@@ -651,7 +651,7 @@ export function OpsWorkbenchShell() {
   }
 
   return (
-    <div className="relative z-10 flex flex-1 flex-col bg-transparent overflow-hidden">
+    <div className="relative z-10 flex flex-1 flex-col overflow-hidden bg-black/40 backdrop-blur-3xl">
       <BatchHeader 
         batch={selectedBatch} 
         onOpenWizard={() => setIsWizardOpen(true)} 
@@ -681,50 +681,98 @@ export function OpsWorkbenchShell() {
         {!selectedBatchId ? (
           <BatchEmptyState onCreateClick={() => setIsWizardOpen(true)} />
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-700">
             <BatchAnalytics stats={stats} />
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              <div className="rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-4 text-sm text-white/70">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">检索面板</p>
-                <p className="mt-2">Detections: {detections.length}</p>
-                <p>Reviews: {reviews.length}</p>
-                <p>Alerts: {alerts.length}</p>
-                <p>Min Confidence: {minConfidence}</p>
-                <div className="mt-2 flex items-center gap-2">
-                  <button
-                    onClick={() => setMinConfidence("0.0")}
-                    className={`rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${
-                      minConfidence === "0.0"
-                        ? "border-cyan-500/40 bg-cyan-500/20 text-cyan-200"
-                        : "border-white/10 bg-white/5 text-white/60"
-                    }`}
-                  >
-                    全部结果
-                  </button>
-                  <button
-                    onClick={() => setMinConfidence("0.8")}
-                    className={`rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-widest ${
-                      minConfidence === "0.8"
-                        ? "border-cyan-500/40 bg-cyan-500/20 text-cyan-200"
-                        : "border-white/10 bg-white/5 text-white/60"
-                    }`}
-                  >
-                    高置信
-                  </button>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Filter Panel */}
+              <div className="lg:col-span-1 p-5 rounded-2xl border border-white/5 bg-white/[0.02] hover:border-white/20 transition-all group">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 group-hover:text-cyan-400/60 transition-colors">检测检索</p>
+                  <svg className="h-3.5 w-3.5 text-white/10 group-hover:text-cyan-400/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-xs font-medium">
+                    <span className="text-white/40">Detections</span>
+                    <span className="text-white/80 tabular-nums">{detections.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs font-medium">
+                    <span className="text-white/40">Confidence</span>
+                    <span className="text-cyan-400 font-bold">{minConfidence}</span>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setMinConfidence("0.0")}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${
+                        minConfidence === "0.0"
+                          ? "border-cyan-500/40 bg-cyan-500/20 text-cyan-200"
+                          : "border-white/5 bg-white/5 text-white/40 hover:text-white/60 hover:border-white/10"
+                      }`}
+                    >
+                      全部
+                    </button>
+                    <button
+                      onClick={() => setMinConfidence("0.8")}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border ${
+                        minConfidence === "0.8"
+                          ? "border-cyan-500/40 bg-cyan-500/20 text-cyan-200"
+                          : "border-white/5 bg-white/5 text-white/40 hover:text-white/60 hover:border-white/10"
+                      }`}
+                    >
+                      高置信
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div className="rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-4 text-sm text-white/70">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">批量动作</p>
-                <p className="mt-2">当前已选择 {selectedItemIds.length} 项。</p>
-                <p>支持按页选择、只看异常项、批量重试失败任务。</p>
+
+              {/* Action Statistics */}
+              <div className="lg:col-span-1 p-5 rounded-2xl border border-white/5 bg-white/[0.02] hover:border-white/20 transition-all group">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 group-hover:text-amber-400/60 transition-colors">批量动作</p>
+                  <svg className="h-3.5 w-3.5 text-white/10 group-hover:text-amber-400/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-xs font-medium">
+                    <span className="text-white/40">Selected</span>
+                    <span className="text-amber-400 font-bold tabular-nums">{selectedItemIds.length}</span>
+                  </div>
+                  <p className="text-[10px] text-white/20 leading-relaxed italic">支持按页选择并批量重试。优先处理失败项以保持流水线畅通。</p>
+                </div>
               </div>
-              <div className="rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-4 text-sm text-white/70">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">调度状态</p>
-                <p className="mt-2">模型策略：{modelPolicy}</p>
-                <p>采集设备：{sourceDevice}</p>
-                <p>批次创建人：{createdBy}</p>
+
+              {/* Scheduler & Policy */}
+              <div className="lg:col-span-2 p-5 rounded-2xl border border-white/5 bg-white/[0.02] hover:border-white/20 transition-all group relative overflow-hidden">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 group-hover:text-emerald-400/60 transition-colors">调度状态与核心策略</p>
+                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[10px] text-white/20 uppercase font-bold tracking-tighter">Model Policy</p>
+                    <p className="text-xs font-bold text-white/70 mt-0.5 truncate">{modelPolicy}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-white/20 uppercase font-bold tracking-tighter">Collector</p>
+                    <p className="text-xs font-bold text-white/70 mt-0.5 truncate">{sourceDevice}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-white/20 uppercase font-bold tracking-tighter">Operator</p>
+                    <p className="text-xs font-bold text-white/70 mt-0.5 truncate">{createdBy}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-white/20 uppercase font-bold tracking-tighter">Total Items</p>
+                    <p className="text-xs font-bold text-white/70 mt-0.5 tabular-nums">{batchItemTotal}</p>
+                  </div>
+                </div>
+                {/* Background accent */}
+                <div className="absolute -bottom-6 -right-6 h-20 w-20 bg-emerald-500/5 blur-2xl rounded-full pointer-events-none" />
               </div>
             </div>
+
             <ItemGrid 
               items={visibleItems}
               pathFilter={relativePathPrefix}
