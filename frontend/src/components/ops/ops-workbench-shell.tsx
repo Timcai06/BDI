@@ -354,10 +354,6 @@ export function OpsWorkbenchShell() {
     () => batches.find((item) => item.id === selectedBatchId) ?? null,
     [batches, selectedBatchId]
   );
-  const currentBatchPage = Math.floor(batchOffset / batchLimit) + 1;
-  const totalBatchPages = Math.max(1, Math.ceil(batchTotal / batchLimit));
-  const canPrevBatchPage = batchOffset > 0;
-  const canNextBatchPage = batchOffset + batchLimit < batchTotal;
 
   useEffect(() => {
     setBatchItemOffset(0);
@@ -601,45 +597,36 @@ export function OpsWorkbenchShell() {
                 ))}
               </select>
             </div>
-            <div className="flex items-center gap-1 rounded-xl border border-white/5 bg-white/[0.03] p-1">
-              <button
-                disabled={!canPrevBatchPage}
-                onClick={() => setBatchOffset((prev) => Math.max(0, prev - batchLimit))}
-                className="rounded-lg px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white/45 transition-all hover:bg-white/10 hover:text-white disabled:opacity-20"
-              >
-                Prev
-              </button>
-              <span className="px-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-cyan-300/65">
-                {currentBatchPage}/{totalBatchPages}
-              </span>
-              <button
-                disabled={!canNextBatchPage}
-                onClick={() => setBatchOffset((prev) => prev + batchLimit)}
-                className="rounded-lg px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white/45 transition-all hover:bg-white/10 hover:text-white disabled:opacity-20"
-              >
-                Next
-              </button>
-            </div>
-            {selectedBatch ? (
-              <span className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white/46">
-                S {selectedBatch.succeeded_item_count} / F {selectedBatch.failed_item_count} / R {selectedBatch.running_item_count}
-              </span>
-            ) : null}
             <div className="ml-auto flex items-center gap-2">
               {selectedBatch ? (
                 <button
                   onClick={handleDeleteCurrentBatch}
                   disabled={deletingBatch}
-                  className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-1.5 text-[11px] font-bold text-rose-300 transition-all hover:bg-rose-500/20 disabled:opacity-30"
+                  aria-label={deletingBatch ? "正在删除批次" : "删除当前批次"}
+                  title={deletingBatch ? "正在删除批次" : "删除当前批次"}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-500/20 bg-rose-500/10 text-rose-300 transition-all hover:bg-rose-500/20 disabled:opacity-30"
                 >
-                  {deletingBatch ? "删除中..." : "删除"}
+                  {deletingBatch ? (
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <circle cx="12" cy="12" r="9" strokeWidth="2.5" className="opacity-30" />
+                      <path d="M21 12a9 9 0 0 1-9 9" strokeWidth="2.5" strokeLinecap="round" />
+                    </svg>
+                  ) : (
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M6 7h12M9 7v-.8A1.2 1.2 0 0110.2 5h3.6A1.2 1.2 0 0115 6.2V7m-8 0l.7 11a1.2 1.2 0 001.2 1.1h6.2a1.2 1.2 0 001.2-1.1L17 7" />
+                    </svg>
+                  )}
                 </button>
               ) : null}
               <button
                 onClick={() => setIsWizardOpen(true)}
-                className="rounded-lg bg-cyan-500 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-black transition-all hover:bg-cyan-400 active:scale-95"
+                aria-label="新建批次"
+                title="新建批次"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500 text-black transition-all hover:bg-cyan-400 active:scale-95"
               >
-                新建批次
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 5v14m-7-7h14" />
+                </svg>
               </button>
             </div>
           </div>
@@ -778,9 +765,6 @@ export function OpsWorkbenchShell() {
         )}
         <footer className="border-t border-white/5 bg-white/[0.01] px-4 py-4 rounded-2xl">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-white/26">
-              Batch page {currentBatchPage} / {totalBatchPages}
-            </div>
             <div className="text-[10px] font-bold uppercase tracking-widest text-cyan-500/50">
               Total batches {batchTotal}
             </div>
