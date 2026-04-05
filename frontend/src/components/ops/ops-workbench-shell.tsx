@@ -18,8 +18,7 @@ import {
   retryV1Task
 } from "@/lib/predict-client";
 import { BatchHeader } from "./batch-header";
-import { BatchControlDeck } from "./batch-control-deck";
-import { BatchStatusStack } from "./batch-status-stack";
+import { BatchAnalytics } from "./batch-analytics";
 import { ItemGrid } from "./item-grid";
 import { IngestionWizard } from "./ingestion-wizard";
 import { OpsPageLayout } from "./ops-page-layout";
@@ -586,44 +585,91 @@ export function OpsWorkbenchShell() {
           />
         }
       >
-        <BatchControlDeck
-          batches={batches}
-          selectedBatchId={selectedBatchId}
-          onSelectBatch={setSelectedBatchId}
-          onCreateBatch={() => setIsWizardOpen(true)}
-          batchTotal={batchTotal}
-          currentBatchPage={currentBatchPage}
-          totalBatchPages={totalBatchPages}
-          canPrevBatchPage={canPrevBatchPage}
-          canNextBatchPage={canNextBatchPage}
-          onPrevBatchPage={() => setBatchOffset((prev) => Math.max(0, prev - batchLimit))}
-          onNextBatchPage={() => setBatchOffset((prev) => prev + batchLimit)}
-        />
+        <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.18)]">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_auto] xl:items-end">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/30">
+                  批次入口 / Batch Switch
+                </p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h2 className="text-xl font-bold tracking-tight text-white">
+                    {selectedBatch ? selectedBatch.batch_code : "选择一个批次开始"}
+                  </h2>
+                  {selectedBatch ? (
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white/55">
+                      {selectedBatch.status}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="text-sm text-white/38">
+                  这里负责切换当前批次，并保持页面主体聚焦在该批次的状态与素材清单。
+                </p>
+              </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-3">
-          <div className="text-xs uppercase tracking-[0.2em] text-white/35">
-            {selectedBatch
-              ? `CURRENT BATCH / ${selectedBatch.batch_code}`
-              : "WORKBENCH ACTIONS / SELECT OR CREATE A BATCH"}
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            {selectedBatch ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="min-w-[280px] flex-1 rounded-2xl border border-white/10 bg-black/30 p-1.5">
+                  <select
+                    value={selectedBatchId}
+                    onChange={(e) => setSelectedBatchId(e.target.value)}
+                    className="w-full rounded-xl bg-transparent px-3 py-2.5 text-sm font-bold text-white outline-none"
+                  >
+                    <option value="">快速切换批次...</option>
+                    {batches.map((batch) => (
+                      <option key={batch.id} value={batch.id}>
+                        {batch.batch_code} ({batch.status})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 rounded-2xl border border-white/5 bg-white/[0.03] p-1.5">
+                  <button
+                    disabled={!canPrevBatchPage}
+                    onClick={() => setBatchOffset((prev) => Math.max(0, prev - batchLimit))}
+                    className="rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-white/45 transition-all hover:bg-white/10 hover:text-white disabled:opacity-20"
+                  >
+                    Prev
+                  </button>
+                  <span className="px-2 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-300/65">
+                    {currentBatchPage} / {totalBatchPages}
+                  </span>
+                  <button
+                    disabled={!canNextBatchPage}
+                    onClick={() => setBatchOffset((prev) => prev + batchLimit)}
+                    className="rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-white/45 transition-all hover:bg-white/10 hover:text-white disabled:opacity-20"
+                  >
+                    Next
+                  </button>
+                </div>
+
+                {selectedBatch ? (
+                  <div className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3 text-[10px] font-bold uppercase tracking-[0.16em] text-white/42">
+                    成功 {selectedBatch.succeeded_item_count} / 失败 {selectedBatch.failed_item_count} / 运行 {selectedBatch.running_item_count}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 xl:justify-end">
+              {selectedBatch ? (
+                <button
+                  onClick={handleDeleteCurrentBatch}
+                  disabled={deletingBatch}
+                  className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-xs font-bold text-rose-300 transition-all hover:bg-rose-500/20 disabled:opacity-30"
+                >
+                  {deletingBatch ? "删除中..." : "删除当前批次"}
+                </button>
+              ) : null}
               <button
-                onClick={handleDeleteCurrentBatch}
-                disabled={deletingBatch}
-                className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-xs font-bold text-rose-300 transition-all hover:bg-rose-500/20 disabled:opacity-30"
+                onClick={() => setIsWizardOpen(true)}
+                className="rounded-xl bg-cyan-500 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-black transition-all hover:bg-cyan-400 active:scale-95"
               >
-                {deletingBatch ? "删除中..." : "删除当前批次"}
+                创建批次
               </button>
-            ) : null}
-            <button
-              onClick={() => setIsWizardOpen(true)}
-              className="rounded-xl bg-cyan-500 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-black transition-all hover:bg-cyan-400 active:scale-95"
-            >
-              创建批次
-            </button>
+            </div>
           </div>
-        </div>
+        </section>
 
         {error && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300">
@@ -645,11 +691,11 @@ export function OpsWorkbenchShell() {
           <BatchEmptyState onCreateClick={() => setIsWizardOpen(true)} />
         ) : (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-700">
-            <BatchStatusStack batch={selectedBatch} stats={stats} />
+            <BatchAnalytics stats={stats} />
             
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Filter Panel */}
-              <div className="p-5 rounded-2xl border border-white/5 bg-white/[0.02] hover:border-white/20 transition-all group">
+              <div className="lg:col-span-1 p-5 rounded-2xl border border-white/5 bg-white/[0.02] hover:border-white/20 transition-all group">
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 group-hover:text-cyan-400/60 transition-colors">检测检索</p>
                   <svg className="h-3.5 w-3.5 text-white/10 group-hover:text-cyan-400/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -691,7 +737,7 @@ export function OpsWorkbenchShell() {
               </div>
 
               {/* Action Statistics */}
-              <div className="p-5 rounded-2xl border border-white/5 bg-white/[0.02] hover:border-white/20 transition-all group">
+              <div className="lg:col-span-1 p-5 rounded-2xl border border-white/5 bg-white/[0.02] hover:border-white/20 transition-all group">
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 group-hover:text-amber-400/60 transition-colors">批量动作</p>
                   <svg className="h-3.5 w-3.5 text-white/10 group-hover:text-amber-400/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -703,14 +749,36 @@ export function OpsWorkbenchShell() {
                     <span className="text-white/40">Selected</span>
                     <span className="text-amber-400 font-bold tabular-nums">{selectedItemIds.length}</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 text-[10px] font-bold uppercase tracking-[0.12em] text-white/30">
-                    <span>Policy {modelPolicy}</span>
-                    <span>Collector {sourceDevice}</span>
-                    <span>Operator {createdBy}</span>
-                    <span>Total {batchItemTotal}</span>
-                  </div>
                   <p className="text-[10px] text-white/20 leading-relaxed italic">支持按页选择并批量重试。优先处理失败项以保持流水线畅通。</p>
                 </div>
+              </div>
+
+              {/* Scheduler & Policy */}
+              <div className="lg:col-span-2 p-5 rounded-2xl border border-white/5 bg-white/[0.02] hover:border-white/20 transition-all group relative overflow-hidden">
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 group-hover:text-emerald-400/60 transition-colors">调度状态与核心策略</p>
+                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[10px] text-white/20 uppercase font-bold tracking-tighter">Model Policy</p>
+                    <p className="text-xs font-bold text-white/70 mt-0.5 truncate">{modelPolicy}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-white/20 uppercase font-bold tracking-tighter">Collector</p>
+                    <p className="text-xs font-bold text-white/70 mt-0.5 truncate">{sourceDevice}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-white/20 uppercase font-bold tracking-tighter">Operator</p>
+                    <p className="text-xs font-bold text-white/70 mt-0.5 truncate">{createdBy}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-white/20 uppercase font-bold tracking-tighter">Total Items</p>
+                    <p className="text-xs font-bold text-white/70 mt-0.5 tabular-nums">{batchItemTotal}</p>
+                  </div>
+                </div>
+                {/* Background accent */}
+                <div className="absolute -bottom-6 -right-6 h-20 w-20 bg-emerald-500/5 blur-2xl rounded-full pointer-events-none" />
               </div>
             </div>
 
@@ -734,6 +802,16 @@ export function OpsWorkbenchShell() {
             />
           </div>
         )}
+        <footer className="border-t border-white/5 bg-white/[0.01] px-4 py-4 rounded-2xl">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-white/26">
+              Batch page {currentBatchPage} / {totalBatchPages}
+            </div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-cyan-500/50">
+              Total batches {batchTotal}
+            </div>
+          </div>
+        </footer>
       </OpsPageLayout>
 
       <IngestionWizard 
