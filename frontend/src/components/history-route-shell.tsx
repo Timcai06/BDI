@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { DashboardRightRail } from "@/components/dashboard-right-rail";
 import { HistoryPanel } from "@/components/history";
 import { OpsPageHeader } from "@/components/ops/ops-page-header";
 import { getCanonicalCategoryOptions, getDefectLabel } from "@/lib/defect-visuals";
@@ -274,8 +273,7 @@ export function HistoryRouteShell() {
   }
 
   return (
-    <>
-      <section className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden bg-black/40 backdrop-blur-3xl">
+    <section className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden bg-black/40 backdrop-blur-3xl">
         <div className="relative flex-1 overflow-y-auto p-6 lg:p-10">
           <div className="mx-auto flex min-h-full max-w-[1800px] flex-col lg:px-2">
             <OpsPageHeader
@@ -482,33 +480,6 @@ export function HistoryRouteShell() {
             </div>
           </div>
         </div>
-      </section>
-
-      <DashboardRightRail
-        eyebrow="History / Summary"
-        title="列表状态"
-        description="历史档案页保留批次浏览，同时恢复单图历史入口与详情跳转。"
-        sections={[
-          {
-            title: "总记录数",
-            value: `${historyTotal} 条`,
-            hint: "当前历史目录内的全部识别结果。",
-            tone: "sky",
-          },
-          {
-            title: "病害类别",
-            value: `${availableHistoryCategories.length} 类`,
-            hint: "按标准病害语义统计。",
-            tone: "emerald",
-          },
-          {
-            title: "当前批次",
-            value: selectedBatch?.batch_code ?? "未选择",
-            hint: selectedBatch ? `${selectedBatch.succeeded_item_count} 成功 / ${selectedBatch.failed_item_count} 失败` : "请选择一个批次查看清单。",
-            tone: "amber",
-          },
-        ]}
-      />
-    </>
+    </section>
   );
 }
