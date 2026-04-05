@@ -16,7 +16,6 @@ interface IngestionWizardProps {
   isOpen: boolean;
   onClose: () => void;
   bridges: BridgeV1[];
-  onCreateBridge: (code: string, name: string) => Promise<void>;
   onFinish: (bridgeId: string, batchPayload: BatchWizardPayload, files: File[]) => Promise<void>;
   selectedBridgeId: string;
   onSelectedBridgeChange: (id: string) => void;
@@ -27,15 +26,12 @@ export function IngestionWizard({
   isOpen,
   onClose,
   bridges,
-  onCreateBridge,
   onFinish,
   selectedBridgeId,
   onSelectedBridgeChange,
   isLoading
 }: IngestionWizardProps) {
   const [step, setStep] = useState(1);
-  const [bridgeCode, setBridgeCode] = useState("");
-  const [bridgeName, setBridgeName] = useState("");
   const [sourceType, setSourceType] = useState("drone-survey");
   const [inspectionLabel, setInspectionLabel] = useState("");
   const [enhancementMode, setEnhancementMode] = useState<"off" | "auto" | "always">("auto");
@@ -49,10 +45,7 @@ export function IngestionWizard({
   // Step 3: File Upload & Finalize
 
   const handleNext = async () => {
-    if (step === 1 && !selectedBridgeId && bridgeCode && bridgeName) {
-      await onCreateBridge(bridgeCode, bridgeName);
-      setStep(2);
-    } else if (step === 1 && (selectedBridgeId || (bridgeCode && bridgeName))) {
+    if (step === 1 && selectedBridgeId) {
       setStep(2);
     } else if (step === 2) {
       // Logic for creating batch will happen in parent, we just transition UI
@@ -112,8 +105,8 @@ export function IngestionWizard({
                 className="space-y-6"
               >
                 <div>
-                  <h2 className="text-2xl font-light text-white">选择巡检对象</h2>
-                  <p className="text-sm text-white/40 mt-1">请选择本次批次扫描所属的桥梁构件</p>
+                  <h2 className="text-2xl font-light text-white">选择桥梁资产</h2>
+                  <p className="text-sm text-white/40 mt-1">批次属于桥梁资产。若没有桥梁，请先返回桥梁资产页创建。</p>
                 </div>
 
                 <div className="space-y-4">
@@ -130,32 +123,9 @@ export function IngestionWizard({
                       ))}
                     </select>
                   </div>
-
-                  <div className="relative py-4">
-                    <div className="absolute inset-0 flex items-center px-1"><div className="w-full border-t border-white/5" /></div>
-                    <div className="relative flex justify-center text-[10px] font-bold uppercase tracking-widest text-white/20"><span className="bg-[#0B1120] px-3">或者新建桥梁</span></div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-white/30 px-1">桥梁编号</label>
-                      <input
-                        value={bridgeCode}
-                        onChange={(e) => setBridgeCode(e.target.value)}
-                        placeholder="BR-101"
-                        className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none focus:border-cyan-500/50"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-white/30 px-1">桥梁名称</label>
-                      <input
-                        value={bridgeName}
-                        onChange={(e) => setBridgeName(e.target.value)}
-                        placeholder="南京长江大桥"
-                        className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-white outline-none focus:border-cyan-500/50"
-                      />
-                    </div>
-                  </div>
+                  <p className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-white/45">
+                    桥梁资产创建已提升为第一层入口。这里仅为当前桥梁创建批次。
+                  </p>
                 </div>
               </motion.div>
             )}

@@ -4,9 +4,11 @@ import { motion } from "framer-motion";
 
 interface BatchEmptyStateProps {
   onCreateClick: () => void;
+  hasSelectedBridge: boolean;
+  onOpenBridgeAssets: () => void;
 }
 
-export function BatchEmptyState({ onCreateClick }: BatchEmptyStateProps) {
+export function BatchEmptyState({ onCreateClick, hasSelectedBridge, onOpenBridgeAssets }: BatchEmptyStateProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -27,16 +29,16 @@ export function BatchEmptyState({ onCreateClick }: BatchEmptyStateProps) {
 
       <h2 className="mb-3 text-2xl font-light tracking-tight text-white">暂未选择扫描批次</h2>
       <p className="mb-8 max-w-md text-sm leading-relaxed text-white/40">
-        巡检工作台需要先选择一个已有的批次进行分析。您可以从下方列表选择，
-        或者通过点击右侧按钮新建一个批次并导入无人机巡检素材。
+        当前工作流按两层结构组织：先选择桥梁资产，再进入该桥下的新建批次或已有批次。
+        批次不再作为第一层对象单独操作。
       </p>
 
       <div className="flex gap-4">
         <button
-          onClick={onCreateClick}
+          onClick={hasSelectedBridge ? onCreateClick : onOpenBridgeAssets}
           className="group relative flex items-center gap-2 overflow-hidden rounded-xl bg-cyan-500 px-8 py-3.5 text-sm font-bold tracking-widest uppercase text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_32px_rgba(6,182,212,0.4)]"
         >
-          <span className="relative z-10">新建巡检批次</span>
+          <span className="relative z-10">{hasSelectedBridge ? "新建巡检批次" : "前往桥梁资产"}</span>
           <svg className="relative z-10 h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
           </svg>
@@ -47,11 +49,11 @@ export function BatchEmptyState({ onCreateClick }: BatchEmptyStateProps) {
       <div className="mt-12 grid grid-cols-3 gap-8 border-t border-white/5 pt-12">
         <div className="text-center">
           <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-400/60">Step 1</p>
-          <p className="mt-1 text-xs text-white/35">选择/创建桥梁</p>
+          <p className="mt-1 text-xs text-white/35">选择桥梁资产</p>
         </div>
         <div className="text-center">
           <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-400/60">Step 2</p>
-          <p className="mt-1 text-xs text-white/35">定义批次细节</p>
+          <p className="mt-1 text-xs text-white/35">创建该桥下批次</p>
         </div>
         <div className="text-center">
           <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-400/60">Step 3</p>

@@ -232,6 +232,11 @@ class BridgeListResponse(BaseModel):
     offset: int
 
 
+class BridgeDeleteResponse(BaseModel):
+    deleted: bool = True
+    bridge_id: str
+
+
 class BatchCreateRequest(BaseModel):
     bridge_id: str = Field(min_length=1, max_length=64)
     batch_code: Optional[str] = Field(default=None, min_length=1, max_length=128)

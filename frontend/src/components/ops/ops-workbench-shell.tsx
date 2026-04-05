@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 
 import {
-  createV1Bridge,
   createV1Batch,
   deleteV1Batch,
   getV1Task,
@@ -418,26 +417,6 @@ export function OpsWorkbenchShell() {
     }
   }
 
-  async function handleCreateBridge(code: string, name: string) {
-    setActionLoading(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const created = await createV1Bridge({
-        bridgeCode: code.trim(),
-        bridgeName: name.trim()
-      });
-      setNotice(`桥梁创建成功：${created.bridge_code} | ${created.bridge_name}`);
-      setSelectedBridgeId(created.id);
-      setRefreshTick((v) => v + 1);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "桥梁创建失败");
-      throw err;
-    } finally {
-      setActionLoading(false);
-    }
-  }
-
   async function handleIngestItems(batchId: string, files: File[]) {
     setActionLoading(true);
     setError(null);
@@ -613,77 +592,92 @@ export function OpsWorkbenchShell() {
           <BatchHeader />
         }
       >
-        <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 shadow-[0_14px_32px_rgba(0,0,0,0.16)]">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Bridge</span>
-            <div className="min-w-[220px] rounded-xl border border-white/10 bg-black/30 px-2">
-              <select
-                value={selectedBridgeId}
-                onChange={(e) => setSelectedBridgeId(e.target.value)}
-                className="w-full bg-transparent px-2 py-2 text-sm font-bold text-white outline-none"
-              >
-                <option value="">选择桥梁资产...</option>
-                {bridges.map((bridge) => (
-                  <option key={bridge.id} value={bridge.id}>
-                    {bridge.bridge_code} | {bridge.bridge_name}
-                  </option>
-                ))}
-              </select>
+        <section className="space-y-4">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 shadow-[0_14px_32px_rgba(0,0,0,0.16)]">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">第一层 / 桥梁资产</p>
+                <p className="mt-1 text-sm text-white/45">先选择桥梁资产，再进入该桥下的批次工作流。</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/dashboard/bridges"
+                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white/60 hover:bg-white/10 hover:text-white"
+                >
+                  资产列表
+                </Link>
+                {selectedBridge ? (
+                  <Link
+                    href={`/dashboard/bridges/${encodeURIComponent(selectedBridge.id)}`}
+                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white/60 hover:bg-white/10 hover:text-white"
+                  >
+                    资产详情
+                  </Link>
+                ) : null}
+              </div>
             </div>
-            {selectedBridge ? (
-              <Link
-                href={`/dashboard/bridges/${encodeURIComponent(selectedBridge.id)}`}
-                className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-bold text-white/60 hover:bg-white/10 hover:text-white"
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
+              <div className="rounded-xl border border-white/10 bg-black/30 px-2">
+                <select
+                  value={selectedBridgeId}
+                  onChange={(e) => setSelectedBridgeId(e.target.value)}
+                  className="w-full bg-transparent px-2 py-3 text-sm font-bold text-white outline-none"
+                >
+                  <option value="">选择桥梁资产...</option>
+                  {bridges.map((bridge) => (
+                    <option key={bridge.id} value={bridge.id}>
+                      {bridge.bridge_code} | {bridge.bridge_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={() => router.push("/dashboard/bridges")}
+                className="rounded-xl bg-cyan-500 px-4 py-3 text-xs font-bold text-black hover:bg-cyan-400"
               >
-                查看桥梁详情
-              </Link>
-            ) : null}
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">Batch</span>
-            <div className="min-w-[240px] flex-1 rounded-xl border border-white/10 bg-black/30 px-2">
+                新建桥梁资产
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 shadow-[0_14px_32px_rgba(0,0,0,0.16)]">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">第二层 / 批次工作台</p>
+                <p className="mt-1 text-sm text-white/45">批次只属于当前桥梁资产，新建和切换都在这一层完成。</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {selectedBatch ? (
+                  <button
+                    onClick={handleDeleteCurrentBatch}
+                    disabled={deletingBatch}
+                    className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs font-bold text-rose-200 hover:bg-rose-500/20 disabled:opacity-40"
+                  >
+                    {deletingBatch ? "删除中..." : "删除批次"}
+                  </button>
+                ) : null}
+                <button
+                  onClick={() => setIsWizardOpen(true)}
+                  disabled={!selectedBridgeId}
+                  className="rounded-xl bg-cyan-500 px-4 py-2 text-xs font-bold text-black hover:bg-cyan-400 disabled:opacity-40"
+                >
+                  新建批次
+                </button>
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-black/30 px-2">
               <select
                 value={selectedBatchId}
                 onChange={(e) => setSelectedBatchId(e.target.value)}
-                className="w-full bg-transparent px-2 py-2 text-sm font-bold text-white outline-none"
+                className="w-full bg-transparent px-2 py-3 text-sm font-bold text-white outline-none"
               >
-                <option value="">快速切换批次...</option>
+                <option value="">{selectedBridgeId ? "选择当前桥梁的批次..." : "请先选择桥梁资产..."}</option>
                 {batches.map((batch) => (
                   <option key={batch.id} value={batch.id}>
                     {batch.batch_code} ({batch.status})
                   </option>
                 ))}
               </select>
-            </div>
-            <div className="ml-auto flex items-center gap-2">
-              {selectedBatch ? (
-                <button
-                  onClick={handleDeleteCurrentBatch}
-                  disabled={deletingBatch}
-                  aria-label={deletingBatch ? "正在删除批次" : "删除当前批次"}
-                  title={deletingBatch ? "正在删除批次" : "删除当前批次"}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-rose-500/20 bg-rose-500/10 text-rose-300 transition-all hover:bg-rose-500/20 disabled:opacity-30"
-                >
-                  {deletingBatch ? (
-                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <circle cx="12" cy="12" r="9" strokeWidth="2.5" className="opacity-30" />
-                      <path d="M21 12a9 9 0 0 1-9 9" strokeWidth="2.5" strokeLinecap="round" />
-                    </svg>
-                  ) : (
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M6 7h12M9 7v-.8A1.2 1.2 0 0110.2 5h3.6A1.2 1.2 0 0115 6.2V7m-8 0l.7 11a1.2 1.2 0 001.2 1.1h6.2a1.2 1.2 0 001.2-1.1L17 7" />
-                    </svg>
-                  )}
-                </button>
-              ) : null}
-              <button
-                onClick={() => setIsWizardOpen(true)}
-                aria-label="新建批次"
-                title="新建批次"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500 text-black transition-all hover:bg-cyan-400 active:scale-95"
-              >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 5v14m-7-7h14" />
-                </svg>
-              </button>
             </div>
           </div>
         </section>
@@ -705,7 +699,11 @@ export function OpsWorkbenchShell() {
         )}
 
         {!selectedBatchId ? (
-          <BatchEmptyState onCreateClick={() => setIsWizardOpen(true)} />
+          <BatchEmptyState
+            onCreateClick={() => setIsWizardOpen(true)}
+            hasSelectedBridge={Boolean(selectedBridgeId)}
+            onOpenBridgeAssets={() => router.push("/dashboard/bridges")}
+          />
         ) : (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-700">
             {selectedBridge ? (
@@ -861,7 +859,6 @@ export function OpsWorkbenchShell() {
         isOpen={isWizardOpen}
         onClose={() => setIsWizardOpen(false)}
         bridges={bridges}
-        onCreateBridge={handleCreateBridge}
         onFinish={handleWizardFinish}
         selectedBridgeId={selectedBridgeId}
         onSelectedBridgeChange={setSelectedBridgeId}

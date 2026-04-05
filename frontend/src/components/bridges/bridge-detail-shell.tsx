@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { OpsPageHeader } from "@/components/ops/ops-page-header";
 import { OpsPageLayout } from "@/components/ops/ops-page-layout";
-import { listV1Alerts, listV1Batches, listV1Bridges } from "@/lib/predict-client";
+import { deleteV1Bridge, listV1Alerts, listV1Batches, listV1Bridges } from "@/lib/predict-client";
 import type { AlertV1, BatchV1, BridgeV1 } from "@/lib/types";
 
 interface Props {
@@ -13,11 +14,13 @@ interface Props {
 }
 
 export function BridgeDetailShell({ bridgeId }: Props) {
+  const router = useRouter();
   const [bridge, setBridge] = useState<BridgeV1 | null>(null);
   const [batches, setBatches] = useState<BatchV1[]>([]);
   const [alerts, setAlerts] = useState<AlertV1[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,6 +62,26 @@ export function BridgeDetailShell({ bridgeId }: Props) {
   const latestBatches = useMemo(() => batches.slice(0, 8), [batches]);
   const openAlerts = useMemo(() => alerts.filter((item) => item.status === "open"), [alerts]);
 
+  async function handleDeleteBridge() {
+    if (!bridge) {
+      return;
+    }
+    const confirmed = window.confirm(`确认删除桥梁资产 ${bridge.bridge_code} / ${bridge.bridge_name}？该操作会同时删除该桥下的所有批次和识别结果。`);
+    if (!confirmed) {
+      return;
+    }
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteV1Bridge(bridge.id);
+      router.push("/dashboard/bridges");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "桥梁删除失败");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <OpsPageLayout
       contentClassName="space-y-8"
@@ -69,12 +92,30 @@ export function BridgeDetailShell({ bridgeId }: Props) {
           subtitle={bridge ? `${bridge.bridge_code} / 资产视角下查看批次、风险与异常` : "正在载入桥梁资产信息"}
           accent="cyan"
           actions={
-            <Link
-              href={bridge ? `/dashboard/ops?bridgeId=${encodeURIComponent(bridge.id)}` : "/dashboard/ops"}
-              className="rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-xs font-bold text-white/70 transition-all hover:bg-white/10 hover:text-white"
-            >
-              返回批次中心
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/dashboard/bridges"
+                className="rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-xs font-bold text-white/70 transition-all hover:bg-white/10 hover:text-white"
+              >
+                返回资产列表
+              </Link>
+              <Link
+                href={bridge ? `/dashboard/ops?bridgeId=${encodeURIComponent(bridge.id)}` : "/dashboard/ops"}
+                className="rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-xs font-bold text-white/70 transition-all hover:bg-white/10 hover:text-white"
+              >
+                批次工作台
+              </Link>
+              {bridge ? (
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteBridge()}
+                  disabled={deleting}
+                  className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-xs font-bold text-rose-200 hover:bg-rose-500/20 disabled:opacity-40"
+                >
+                  {deleting ? "删除中..." : "删除桥梁"}
+                </button>
+              ) : null}
+            </div>
           }
         />
       }

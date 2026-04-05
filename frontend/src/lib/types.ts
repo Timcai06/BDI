@@ -175,6 +175,11 @@ export interface BridgeListV1Response {
   offset: number;
 }
 
+export interface BridgeDeleteV1Response {
+  deleted: boolean;
+  bridge_id: string;
+}
+
 export interface BatchV1 {
   id: string;
   bridge_id: string;

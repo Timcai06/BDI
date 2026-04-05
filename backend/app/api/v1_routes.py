@@ -24,6 +24,7 @@ from app.models.schemas import (
     BatchResponse,
     BatchStatsResponse,
     BridgeCreateRequest,
+    BridgeDeleteResponse,
     BridgeListResponse,
     BridgeResponse,
     DetectionListResponse,
@@ -53,6 +54,11 @@ async def list_bridges(request: Request, limit: int = 20, offset: int = 0) -> Br
 @router.get("/bridges/{bridge_id}", response_model=BridgeResponse)
 async def get_bridge(request: Request, bridge_id: str) -> BridgeResponse:
     return request.app.state.batch_service.get_bridge(bridge_id)
+
+
+@router.delete("/bridges/{bridge_id}", response_model=BridgeDeleteResponse)
+async def delete_bridge(request: Request, bridge_id: str) -> BridgeDeleteResponse:
+    return request.app.state.batch_service.delete_bridge(bridge_id)
 
 
 @router.post("/batches", response_model=BatchCreateResponse, status_code=status.HTTP_201_CREATED)

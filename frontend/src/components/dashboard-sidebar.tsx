@@ -14,10 +14,10 @@ function navButtonClass(active: boolean) {
 export function DashboardSidebar() {
   const pathname = usePathname();
   const isOverview = pathname.startsWith("/dashboard/ops/overview");
+  const isBridges = pathname.startsWith("/dashboard/bridges");
   const isBatches =
     pathname === "/dashboard/ops" ||
-    pathname.startsWith("/dashboard/ops/items") ||
-    pathname.startsWith("/dashboard/bridges");
+    pathname.startsWith("/dashboard/ops/items");
   const isSearch = pathname.startsWith("/dashboard/ops/search");
   const isHistory = pathname.startsWith("/dashboard/history");
   const isReviews = pathname.startsWith("/dashboard/ops/reviews");
@@ -69,6 +69,18 @@ export function DashboardSidebar() {
           <span className="hidden lg:block text-[11px] uppercase tracking-widest">运营总览</span>
         </Link>
 
+        <Link href="/dashboard/bridges" className={navButtonClass(isBridges)}>
+          <svg
+            className={`shrink-0 w-5 h-5 transition-colors ${isBridges ? "text-white" : "text-white/40"}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 19h16M6 17V9l6-4 6 4v8M9 17v-4h6v4" />
+          </svg>
+          <span className="hidden lg:block text-[11px] uppercase tracking-widest">桥梁资产</span>
+        </Link>
+
         <Link href="/dashboard/ops" className={navButtonClass(isBatches)}>
           <svg
             className={`shrink-0 w-5 h-5 transition-colors ${isBatches ? "text-white" : "text-white/40"}`}
@@ -78,7 +90,7 @@ export function DashboardSidebar() {
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h13M8 12h13M8 17h13M3 7h.01M3 12h.01M3 17h.01" />
           </svg>
-          <span className="hidden lg:block text-[11px] uppercase tracking-widest">批次中心</span>
+          <span className="hidden lg:block text-[11px] uppercase tracking-widest">批次工作台</span>
         </Link>
 
         <Link href="/dashboard/ops/search" className={navButtonClass(isSearch)}>

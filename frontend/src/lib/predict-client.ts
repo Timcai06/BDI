@@ -16,6 +16,7 @@ import type {
   BatchListV1Response,
   BatchStatsV1Response,
   BatchDeleteResultsResponse,
+  BridgeDeleteV1Response,
   BridgeListV1Response,
   DetectionListV1Response,
   DiagnosisResponse,
@@ -729,6 +730,20 @@ export async function createV1Bridge(payload: {
     throw new Error(getErrorMessage(err, "桥梁创建失败。"));
   }
   return (await response.json()) as BridgeListV1Response["items"][number];
+}
+
+export async function deleteV1Bridge(bridgeId: string): Promise<BridgeDeleteV1Response> {
+  if (!API_BASE_URL) {
+    throw new Error("演示模式下无法删除桥梁。");
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/bridges/${encodeURIComponent(bridgeId)}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    const err = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(err, "桥梁删除失败。"));
+  }
+  return (await response.json()) as BridgeDeleteV1Response;
 }
 
 export async function createV1Batch(payload: {

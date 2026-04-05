@@ -278,6 +278,31 @@ class BatchService:
                 )
             return self._build_bridge_response(session=session, bridge=bridge)
 
+    def delete_bridge(self, bridge_id: str):
+        with self.session_factory() as session:
+            bridge = session.get(Bridge, bridge_id)
+            if bridge is None:
+                raise AppError(
+                    code="BRIDGE_NOT_FOUND",
+                    message="Bridge does not exist.",
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    details={"bridge_id": bridge_id},
+                )
+            batch_ids = session.scalars(
+                select(InspectionBatch.id).where(InspectionBatch.bridge_id == bridge_id)
+            ).all()
+
+        for batch_id in batch_ids:
+            self.delete_batch(batch_id)
+
+        with self.session_factory() as session:
+            bridge = session.get(Bridge, bridge_id)
+            if bridge is None:
+                return {"bridge_id": bridge_id, "deleted": True}
+            session.delete(bridge)
+            session.commit()
+        return {"bridge_id": bridge_id, "deleted": True}
+
     def create_batch(self, payload: BatchCreateRequest) -> BatchCreateResponse:
         with self.session_factory() as session:
             bridge = session.get(Bridge, payload.bridge_id)
