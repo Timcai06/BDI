@@ -84,9 +84,9 @@ export function BridgeAssetsShell() {
       contentClassName="space-y-8"
       header={
         <OpsPageHeader
-          eyebrow="资产管理层"
-          title="桥梁资产中心"
-          subtitle="在此管理您的桥梁资产底座，这是进行巡检批次管理的第一层级对象"
+          eyebrow="桥梁中心"
+          title="桥梁"
+          subtitle="查看与管理平台接入的桥梁基本信息"
           accent="cyan"
         />
       }
@@ -111,10 +111,10 @@ export function BridgeAssetsShell() {
             <div>
               <div className="mb-2 flex items-center gap-2 opacity-30">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12M16 2v4M8 2v4M3 10h18"/></svg>
-                <p className="text-[10px] font-black uppercase tracking-[0.3em]">资产底座</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em]">桥梁列表</p>
               </div>
-              <h3 className="text-2xl font-black tracking-tight text-white uppercase">基础设施名录</h3>
-              <p className="mt-1 text-xs font-medium text-white/40">管理已接入平台的数字化桥梁资产实体</p>
+              <h3 className="text-2xl font-black tracking-tight text-white uppercase">桥梁名录</h3>
+              <p className="mt-1 text-xs font-medium text-white/40">管理已接入平台的桥梁记录</p>
             </div>
             <div className="rounded-full border border-white/5 bg-white/5 px-4 py-1 text-[10px] font-bold text-white/30 tabular-nums">
               共 {bridges.length} 座
@@ -200,16 +200,16 @@ export function BridgeAssetsShell() {
           <div className="relative mb-8">
             <div className="mb-2 flex items-center gap-2 opacity-30">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              <p className="text-[10px] font-black uppercase tracking-[0.3em]">业务入口</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em]">操作</p>
             </div>
-            <h3 className="text-2xl font-black tracking-tight text-white uppercase">注册新资产</h3>
-            <p className="mt-1 text-xs font-medium text-white/40">手动建立物理桥梁与数字孪生实体的映射关系</p>
+            <h3 className="text-2xl font-black tracking-tight text-white uppercase">新增桥梁</h3>
+            <p className="mt-1 text-xs font-medium text-white/40">添加新的巡检桥梁对象</p>
           </div>
 
           <div className="relative space-y-6">
             <div className="space-y-4">
               <div className="space-y-2 text-left">
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20">资产唯一编码</label>
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20">桥梁编码</label>
                 <div className="relative rounded-2xl border border-white/5 bg-black/40 p-1.5 ring-1 ring-white/5 focus-within:ring-cyan-500/50 transition-all">
                   <input
                     value={bridgeCode}
@@ -220,7 +220,7 @@ export function BridgeAssetsShell() {
                 </div>
               </div>
               <div className="space-y-2 text-left">
-                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20">资产官方名称</label>
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20">桥梁名称</label>
                 <div className="relative rounded-2xl border border-white/5 bg-black/40 p-1.5 ring-1 ring-white/5 focus-within:ring-cyan-500/50 transition-all">
                   <input
                     value={bridgeName}

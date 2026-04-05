@@ -25,7 +25,7 @@ import type { BatchItemV1, BatchV1, BridgeV1, PredictState, PredictionHistoryIte
 
 const initialStatus: PredictState = {
   phase: "idle",
-  message: "选择桥梁与批次以查看任务轨迹，或开启单图历史回顾。",
+  message: "选择桥梁与批次查看记录。",
 };
 
 function downloadBlobFile(blob: Blob, filename: string) {
@@ -125,7 +125,7 @@ export function HistoryRouteShell() {
         if (!silent) {
           setStatus({
             phase: "success",
-            message: `载入完成，档案库中现有 ${history.total} 条数字化记录。`,
+            message: `载入完成，现有 ${history.total} 条记录。`,
           });
         }
       } catch (error) {
@@ -285,9 +285,9 @@ export function HistoryRouteShell() {
       containerClassName="min-h-full"
       header={
         <OpsPageHeader
-          eyebrow="历史档案层"
-          title="巡检档案中心"
-          subtitle="在此追溯所有已完成的资产巡检批次、历史识别结果以及数字化报告"
+          eyebrow="档案库"
+          title="历史记录"
+          subtitle="查看已完成的巡检批次与历史识别记录"
           accent="amber"
           actions={
             <div className="flex items-center gap-3">
@@ -302,13 +302,6 @@ export function HistoryRouteShell() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
                 {showSingleHistory ? "隐藏单图库" : "查看单图历史"}
               </button>
-              <Link
-                href="/dashboard/ops"
-                className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-xs font-black text-white/50 transition-all hover:bg-white/10 hover:text-white"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-                返回工作台
-              </Link>
             </div>
           }
         />
@@ -325,7 +318,7 @@ export function HistoryRouteShell() {
             <span className="font-medium">{status.message}</span>
           </div>
           <div className="rounded-full border border-white/5 bg-white/5 px-4 py-1 text-[10px] font-black uppercase tracking-widest">
-            {batches.length} 个存证批次
+            {batches.length} 个批次
           </div>
         </motion.div>
 
@@ -339,9 +332,9 @@ export function HistoryRouteShell() {
             <div className="relative mb-8">
               <div className="mb-2 flex items-center gap-2 opacity-30">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12M16 2v4M8 2v4M3 10h18"/></svg>
-                <p className="text-[10px] font-black uppercase tracking-[0.3em]">批次目录</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em]">批次</p>
               </div>
-              <h3 className="text-2xl font-black tracking-tight text-white uppercase">批次历史</h3>
+              <h3 className="text-2xl font-black tracking-tight text-white uppercase">批次列表</h3>
               
               <div className="mt-6 flex flex-col gap-4">
                 <div className="relative rounded-2xl border border-white/5 bg-black/40 p-1.5 ring-1 ring-white/5 focus-within:ring-amber-500/50 transition-all">
@@ -350,7 +343,7 @@ export function HistoryRouteShell() {
                     onChange={(e) => setSelectedBridgeId(e.target.value)}
                     className="h-11 w-full bg-transparent px-4 text-sm font-bold text-white outline-none"
                   >
-                    <option value="" className="bg-slate-900">按桥梁资产筛选...</option>
+                    <option value="" className="bg-slate-900">按桥梁筛选...</option>
                     {bridges.map((bridge) => (
                       <option key={bridge.id} value={bridge.id} className="bg-slate-900">
                         {bridge.bridge_code} | {bridge.bridge_name}
@@ -407,10 +400,10 @@ export function HistoryRouteShell() {
                   <p className="text-[10px] font-black uppercase tracking-[0.3em]">记录清单</p>
                 </div>
                 <h3 className="text-2xl font-black tracking-tight text-white uppercase">
-                  {selectedBridge?.bridge_name ?? "资产记录"}
+                  {selectedBridge?.bridge_name ?? "记录"}
                 </h3>
                 <p className="mt-1 text-xs font-medium text-white/40">
-                  {selectedBatchId ? `批次: ${selectedBatchId.slice(-8)} / 存证详情` : "请选择一个批次以查看图片轨迹"}
+                  {selectedBatchId ? `批次: ${selectedBatchId.slice(-8)}` : "选择批次查看记录"}
                 </p>
               </div>
               {selectedBridge && (
@@ -418,7 +411,7 @@ export function HistoryRouteShell() {
                   href={`/dashboard/bridges/${encodeURIComponent(selectedBridge.id)}`}
                   className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white/40 hover:bg-white/10 hover:text-white transition-all underline decoration-amber-500/30 underline-offset-4"
                 >
-                  资产底座
+                  桥梁详情
                 </Link>
               )}
             </div>
@@ -428,10 +421,10 @@ export function HistoryRouteShell() {
                 <table className="w-full border-collapse text-left">
                   <thead className="border-b border-white/5 bg-white/[0.02]">
                     <tr>
-                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-white/20">序号</th>
-                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-white/20">存证文件</th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-white/20">NO.</th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-white/20">识别图片</th>
                       <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-white/20 text-center">状态</th>
-                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-white/20 text-right">诊断入口</th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-white/20 text-right">操作</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">

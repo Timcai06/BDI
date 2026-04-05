@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 import {
   createV1Batch,
@@ -20,7 +20,9 @@ import {
 import { BatchHeader } from "./batch-header";
 import { ItemGrid } from "./item-grid";
 import { IngestionWizard } from "./ingestion-wizard";
+import { OpsPageHeader } from "./ops-page-header";
 import { OpsPageLayout } from "./ops-page-layout";
+import { OpsWorkbenchSkeleton } from "./ops-workbench-skeleton";
 import type { BatchWizardPayload } from "./ingestion-wizard";
 import { BatchEmptyState } from "./batch-empty-state";
 import type {
@@ -231,6 +233,14 @@ export function OpsWorkbenchShell() {
     router,
     searchParams
   ]);
+
+  // Notice Auto-hide Timer
+  useEffect(() => {
+    if (notice) {
+      const timer = setTimeout(() => setNotice(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notice]);
 
   useEffect(() => {
     if (!ready) {
@@ -607,17 +617,17 @@ export function OpsWorkbenchShell() {
           className="relative grid gap-6 lg:grid-cols-[1fr_auto_1fr] items-center"
         >
           {/* Bento Navigation: Layer 1 - Bridge Selection */}
-          <div className="group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl transition-all hover:border-white/20 hover:bg-white/[0.05] shadow-[0_24px_48px_-12px_rgba(0,0,0,0.5)]">
+          <div className="group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-6 transition-all hover:border-white/20 hover:bg-white/[0.05] shadow-[0_24px_48px_-12px_rgba(0,0,0,0.5)]">
             <div className="absolute -right-12 -top-12 h-64 w-64 rounded-full bg-cyan-500/5 blur-[80px] transition-all group-hover:bg-cyan-500/10" />
             
             <div className="relative mb-6 flex items-start justify-between">
               <div>
                 <div className="mb-1.5 flex items-center gap-2">
                   <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)]" />
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-400/80">第一阶段 / 桥梁资产</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-400/80">桥梁</p>
                 </div>
-                <h3 className="text-lg font-black tracking-tight text-white uppercase">选择资产中心</h3>
-                <p className="mt-1 text-xs font-medium text-white/40">确定当前巡检任务所属的桥梁结构体</p>
+                <h3 className="text-lg font-black tracking-tight text-white uppercase">选择桥梁</h3>
+                <p className="mt-1 text-xs font-medium text-white/40">选择本次巡检关联的桥梁对象</p>
               </div>
               <div className="flex gap-2">
                 <Link
@@ -645,7 +655,7 @@ export function OpsWorkbenchShell() {
                 onChange={(e) => setSelectedBridgeId(e.target.value)}
                 className="h-12 w-full appearance-none bg-transparent px-4 text-sm font-bold text-white outline-none"
               >
-                <option value="" className="bg-[#121212]">请选择桥梁资产...</option>
+                <option value="" className="bg-[#121212]">选择桥梁...</option>
                 {bridges.map((bridge) => (
                   <option key={bridge.id} value={bridge.id} className="bg-[#121212]">
                     {bridge.bridge_code} | {bridge.bridge_name}
@@ -674,7 +684,7 @@ export function OpsWorkbenchShell() {
           </div>
 
           {/* Bento Navigation: Layer 2 - Batch Selection */}
-          <div className={`group relative overflow-hidden rounded-3xl border transition-all duration-500 p-6 backdrop-blur-xl shadow-[0_24px_48px_-12px_rgba(0,0,0,0.5)] ${
+          <div className={`group relative overflow-hidden rounded-3xl border transition-all duration-500 p-6 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.5)] ${
             selectedBridgeId 
               ? "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]" 
               : "border-white/5 bg-white/[0.01] opacity-60 grayscale"
@@ -691,10 +701,10 @@ export function OpsWorkbenchShell() {
                   }`} />
                   <p className={`text-[10px] font-black uppercase tracking-[0.3em] transition-colors ${
                     selectedBridgeId ? "text-emerald-400/80" : "text-white/20"
-                  }`}>第二阶段 / 工作批次</p>
+                  }`}>批次</p>
                 </div>
-                <h3 className="text-lg font-black tracking-tight text-white uppercase">批次工作台</h3>
-                <p className="mt-1 text-xs font-medium text-white/40">基于所选资产的巡检成果管理</p>
+                <h3 className="text-lg font-black tracking-tight text-white uppercase">批次列表</h3>
+                <p className="mt-1 text-xs font-medium text-white/40">基于所选桥梁的巡检批次管理</p>
               </div>
               <div className="flex gap-2">
                 {selectedBatch && (
@@ -728,7 +738,7 @@ export function OpsWorkbenchShell() {
                 className="h-12 w-full appearance-none bg-transparent px-4 text-sm font-bold text-white outline-none disabled:cursor-not-allowed"
               >
                 <option value="" className="bg-[#121212]">
-                  {selectedBridgeId ? "请选择当前桥梁的批次..." : "待锁定桥梁资产..."}
+                  {selectedBridgeId ? "选择执行批次..." : "等待锁定桥梁..."}
                 </option>
                 {batches.map((batch) => (
                   <option key={batch.id} value={batch.id} className="bg-[#121212]">
@@ -757,21 +767,42 @@ export function OpsWorkbenchShell() {
             {notice}
           </motion.div>
         )}
-        {loading && !lastRefreshedAt && (
-          <div className="rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3 text-sm text-white/45">
-            正在刷新批次状态与任务结果...
-          </div>
-        )}
 
-        {!selectedBatchId ? (
-          <BatchEmptyState
-            onCreateClick={() => setIsWizardOpen(true)}
-            hasSelectedBridge={Boolean(selectedBridgeId)}
-            onOpenBridgeAssets={() => router.push("/dashboard/bridges")}
-          />
-        ) : (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-700">
-            <section className="overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] backdrop-blur-3xl">
+        <AnimatePresence mode="wait">
+          {loading && !lastRefreshedAt ? (
+            <motion.div
+              key="skeleton"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <OpsWorkbenchSkeleton />
+            </motion.div>
+          ) : !selectedBatchId ? (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+            >
+              <BatchEmptyState
+                onCreateClick={() => setIsWizardOpen(true)}
+                hasSelectedBridge={Boolean(selectedBridgeId)}
+                onOpenBridgeAssets={() => router.push("/dashboard/bridges")}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="content"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              className="space-y-8"
+            >
+            <section className="overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)]">
               <button
                 type="button"
                 onClick={() => setSummaryExpanded((value) => !value)}
@@ -849,10 +880,10 @@ export function OpsWorkbenchShell() {
                 animate={{ height: summaryExpanded ? "auto" : 0 }}
                 className="overflow-hidden"
               >
-                <div className="grid gap-6 border-t border-white/5 bg-black/40 px-8 py-8 lg:grid-cols-3">
+                <div className="grid gap-6 border-t border-white/5 bg-black/20 px-8 py-8 lg:grid-cols-3">
                   {/* Card 1: Asset Summary */}
-                  <div className="relative rounded-[2rem] border border-white/5 bg-white/[0.02] p-6 shadow-inner transition-all hover:bg-white/[0.03]">
-                    <p className="mb-6 text-[10px] font-black uppercase tracking-[0.3em] text-white/20">资产层级 / 资产摘要</p>
+                  <div className="relative rounded-[2rem] border border-white/5 bg-white/[0.03] p-6 shadow-inner transition-all hover:bg-white/[0.04]">
+                    <p className="mb-6 text-[10px] font-black uppercase tracking-[0.3em] text-white/20">桥梁摘要</p>
                     <div className="grid grid-cols-2 gap-y-6">
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-widest text-white/20">活跃批次</p>
@@ -875,7 +906,7 @@ export function OpsWorkbenchShell() {
 
                   {/* Card 2: Filters */}
                   <div className="relative rounded-[2rem] border border-white/5 bg-white/[0.02] p-6 shadow-inner transition-all hover:bg-white/[0.03]">
-                    <p className="mb-6 text-[10px] font-black uppercase tracking-[0.3em] text-white/20">智能检索 / 过滤策略</p>
+                    <p className="mb-6 text-[10px] font-black uppercase tracking-[0.3em] text-white/20">检索与过滤</p>
                     <div className="space-y-6">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">检测项总数</span>
@@ -943,12 +974,13 @@ export function OpsWorkbenchShell() {
               batchItemTotal={batchItemTotal}
               onBatchItemPageChange={setBatchItemOffset}
             />
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
         <footer className="border-t border-white/5 bg-white/[0.01] px-4 py-4 rounded-2xl">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="text-[10px] font-bold uppercase tracking-widest text-cyan-500/50">
-              Total batches {batchTotal}
+            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-500/40">
+              系统存证批次总览 / Count: {batchTotal}
             </div>
           </div>
         </footer>

@@ -173,7 +173,7 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
             <div className="absolute inset-0 animate-ping rounded-full bg-cyan-500/20" />
             <div className="flex h-16 w-16 animate-spin items-center justify-center rounded-full border-t-2 border-cyan-500 border-r-2 border-transparent" />
           </div>
-          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400/60 animate-pulse">正在初始化分析实验室...</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400/60 animate-pulse">正在载入详情...</p>
         </div>
       </div>
     );
@@ -183,9 +183,9 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center bg-black/40 backdrop-blur-3xl p-6">
         <div className="max-w-md w-full rounded-[2.5rem] border border-rose-500/30 bg-rose-500/10 p-8 text-center shadow-2xl backdrop-blur-2xl">
-           <h3 className="text-xl font-black text-rose-400 uppercase tracking-tighter mb-4">系统致命错误</h3>
+           <h3 className="text-xl font-black text-rose-400 uppercase tracking-tighter mb-4">载入错误</h3>
            <p className="text-sm text-rose-100/60 mb-6">{error}</p>
-           <button onClick={() => window.location.reload()} className="rounded-xl bg-rose-500 px-6 py-2 text-xs font-bold text-white uppercase tracking-widest shadow-[0_8px_16px_rgba(244,63,94,0.4)]">重连硬件逻辑</button>
+           <button onClick={() => window.location.reload()} className="rounded-xl bg-rose-500 px-6 py-2 text-xs font-bold text-white uppercase tracking-widest shadow-[0_8px_16px_rgba(244,63,94,0.4)]">重试</button>
         </div>
       </div>
     );
@@ -230,18 +230,18 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-400 m-0">分析诊断实验室</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-400 m-0">详情</p>
             </div>
-            <h1 className="text-xl lg:text-3xl font-black tracking-tight text-white uppercase">单图深度诊断</h1>
+            <h1 className="text-xl lg:text-3xl font-black tracking-tight text-white uppercase">病害详情</h1>
             <p className="text-xs text-white/40 mt-1 uppercase tracking-widest">
-               唯一标识: <span className="font-mono text-cyan-400/60">{item.id}</span> / <span className="text-emerald-200/40">安全连接就绪</span>
+               ID: <span className="font-mono text-cyan-400/60">{item.id}</span>
             </p>
           </div>
           <Link
             href={backHref}
             className="rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-xs font-black text-white/50 transition-all hover:bg-white/10 hover:text-white"
           >
-            返回工作台
+            返回
           </Link>
         </header>
 
@@ -265,7 +265,7 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
                     : "border-white/10 bg-white/5 text-white/40"
                   } disabled:opacity-20`}
                 >
-                  增强后识别
+                  增强识别
                 </button>
                 <button
                   onClick={() => setResultSource("original")}
@@ -288,7 +288,7 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
                       : "border-white/10 bg-white/5 text-white/40"
                   } disabled:opacity-20`}
                 >
-                  增强后底图
+                  增强结果
                 </button>
                 <button
                   onClick={() => setImageSource("original")}
@@ -311,7 +311,7 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
                       : "border-white/10 bg-white/5 text-white/40"
                   } disabled:opacity-20`}
                 >
-                  显示结果图
+                  结果
                 </button>
                 <button
                   onClick={() => setViewMode("image")}
@@ -345,15 +345,15 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
               <div className="p-6 bg-white/[0.03] border-t border-white/5 flex items-center justify-between backdrop-blur-xl">
                 <div className="flex items-center gap-8">
                    <div className="flex flex-col">
-                      <span className="text-[9px] font-black text-white/20 uppercase tracking-tighter">原始文件名</span>
+                      <span className="text-[9px] font-black text-white/20 uppercase tracking-tighter">文件名</span>
                       <span className="text-xs font-mono font-bold text-white/60">{item.original_filename}</span>
                    </div>
                    <div className="flex flex-col">
-                      <span className="text-[9px] font-black text-white/20 uppercase tracking-tighter">存证序号</span>
+                      <span className="text-[9px] font-black text-white/20 uppercase tracking-tighter">序号</span>
                       <span className="text-xs font-mono font-bold text-white/60">BATCH_NO_{item.sequence_no}</span>
                    </div>
                    <div className="flex flex-col">
-                      <span className="text-[9px] font-black text-white/20 uppercase tracking-tighter">识别管线</span>
+                      <span className="text-[9px] font-black text-white/20 uppercase tracking-tighter">方式</span>
                       <span className="text-xs font-black text-white/70">{activeModeLabel}</span>
                    </div>
                 </div>
@@ -401,8 +401,8 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
           <div className="xl:col-span-4 flex flex-col gap-6">
             <section className="rounded-[2.5rem] border border-white/10 bg-white/[0.02] p-8 space-y-6 shadow-2xl backdrop-blur-3xl">
               <div className="flex items-center justify-between">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 m-0 text-left">检出明细 / NEURAL_OUTPUTS</h3>
-                <span className="rounded-full bg-white/5 border border-white/10 px-3 py-1 text-[9px] font-black text-white/30">{activeDetections.length} ITEMS</span>
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 m-0 text-left">检出列表</h3>
+                <span className="rounded-full bg-white/5 border border-white/10 px-3 py-1 text-[9px] font-black text-white/30">{activeDetections.length} 项</span>
               </div>
               
               <div className="space-y-3 max-h-[440px] overflow-auto pr-2 custom-scrollbar">
@@ -439,7 +439,7 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
                  </svg>
                </div>
                
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400 m-0 text-left">专家复核结论 / ATTESTATION</h3>
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400 m-0 text-left">复核结论</h3>
               
               <div className="space-y-6">
                 <div className="flex gap-2 p-1.5 rounded-2xl bg-black/60 border border-white/5 ring-1 ring-white/5">
@@ -461,17 +461,17 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
                       : "text-white/20 hover:text-white/40"
                     }`}
                   >
-                    误报排除 (REJECT)
+                    误报
                   </button>
                 </div>
 
                 <div className="space-y-2 text-left">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/20 px-2">复核意见摘要</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-white/20 px-2">复核意见</label>
                   <textarea
                     value={reviewNote}
                     onChange={(e) => setReviewNote(e.target.value)}
                     rows={4}
-                    placeholder="请输入专业人工诊断逻辑与备注词..."
+                    placeholder="输入复核意见与备注..."
                     className="w-full rounded-2xl border border-white/10 bg-black/60 p-4 text-xs font-bold text-white/80 focus:border-cyan-500/50 outline-none transition-shadow placeholder:text-white/10 ring-1 ring-white/5"
                   />
                 </div>
@@ -485,7 +485,7 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
                       : "bg-cyan-500 text-black hover:bg-cyan-400 shadow-[0_12px_24px_rgba(6,182,212,0.3)]"
                   }`}
                 >
-                  {resultSource === "enhanced" ? "请先切回原版识别以提交" : isSubmitting ? "正在同步至云端..." : "立即提交复核结论"}
+                  {resultSource === "enhanced" ? "请切回原图提交" : isSubmitting ? "正在同步..." : "提交复核"}
                 </button>
 
                 <div className="flex items-center justify-center gap-4 text-[9px] font-black text-white/10 uppercase tracking-[0.2em] py-2">

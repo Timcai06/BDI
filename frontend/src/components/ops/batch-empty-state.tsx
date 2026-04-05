@@ -13,7 +13,7 @@ export function BatchEmptyState({ onCreateClick, hasSelectedBridge, onOpenBridge
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex min-h-[500px] flex-col items-center justify-center rounded-3xl border border-white/5 bg-white/[0.02] p-12 text-center backdrop-blur-xl"
+      className="flex min-h-[500px] flex-col items-center justify-center rounded-3xl border border-white/5 bg-white/[0.02] p-12 text-center"
     >
       <div className="relative mb-8">
         {/* Animated background glow */}
