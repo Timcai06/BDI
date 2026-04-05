@@ -12,8 +12,9 @@ class ModelSpec(BaseModel):
     model_name: str
     model_version: str
     backend: str
-    runner_kind: Literal["mock", "ultralytics", "fusion"]
+    runner_kind: Literal["mock", "ultralytics", "external_ultralytics", "fusion"]
     weights_path: Optional[Path] = None
+    runtime_root: Optional[Path] = None
     device: str = "cpu"
     imgsz: int = 1280
     supports_masks: bool = True
@@ -32,6 +33,13 @@ class ModelSpec(BaseModel):
                 self.primary_model_version is not None
                 and self.specialist_model_version is not None
                 and bool(self.specialist_categories)
+            )
+        if self.runner_kind == "external_ultralytics":
+            return (
+                self.weights_path is not None
+                and self.weights_path.exists()
+                and self.runtime_root is not None
+                and self.runtime_root.exists()
             )
         return self.weights_path is not None and self.weights_path.exists()
 
@@ -140,6 +148,7 @@ class ModelRegistry(BaseModel):
             backend=configured_model.backend or settings.model_backend,
             runner_kind=runner_kind,
             weights_path=configured_model.weights_path,
+            runtime_root=configured_model.runtime_root,
             device=configured_model.device or settings.model_device,
             imgsz=configured_model.imgsz or settings.model_imgsz,
             supports_masks=configured_model.supports_masks,
@@ -156,8 +165,9 @@ class ModelRegistry(BaseModel):
         model_name: str,
         model_version: str,
         backend: str,
-        runner_kind: Literal["mock", "ultralytics", "fusion"],
+        runner_kind: Literal["mock", "ultralytics", "external_ultralytics", "fusion"],
         weights_path: Optional[Path] = None,
+        runtime_root: Optional[Path] = None,
         device: str = "cpu",
         imgsz: int = 1280,
         supports_masks: bool = True,
@@ -173,6 +183,7 @@ class ModelRegistry(BaseModel):
             backend=backend,
             runner_kind=runner_kind,
             weights_path=weights_path,
+            runtime_root=runtime_root,
             device=device,
             imgsz=imgsz,
             supports_masks=supports_masks,

@@ -147,134 +147,94 @@ backend/models/
 - `v3-prnet-general`
 - `fusion-v1`
 
-其中 `PRNET-main/` 应视为模型工程目录，而不是最终权重命名方式。只有导出的可推理权重文件才进入 `backend/models/`。
+当前仓库采用“vendored runtimes + vendored weights”的双模型结构，不再依赖个人 `Desktop/` 或 `Downloads/` 目录。
 
-如果你要立即做“双模型融合”，推荐把融合模型本身也注册成一个独立版本，而不是新开 API。
+目录约定：
 
-推荐职责划分：
+- `backend/models/best-latest-main.pt`
+  - 最新主模型权重
+- `backend/models/best-latest-water.pt`
+  - 最新渗水专项模型权重
+- `backend/external_runtimes/prnet_ultralytics/`
+  - 主模型运行时
+- `backend/external_runtimes/water_ultralytics/`
+  - 渗水专项模型运行时，兼容 `Segment26`
 
-- `v1-legacy-general` 或 `v3-prnet-general` 负责通用病害
-- `v2-seepage-specialist` 只负责 `seepage`
-- `fusion-v1` 作为最终对外使用的融合版本
+模型职责：
 
-如果你已经有本地 `YOLOv8-seg` 权重，可以通过环境变量切换到真实 runner：
+- `main-latest-mask-v1`
+  - 全类别主分割模型
+- `water-latest-mask-v1`
+  - 渗水专项分割模型
+- `fusion-main-water-mask-v1`
+  - 最终对外使用的融合版本
+
+推荐启动配置如下：
 
 ```bash
-python3.9 -m venv .venv-yolo
-source .venv-yolo/bin/activate
-python3 -m pip install -r requirements-dev.txt
-python3 -m pip install -r requirements-yolo.txt
-export BDI_MODEL_WEIGHTS_PATH=/absolute/path/to/repo/backend/models/legacy-general-best.pt
-export BDI_MODEL_VERSION=v1-legacy-general
-export BDI_MODEL_DEVICE=cpu
+export BDI_MODEL_NAME='桥梁病害通用检测模型（兼容回退）'
+export BDI_MODEL_VERSION='general-yolov8m-legacy'
+export BDI_ACTIVE_MODEL_VERSION='fusion-main-water-mask-v1'
+export BDI_MODEL_WEIGHTS_PATH='backend/models/bridge-defect-general-detector-yolov8m-20260321.pt'
+export BDI_MODEL_DEVICE='cpu'
 export BDI_EXTRA_MODELS='[
-  {"model_version":"mock-v2","backend":"mock","runner_kind":"mock"},
   {
-    "model_version":"v2-seepage-specialist",
+    "model_name":"最新主模型",
+    "model_version":"main-latest-mask-v1",
     "backend":"pytorch",
-    "weights_path":"/absolute/path/to/repo/backend/models/seepage-specialist-best-20260328.pt",
-    "supports_masks":false
+    "runner_kind":"external_ultralytics",
+    "runtime_root":"backend/external_runtimes/prnet_ultralytics",
+    "weights_path":"backend/models/best-latest-main.pt",
+    "supports_masks":true,
+    "supports_overlay":true
   },
   {
-    "model_version":"v3-prnet-general",
+    "model_name":"最新渗水专项模型",
+    "model_version":"water-latest-mask-v1",
     "backend":"pytorch",
-    "weights_path":"/absolute/path/to/repo/backend/models/prnet-general-best-20260328.pt",
-    "supports_masks":false
+    "runner_kind":"external_ultralytics",
+    "runtime_root":"backend/external_runtimes/water_ultralytics",
+    "weights_path":"backend/models/best-latest-water.pt",
+    "supports_masks":true,
+    "supports_overlay":true
   },
   {
-    "model_version":"fusion-v1",
-    "model_name":"dual-model-fusion",
+    "model_name":"双模型融合识别",
+    "model_version":"fusion-main-water-mask-v1",
     "backend":"fusion",
     "runner_kind":"fusion",
-    "primary_model_version":"v3-prnet-general",
-    "specialist_model_version":"v2-seepage-specialist",
+    "primary_model_version":"main-latest-mask-v1",
+    "specialist_model_version":"water-latest-mask-v1",
     "specialist_categories":["seepage"],
-    "supports_masks":false,
-    "supports_sliced_inference":false
+    "supports_masks":true,
+    "supports_overlay":true
   }
 ]'
 ```
 
-推荐使用 `Python 3.9` 到 `Python 3.12` 的虚拟环境安装 `ultralytics`。
+实现说明：
 
-同时需要注意：
+- 新 runtime 通过子进程隔离加载，不污染当前后端进程中的默认 `ultralytics` 导入路径
+- `main-latest-mask-v1` 使用 vendored `PRNet` 运行时
+- `water-latest-mask-v1` 使用 vendored 水专项运行时
+- `fusion-main-water-mask-v1` 继续使用类别级接管：
+  - 非 `seepage` 保留主模型结果
+  - `seepage` 优先保留专项模型结果
+  - 专项未命中时回退主模型
 
-- 真实模型环境当前以 `.venv-yolo` 的 `Python 3.9` 兼容性为硬约束
-- 后端新增代码应避免引入仅 `Python 3.10+` 才支持的语法
-- 特别是 `Path | None`、`str | None` 这类联合类型写法，应统一改用 `Optional[...]`
+物理尺寸说明：
 
-如果你在 `Python 3.9` 环境中遇到 `NumPy 2.x` 与 `torch`/`ultralytics` 的兼容报错，请重新安装：
+- 新双模型都输出 `mask`
+- 长度、宽度、面积统一基于 `mask` 计算
+- 第一阶段继续沿用 `pixels_per_mm`
+- 第二阶段再接无人机元数据换算
 
-```bash
-python3 -m pip install -r requirements-dev.txt
-python3 -m pip install -r requirements-yolo.txt
-```
+启动前检查：
 
-当前 `requirements-yolo.txt` 已显式约束 `numpy<2`，用于避免已验证到的 `torch 2.2.2 + NumPy 2.0.2` 导入兼容问题。
+1. `backend/models/best-latest-main.pt` 存在
+2. `backend/models/best-latest-water.pt` 存在
+3. `backend/external_runtimes/prnet_ultralytics/ultralytics` 存在
+4. `backend/external_runtimes/water_ultralytics/ultralytics` 存在
+5. 当前 Python 环境已安装后端依赖和 `ultralytics` 运行所需依赖
 
-未配置权重路径、权重不可用，或真实依赖未安装时，后端会自动回退到 mock runner，保持前后端协议可联调。
-
-如果你需要在同一个后端中注册多个模型版本，可以使用 `BDI_EXTRA_MODELS`。
-
-推荐格式如下：
-
-```bash
-export BDI_EXTRA_MODELS='[
-  {"model_version":"mock-v2","backend":"mock","runner_kind":"mock"},
-  {
-    "model_version":"v2-seepage-specialist",
-    "backend":"pytorch",
-    "weights_path":"/absolute/path/to/repo/backend/models/seepage-specialist-best-20260328.pt",
-    "supports_masks":false
-  },
-  {
-    "model_version":"v3-prnet-general",
-    "backend":"pytorch",
-    "weights_path":"/absolute/path/to/repo/backend/models/prnet-general-best-20260328.pt",
-    "supports_masks":false
-  },
-  {
-    "model_version":"fusion-v1",
-    "model_name":"dual-model-fusion",
-    "backend":"fusion",
-    "runner_kind":"fusion",
-    "primary_model_version":"v3-prnet-general",
-    "specialist_model_version":"v2-seepage-specialist",
-    "specialist_categories":["seepage"],
-    "supports_masks":false,
-    "supports_sliced_inference":false
-  }
-]'
-```
-
-当前前端可通过 `GET /models` 读取可选模型版本列表，并在发起 `/predict` 时传入 `model_version`。
-
-后续在系统里区分模型时，应优先依赖 `model_version` 和 `weights_path`，不要再依赖模糊的 `best.pt` 文件名。
-
-当前融合逻辑采用“类别级接管”：
-
-- 通用模型保留非 `seepage` 结果
-- `seepage` 优先使用专项模型结果
-- 如果专项模型没有检出 `seepage`，则回退到通用模型的 `seepage`
-
-需要注意：
-
-- 你现在手头这批权重是 `detect`，不是 `segment`
-- 因此建议在配置里显式写 `supports_masks=false`
-- 当前 `fusion-v1` 主要服务于框级识别融合，不承担真实掩膜输出
-
-本轮兼容性验证补充结论：
-
-```bash
-./.venv-yolo/bin/python -c "import app.main; print('import-ok')"
-./.venv-yolo/bin/python -m pytest
-PYTHONPYCACHEPREFIX=/tmp/bdi-pyc ./.venv-yolo/bin/python -m compileall app
-```
-
-以上检查已通过，说明当前 `backend/app` 在 `Python 3.9` 真实模型环境中可正常导入、测试和编译。
-
-## 当前结论
-
-后端的 mock MVP 闭环已经完成并通过基础验证；真实 runner 的代码路径、`Python 3.9` 兼容性、依赖导入和单图真实推理链路也已完成验收。除此之外，后端还已经落地了基于本地文件的结果管理能力，包括结果列表、详情读取、原图回看、overlay 下载和删除接口。
-
-按当前真实代码判断，后端不再只是“为 Phase 3 提供基础能力”，而是已经完成了 Phase 3 中历史回看与结果导出的后端基础设施，当前重点更偏向演示稳定性、前后端体验细化和文档同步。
+如果 runtime 或权重缺失，系统会在解析模型可用性时直接判定不可用，不进入“半可用”状态。

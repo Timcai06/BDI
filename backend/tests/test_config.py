@@ -42,15 +42,17 @@ def test_get_settings_parses_boolean_and_path_flags(monkeypatch) -> None:
 def test_get_settings_parses_extra_models_and_cors_origins(monkeypatch) -> None:
     monkeypatch.setenv(
         "BDI_EXTRA_MODELS",
-        '[{"model_version":"fusion-v1","backend":"fusion","runner_kind":"fusion","specialist_categories":["渗水"]}]',
+        '[{"model_version":"main-mask-v1","backend":"pytorch","runner_kind":"external_ultralytics","weights_path":"backend/models/best-latest-main.pt","runtime_root":"backend/external_runtimes/prnet_ultralytics"},{"model_version":"fusion-v1","backend":"fusion","runner_kind":"fusion","specialist_categories":["渗水"]}]',
     )
     monkeypatch.setenv("BDI_CORS_ALLOW_ORIGINS", "http://localhost:3000, http://127.0.0.1:3000")
 
     settings = get_settings()
 
-    assert len(settings.extra_models) == 1
-    assert settings.extra_models[0].model_version == "fusion-v1"
-    assert settings.extra_models[0].specialist_categories == ["seepage"]
+    assert len(settings.extra_models) == 2
+    assert settings.extra_models[0].model_version == "main-mask-v1"
+    assert settings.extra_models[0].runtime_root == Path("/Users/tim/BDI/backend/external_runtimes/prnet_ultralytics")
+    assert settings.extra_models[1].model_version == "fusion-v1"
+    assert settings.extra_models[1].specialist_categories == ["seepage"]
     assert settings.cors_allow_origins == [
         "http://localhost:3000",
         "http://127.0.0.1:3000",

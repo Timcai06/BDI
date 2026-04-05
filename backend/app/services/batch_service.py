@@ -119,7 +119,7 @@ class BatchService:
             if active_spec.runner_kind == "fusion" and active_spec.primary_model_version:
                 return active_spec.primary_model_version
             for spec in registry.list_specs():
-                if spec.runner_kind == "ultralytics":
+                if spec.runner_kind in {"ultralytics", "external_ultralytics"}:
                     return spec.model_version
             return registry.active_version
         if policy in registry.specs:

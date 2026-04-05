@@ -87,6 +87,31 @@ def test_model_registry_registers_extra_models() -> None:
     assert registry.get("mock-v2").runner_kind == "mock"
 
 
+def test_model_registry_registers_external_ultralytics_model(tmp_path: Path) -> None:
+    weights_path = tmp_path / "main.pt"
+    runtime_root = tmp_path / "runtime"
+    weights_path.write_bytes(b"weights")
+    runtime_root.mkdir()
+    settings = Settings(
+        extra_models=[
+            ConfiguredModel(
+                model_version="main-latest-mask-v1",
+                backend="pytorch",
+                runner_kind="external_ultralytics",
+                weights_path=weights_path,
+                runtime_root=runtime_root,
+            )
+        ]
+    )
+
+    registry = ModelRegistry.from_settings(settings)
+    spec = registry.get("main-latest-mask-v1")
+
+    assert spec.runner_kind == "external_ultralytics"
+    assert spec.runtime_root == runtime_root
+    assert spec.is_available is True
+
+
 def test_model_registry_registers_fusion_model() -> None:
     settings = Settings(
         extra_models=[

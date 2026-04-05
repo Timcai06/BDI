@@ -21,8 +21,9 @@ class ConfiguredModel(BaseModel):
     model_name: Optional[str] = None
     model_version: str
     backend: Optional[str] = None
-    runner_kind: Optional[Literal["mock", "ultralytics", "fusion"]] = None
+    runner_kind: Optional[Literal["mock", "ultralytics", "external_ultralytics", "fusion"]] = None
     weights_path: Optional[Path] = None
+    runtime_root: Optional[Path] = None
     device: Optional[str] = None
     imgsz: Optional[int] = None
     supports_masks: bool = True
@@ -113,6 +114,9 @@ def _load_extra_models(raw_value: str | None) -> list[ConfiguredModel]:
                 **item,
                 "weights_path": _resolve_runtime_path(Path(item["weights_path"]))
                 if item.get("weights_path")
+                else None,
+                "runtime_root": _resolve_runtime_path(Path(item["runtime_root"]))
+                if item.get("runtime_root")
                 else None,
             }
         )

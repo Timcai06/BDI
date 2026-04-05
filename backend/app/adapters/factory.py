@@ -39,8 +39,15 @@ def _create_ultralytics(spec: ModelSpec, pixels_per_mm: float = 10.0) -> ModelRu
     return UltralyticsRunner.from_model_spec(spec, pixels_per_mm=pixels_per_mm)
 
 
+def _create_external_ultralytics(spec: ModelSpec, pixels_per_mm: float = 10.0) -> ModelRunner:
+    from app.adapters.external_ultralytics_runner import ExternalUltralyticsRunner
+
+    return ExternalUltralyticsRunner.from_model_spec(spec, pixels_per_mm=pixels_per_mm)
+
+
 register_runner("mock", _create_mock)
 register_runner("ultralytics", _create_ultralytics)
+register_runner("external_ultralytics", _create_external_ultralytics)
 
 
 # Public API -------------------------------------------------------------
