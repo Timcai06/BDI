@@ -1,0 +1,90 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - complementary [ref=e3]:
+      - link "BDI INFRA-SCAN" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e7]: BDI
+        - generic [ref=e8]: INFRA-SCAN
+      - link "+ 单图实验台" [ref=e10] [cursor=pointer]:
+        - /url: /dashboard/lab-single
+        - generic [ref=e11]: +
+        - generic [ref=e12]: 单图实验台
+      - navigation [ref=e13]:
+        - link "运营总览" [ref=e14] [cursor=pointer]:
+          - /url: /dashboard/ops/overview
+          - img [ref=e15]
+          - generic [ref=e17]: 运营总览
+        - link "批次中心" [ref=e18] [cursor=pointer]:
+          - /url: /dashboard/ops
+          - img [ref=e19]
+          - generic [ref=e21]: 批次中心
+        - link "病害检索" [ref=e22] [cursor=pointer]:
+          - /url: /dashboard/ops/search
+          - img [ref=e23]
+          - generic [ref=e25]: 病害检索
+        - link "历史档案" [ref=e26] [cursor=pointer]:
+          - /url: /dashboard/history
+          - img [ref=e27]
+          - generic [ref=e29]: 历史档案
+        - link "复核中心" [ref=e30] [cursor=pointer]:
+          - /url: /dashboard/ops/reviews
+          - img [ref=e31]
+          - generic [ref=e33]: 复核中心
+        - link "告警中心" [ref=e34] [cursor=pointer]:
+          - /url: /dashboard/ops/alerts
+          - img [ref=e35]
+          - generic [ref=e37]: 告警中心
+        - link "系统设置" [ref=e38] [cursor=pointer]:
+          - /url: /dashboard/ops/settings
+          - img [ref=e39]
+          - generic [ref=e41]: 系统设置
+        - link "单图实验台" [ref=e42] [cursor=pointer]:
+          - /url: /dashboard/lab-single
+          - img [ref=e43]
+          - generic [ref=e45]: 单图实验台
+    - generic [ref=e47]:
+      - generic [ref=e48]:
+        - generic [ref=e49]:
+          - paragraph [ref=e52]: SETTINGS
+          - heading "全局配置与审计" [level=1] [ref=e53]
+          - paragraph [ref=e54]: SYSTEM PREFERENCES / RUNTIME ENVIRONMENT
+        - generic [ref=e55]:
+          - button "配置管理 / CONFIG" [ref=e56]
+          - button "操作审计 / AUDIT" [ref=e57]
+      - generic [ref=e58]:
+        - generic [ref=e59]:
+          - generic [ref=e60]:
+            - heading "告警触发逻辑 / ALERT GENERATION" [level=3] [ref=e61]
+            - heading "告警规则管理" [level=2] [ref=e62]
+          - generic [ref=e63]:
+            - generic [ref=e64]:
+              - generic [ref=e65]:
+                - paragraph [ref=e66]: 自动开启告警
+                - paragraph [ref=e67]: ALERT_AUTO_ENABLED
+              - button [ref=e68]
+            - generic [ref=e71]:
+              - text: CONFIDENCE THRESHOLD (SCORE)
+              - generic [ref=e72]:
+                - slider [ref=e73]: "0.8"
+                - generic [ref=e74]: "0.80"
+            - generic [ref=e75]:
+              - paragraph [ref=e76]: 监控类别列表 / WATCHLIST
+              - generic [ref=e77]:
+                - generic [ref=e78]: seepage
+                - button "+ ADD CATEGORY" [ref=e79]
+        - generic [ref=e80]:
+          - generic [ref=e81]:
+            - generic [ref=e82]:
+              - heading "时效性管理 / SERVICE LEVEL AGREEMENT" [level=3] [ref=e83]
+              - heading "SLA 配置中心" [level=2] [ref=e84]
+            - generic [ref=e85]:
+              - generic [ref=e86]:
+                - text: NEAR DUE BUFFER (HOURS)
+                - spinbutton [ref=e87]: "2"
+              - generic [ref=e88]:
+                - text: COUNT THRESHOLD
+                - spinbutton [ref=e89]: "3"
+          - button "SYNC GLOBAL PREFERENCES" [ref=e90]
+  - button "Open Next.js Dev Tools" [ref=e96] [cursor=pointer]:
+    - img [ref=e97]
+  - alert [ref=e100]

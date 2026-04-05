@@ -1,0 +1,84 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - complementary [ref=e3]:
+      - link "BDI INFRA-SCAN" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e7]: BDI
+        - generic [ref=e8]: INFRA-SCAN
+      - link "+ 单图实验台" [ref=e10] [cursor=pointer]:
+        - /url: /dashboard/lab-single
+        - generic [ref=e11]: +
+        - generic [ref=e12]: 单图实验台
+      - navigation [ref=e13]:
+        - link "运营总览" [ref=e14] [cursor=pointer]:
+          - /url: /dashboard/ops/overview
+          - img [ref=e15]
+          - generic [ref=e17]: 运营总览
+        - link "批次中心" [ref=e18] [cursor=pointer]:
+          - /url: /dashboard/ops
+          - img [ref=e19]
+          - generic [ref=e21]: 批次中心
+        - link "病害检索" [ref=e22] [cursor=pointer]:
+          - /url: /dashboard/ops/search
+          - img [ref=e23]
+          - generic [ref=e25]: 病害检索
+        - link "历史档案" [ref=e26] [cursor=pointer]:
+          - /url: /dashboard/history
+          - img [ref=e27]
+          - generic [ref=e29]: 历史档案
+        - link "复核中心" [ref=e30] [cursor=pointer]:
+          - /url: /dashboard/ops/reviews
+          - img [ref=e31]
+          - generic [ref=e33]: 复核中心
+        - link "告警中心" [ref=e34] [cursor=pointer]:
+          - /url: /dashboard/ops/alerts
+          - img [ref=e35]
+          - generic [ref=e37]: 告警中心
+        - link "系统设置" [ref=e38] [cursor=pointer]:
+          - /url: /dashboard/ops/settings
+          - img [ref=e39]
+          - generic [ref=e41]: 系统设置
+        - link "单图实验台" [ref=e42] [cursor=pointer]:
+          - /url: /dashboard/lab-single
+          - img [ref=e43]
+          - generic [ref=e45]: 单图实验台
+    - generic [ref=e48]:
+      - generic [ref=e49]:
+        - generic [ref=e50]:
+          - paragraph [ref=e53]: ARCHIVE
+          - heading "任务历史" [level=1] [ref=e54]
+          - paragraph [ref=e55]:
+            - text: BATCH REGISTRY /
+            - generic [ref=e56]: 0 RECORDS ATTESTED
+        - generic [ref=e57]:
+          - link "返回实时工作台" [ref=e58] [cursor=pointer]:
+            - /url: /dashboard/ops
+          - button "展开单图历史" [ref=e59]
+      - generic [ref=e60]: 查看、筛选并打开历史识别结果。
+      - generic [ref=e61]:
+        - generic [ref=e62]:
+          - generic [ref=e63]:
+            - heading "批次历史视图 / Enterprise Batch Archive" [level=2] [ref=e64]
+            - paragraph [ref=e65]: 批次切换、批次内图片浏览、单图详情入口都保留在这里。
+          - button "刷新批次历史" [ref=e66]
+        - generic [ref=e67]:
+          - generic [ref=e68]:
+            - paragraph [ref=e69]: 批次列表
+            - generic [ref=e71]: 暂无批次记录
+            - button "加载更多批次" [ref=e73]
+          - generic [ref=e74]:
+            - paragraph [ref=e76]: 批次图片清单
+            - table [ref=e78]:
+              - rowgroup [ref=e79]:
+                - row "序号 文件 状态 结果数 操作" [ref=e80]:
+                  - columnheader "序号" [ref=e81]
+                  - columnheader "文件" [ref=e82]
+                  - columnheader "状态" [ref=e83]
+                  - columnheader "结果数" [ref=e84]
+                  - columnheader "操作" [ref=e85]
+              - rowgroup [ref=e86]:
+                - row "当前批次暂无图片" [ref=e87]:
+                  - cell "当前批次暂无图片" [ref=e88]
+      - generic [ref=e90]: 默认展示企业批次视图。需要按旧方式查看单图历史时，展开上方“单图历史”即可。
+  - button "Open Next.js Dev Tools" [ref=e96] [cursor=pointer]:
+    - img [ref=e97]

@@ -1,0 +1,303 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - complementary [ref=e3]:
+      - link "BDI INFRA-SCAN" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e7]: BDI
+        - generic [ref=e8]: INFRA-SCAN
+      - link "+ 单图实验台" [ref=e10] [cursor=pointer]:
+        - /url: /dashboard/lab-single
+        - generic [ref=e11]: +
+        - generic [ref=e12]: 单图实验台
+      - navigation [ref=e13]:
+        - link "运营总览" [ref=e14] [cursor=pointer]:
+          - /url: /dashboard/ops/overview
+          - img [ref=e15]
+          - generic [ref=e17]: 运营总览
+        - link "批次中心" [ref=e18] [cursor=pointer]:
+          - /url: /dashboard/ops
+          - img [ref=e19]
+          - generic [ref=e21]: 批次中心
+        - link "病害检索" [ref=e22] [cursor=pointer]:
+          - /url: /dashboard/ops/search
+          - img [ref=e23]
+          - generic [ref=e25]: 病害检索
+        - link "历史档案" [ref=e26] [cursor=pointer]:
+          - /url: /dashboard/history
+          - img [ref=e27]
+          - generic [ref=e29]: 历史档案
+        - link "复核中心" [ref=e30] [cursor=pointer]:
+          - /url: /dashboard/ops/reviews
+          - img [ref=e31]
+          - generic [ref=e33]: 复核中心
+        - link "告警中心" [ref=e34] [cursor=pointer]:
+          - /url: /dashboard/ops/alerts
+          - img [ref=e35]
+          - generic [ref=e37]: 告警中心
+        - link "系统设置" [ref=e38] [cursor=pointer]:
+          - /url: /dashboard/ops/settings
+          - img [ref=e39]
+          - generic [ref=e41]: 系统设置
+        - link "单图实验台" [ref=e42] [cursor=pointer]:
+          - /url: /dashboard/lab-single
+          - img [ref=e43]
+          - generic [ref=e45]: 单图实验台
+    - generic [ref=e139]:
+      - generic [ref=e140]:
+        - generic [ref=e141]:
+          - paragraph [ref=e142]: Dashboard / History / Detail
+          - heading "历史记录详情" [level=1] [ref=e143]
+          - paragraph [ref=e144]: 当前查看的是独立历史详情页，不再回跳到主页工作台。
+        - generic [ref=e145]:
+          - link "返回历史列表" [ref=e146] [cursor=pointer]:
+            - /url: /dashboard/history?batchId=bat_c31d0c4698044890
+          - link "返回工作台" [ref=e147] [cursor=pointer]:
+            - /url: /dashboard
+      - generic [ref=e148]: 已载入 res_010662d344474557 的历史识别结果。
+      - generic [ref=e149]:
+        - generic [ref=e150]:
+          - generic [ref=e151]:
+            - generic [ref=e152]:
+              - generic [ref=e153]:
+                - generic [ref=e154]:
+                  - generic [ref=e155]:
+                    - generic [ref=e158]: AI 分析看板
+                    - generic [ref=e160]:
+                      - button "原图" [pressed] [ref=e161]
+                      - button "结果图" [ref=e162]
+                      - button "掩膜图" [disabled] [ref=e163]
+                  - button "导出与下载" [ref=e165]:
+                    - img [ref=e166]
+                    - text: 导出与下载
+                - generic [ref=e169]:
+                  - img [ref=e171]
+                  - generic [ref=e173]:
+                    - generic [ref=e174]:
+                      - paragraph [ref=e175]: 病害类别
+                      - paragraph [ref=e176]: 渗水
+                    - generic [ref=e177]:
+                      - paragraph [ref=e178]: 识别置信度
+                      - paragraph [ref=e179]: 60.2%
+                    - generic [ref=e180]:
+                      - paragraph [ref=e181]: 预估长度 (cm)
+                      - paragraph [ref=e182]: "--"
+                    - generic [ref=e183]:
+                      - paragraph [ref=e184]: 预估面积 (cm²)
+                      - paragraph [ref=e185]: "--"
+                    - generic [ref=e186]:
+                      - paragraph [ref=e187]: 检测来源
+                      - paragraph [ref=e188]: 专项模型
+                  - generic [ref=e190]: Sensor Ready
+              - generic [ref=e194]:
+                - generic [ref=e195]:
+                  - generic [ref=e196]: CAMERA FEED
+                  - generic [ref=e197]: 01:40:42 UTC
+                - generic [ref=e199]:
+                  - img "Inspection" [ref=e200]
+                  - generic [ref=e201]:
+                    - generic [ref=e203]: 渗水 60.2%
+                    - generic [ref=e205]: 破损 59.4%
+                    - generic [ref=e207]: 渗水 51.7%
+                    - generic [ref=e209]: 渗水 33.9%
+                    - generic [ref=e211]: 破损 32.9%
+                    - generic [ref=e213]: 渗水 30.0%
+                    - generic [ref=e215]: 钢筋外露 26.4%
+                - generic [ref=e216]:
+                  - generic [ref=e217]: 原图视图 / 7 个病害
+                  - generic [ref=e218]: 双模型融合识别（fusion-seepage-priority-v1）
+            - generic [ref=e219]:
+              - generic [ref=e220]:
+                - paragraph [ref=e221]: 病害列表
+                - generic [ref=e222]: 7 项
+              - generic [ref=e223]:
+                - article [ref=e224] [cursor=pointer]:
+                  - generic [ref=e225]:
+                    - generic [ref=e226]:
+                      - generic [ref=e227]: "01."
+                      - heading "渗水" [level=4] [ref=e228]
+                      - generic [ref=e229]: 优先查看
+                      - generic [ref=e230]: 专项模型
+                    - generic [ref=e231]: 60.2%
+                  - generic:
+                    - generic [ref=e232]:
+                      - generic [ref=e233]: Size
+                      - generic [ref=e234]: "--"
+                    - generic [ref=e235]:
+                      - generic [ref=e236]: Area
+                      - generic [ref=e237]: "--"
+                - article [ref=e238] [cursor=pointer]:
+                  - generic [ref=e239]:
+                    - generic [ref=e240]:
+                      - generic [ref=e241]: "02."
+                      - heading "破损" [level=4] [ref=e242]
+                      - generic [ref=e243]: 通用模型
+                    - generic [ref=e244]: 59.4%
+                  - generic:
+                    - generic [ref=e245]:
+                      - generic [ref=e246]: Size
+                      - generic [ref=e247]: "--"
+                    - generic [ref=e248]:
+                      - generic [ref=e249]: Area
+                      - generic [ref=e250]: "--"
+                - article [ref=e251] [cursor=pointer]:
+                  - generic [ref=e252]:
+                    - generic [ref=e253]:
+                      - generic [ref=e254]: "03."
+                      - heading "渗水" [level=4] [ref=e255]
+                      - generic [ref=e256]: 专项模型
+                    - generic [ref=e257]: 51.7%
+                  - generic:
+                    - generic [ref=e258]:
+                      - generic [ref=e259]: Size
+                      - generic [ref=e260]: "--"
+                    - generic [ref=e261]:
+                      - generic [ref=e262]: Area
+                      - generic [ref=e263]: "--"
+                - article [ref=e264] [cursor=pointer]:
+                  - generic [ref=e265]:
+                    - generic [ref=e266]:
+                      - generic [ref=e267]: "04."
+                      - heading "渗水" [level=4] [ref=e268]
+                      - generic [ref=e269]: 专项模型
+                    - generic [ref=e270]: 33.9%
+                  - generic:
+                    - generic [ref=e271]:
+                      - generic [ref=e272]: Size
+                      - generic [ref=e273]: "--"
+                    - generic [ref=e274]:
+                      - generic [ref=e275]: Area
+                      - generic [ref=e276]: "--"
+                - article [ref=e277] [cursor=pointer]:
+                  - generic [ref=e278]:
+                    - generic [ref=e279]:
+                      - generic [ref=e280]: "05."
+                      - heading "破损" [level=4] [ref=e281]
+                      - generic [ref=e282]: 通用模型
+                    - generic [ref=e283]: 32.9%
+                  - generic:
+                    - generic [ref=e284]:
+                      - generic [ref=e285]: Size
+                      - generic [ref=e286]: "--"
+                    - generic [ref=e287]:
+                      - generic [ref=e288]: Area
+                      - generic [ref=e289]: "--"
+                - article [ref=e290] [cursor=pointer]:
+                  - generic [ref=e291]:
+                    - generic [ref=e292]:
+                      - generic [ref=e293]: "06."
+                      - heading "渗水" [level=4] [ref=e294]
+                      - generic [ref=e295]: 专项模型
+                    - generic [ref=e296]: 30.0%
+                  - generic:
+                    - generic [ref=e297]:
+                      - generic [ref=e298]: Size
+                      - generic [ref=e299]: "--"
+                    - generic [ref=e300]:
+                      - generic [ref=e301]: Area
+                      - generic [ref=e302]: "--"
+                - article [ref=e303] [cursor=pointer]:
+                  - generic [ref=e304]:
+                    - generic [ref=e305]:
+                      - generic [ref=e306]: "07."
+                      - heading "钢筋外露" [level=4] [ref=e307]
+                      - generic [ref=e308]: 通用模型
+                    - generic [ref=e309]: 26.4%
+                  - generic:
+                    - generic [ref=e310]:
+                      - generic [ref=e311]: Size
+                      - generic [ref=e312]: "--"
+                    - generic [ref=e313]:
+                      - generic [ref=e314]: Area
+                      - generic [ref=e315]: "--"
+            - generic [ref=e319]:
+              - generic [ref=e320]:
+                - generic [ref=e321]:
+                  - paragraph [ref=e324]: 模型对比
+                  - heading "多模型交叉验证" [level=3] [ref=e325]
+                - button "查看增强对比结果" [ref=e326]:
+                  - img [ref=e327]
+                  - text: 查看增强对比结果
+              - generic [ref=e329]:
+                - generic [ref=e330]:
+                  - paragraph [ref=e331]: 使用同一张本地图片执行另一个模型版本的推理，快速比较检测精度、数量差值、推理速度及病害覆盖度的微小变化。
+                  - generic [ref=e332]:
+                    - generic [ref=e333]: 量化指标对齐
+                    - generic [ref=e335]: 实例级匹配
+                    - generic [ref=e337]: 专家决策建议
+                - generic [ref=e339]:
+                  - combobox [ref=e340]:
+                    - option "桥梁病害通用检测模型（general-yolov8m-legacy） · pytorch" [selected]
+                    - option "渗水专项检测模型（seepage-yolo26n-specialist） · pytorch"
+                  - button "启动深度对比分析" [ref=e341]: 启动深度对比分析
+          - complementary [ref=e343]:
+            - generic [ref=e344]:
+              - generic [ref=e346]:
+                - paragraph [ref=e347]: 核心数据指标
+                - generic [ref=e348]:
+                  - generic [ref=e349]:
+                    - paragraph [ref=e350]: 主病害
+                    - paragraph [ref=e351]: 渗水
+                  - generic [ref=e352]:
+                    - paragraph [ref=e353]: 掩膜能力
+                    - paragraph [ref=e354]: BBOX ONLY
+                  - generic [ref=e355]:
+                    - paragraph [ref=e356]: 推理速度
+                    - paragraph [ref=e357]: 2495ms
+                  - generic [ref=e358]:
+                    - paragraph [ref=e359]: 当前展示
+                    - paragraph [ref=e360]: 原图
+              - generic [ref=e361]:
+                - paragraph [ref=e362]: 系统运行状态
+                - generic [ref=e363]:
+                  - heading "已完成" [level=3] [ref=e369]
+                  - paragraph [ref=e370]: 已载入 res_010662d344474557 的历史识别结果。
+              - generic [ref=e371]:
+                - generic [ref=e372]:
+                  - paragraph [ref=e373]: 性能分析仪表盘
+                  - generic [ref=e374]: "API 总用时: 2495ms"
+                - generic [ref=e375]:
+                  - generic [ref=e377]:
+                    - generic [ref=e378]: 通用模型推理
+                    - generic [ref=e379]: 1396ms
+                  - generic [ref=e384]:
+                    - generic [ref=e385]: 专项模型推理
+                    - generic [ref=e386]: 1098ms
+                  - generic [ref=e391]:
+                    - generic [ref=e392]: 融合后处理
+                    - generic [ref=e393]: 1ms
+                - paragraph [ref=e398]: 实时监测：符合赛题 < 200ms 的吞吐要求
+              - generic [ref=e399]:
+                - paragraph [ref=e400]: 展示筛选
+                - generic [ref=e401]:
+                  - generic [ref=e402]:
+                    - generic [ref=e403]: 病害类别
+                    - combobox [ref=e404]:
+                      - option "全部" [selected]
+                      - option "渗水"
+                      - option "破损"
+                      - option "钢筋外露"
+                  - generic [ref=e405]:
+                    - generic [ref=e406]:
+                      - generic [ref=e407]: 最低置信度
+                      - generic [ref=e408]: 0%
+                    - slider [ref=e409] [cursor=pointer]: "0"
+        - generic [ref=e410]:
+          - img [ref=e412]
+          - generic [ref=e414]:
+            - paragraph [ref=e416]: 核心诊断建议
+            - generic [ref=e417]:
+              - generic [ref=e418]: OpenCode AI
+              - generic [ref=e419]: Kimi K2.5
+          - generic [ref=e420]:
+            - generic [ref=e421]: 固定诊断面板
+            - generic [ref=e422]: 滚动查看完整内容
+          - generic [ref=e425]:
+            - img [ref=e429]
+            - generic [ref=e431]:
+              - paragraph [ref=e432]: 尚未生成专家报告
+              - paragraph [ref=e433]: 当前历史记录已有识别结果，但还没有保存过大模型诊断报告。
+            - button "生成专家报告" [ref=e434]
+          - paragraph [ref=e436]: 历史详情页默认只读取已保存报告，避免进入页面时重复生成。
+  - button "Open Next.js Dev Tools" [ref=e96] [cursor=pointer]:
+    - img [ref=e97]
+  - alert [ref=e136]: res_010662d344474557 - History Detail - BDI Infrastructure Scan | BDI Nexus

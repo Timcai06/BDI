@@ -1,0 +1,140 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - complementary [ref=e3]:
+      - link "BDI INFRA-SCAN" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e7]: BDI
+        - generic [ref=e8]: INFRA-SCAN
+      - link "+ 单图实验台" [ref=e10] [cursor=pointer]:
+        - /url: /dashboard/lab-single
+        - generic [ref=e11]: +
+        - generic [ref=e12]: 单图实验台
+      - navigation [ref=e13]:
+        - link "运营总览" [ref=e14] [cursor=pointer]:
+          - /url: /dashboard/ops/overview
+          - img [ref=e15]
+          - generic [ref=e17]: 运营总览
+        - link "批次中心" [ref=e18] [cursor=pointer]:
+          - /url: /dashboard/ops
+          - img [ref=e19]
+          - generic [ref=e21]: 批次中心
+        - link "病害检索" [ref=e22] [cursor=pointer]:
+          - /url: /dashboard/ops/search
+          - img [ref=e23]
+          - generic [ref=e25]: 病害检索
+        - link "历史档案" [ref=e26] [cursor=pointer]:
+          - /url: /dashboard/history
+          - img [ref=e27]
+          - generic [ref=e29]: 历史档案
+        - link "复核中心" [ref=e30] [cursor=pointer]:
+          - /url: /dashboard/ops/reviews
+          - img [ref=e31]
+          - generic [ref=e33]: 复核中心
+        - link "告警中心" [ref=e34] [cursor=pointer]:
+          - /url: /dashboard/ops/alerts
+          - img [ref=e35]
+          - generic [ref=e37]: 告警中心
+        - link "系统设置" [ref=e38] [cursor=pointer]:
+          - /url: /dashboard/ops/settings
+          - img [ref=e39]
+          - generic [ref=e41]: 系统设置
+        - link "单图实验台" [ref=e42] [cursor=pointer]:
+          - /url: /dashboard/lab-single
+          - img [ref=e43]
+          - generic [ref=e45]: 单图实验台
+    - generic [ref=e442]:
+      - generic [ref=e443]:
+        - generic [ref=e444]:
+          - paragraph [ref=e447]: ARCHIVE
+          - heading "任务历史" [level=1] [ref=e448]
+          - paragraph [ref=e449]:
+            - text: BATCH REGISTRY /
+            - generic [ref=e450]: 7 RECORDS ATTESTED
+        - generic [ref=e451]:
+          - link "返回实时工作台" [ref=e452] [cursor=pointer]:
+            - /url: /dashboard/ops
+          - button "展开单图历史" [ref=e453]
+      - generic [ref=e454]: 查看、筛选并打开历史识别结果。
+      - generic [ref=e455]:
+        - generic [ref=e456]:
+          - generic [ref=e457]:
+            - heading "批次历史视图 / Enterprise Batch Archive" [level=2] [ref=e458]
+            - paragraph [ref=e459]: 批次切换、批次内图片浏览、单图详情入口都保留在这里。
+          - button "刷新批次历史" [ref=e460]
+        - generic [ref=e461]:
+          - generic [ref=e462]:
+            - paragraph [ref=e463]: 批次列表
+            - generic [ref=e464]:
+              - button "QA-ENH-20260405-094006 completed | success 2 | failed 0" [ref=e465]:
+                - paragraph [ref=e466]: QA-ENH-20260405-094006
+                - paragraph [ref=e467]: completed | success 2 | failed 0
+              - button "QA-ENH-20260405-093926 failed | success 0 | failed 1" [ref=e468]:
+                - paragraph [ref=e469]: QA-ENH-20260405-093926
+                - paragraph [ref=e470]: failed | success 0 | failed 1
+              - button "B20260404-010 completed | success 11 | failed 0" [ref=e471]:
+                - paragraph [ref=e472]: B20260404-010
+                - paragraph [ref=e473]: completed | success 11 | failed 0
+              - button "QA-BATCH-20260404-222817-2 completed | success 1 | failed 0" [ref=e474]:
+                - paragraph [ref=e475]: QA-BATCH-20260404-222817-2
+                - paragraph [ref=e476]: completed | success 1 | failed 0
+              - button "QA-BATCH-20260404-222528 completed | success 2 | failed 0" [ref=e477]:
+                - paragraph [ref=e478]: QA-BATCH-20260404-222528
+                - paragraph [ref=e479]: completed | success 2 | failed 0
+              - button "B20260404-004 failed | success 0 | failed 11" [ref=e480]:
+                - paragraph [ref=e481]: B20260404-004
+                - paragraph [ref=e482]: failed | success 0 | failed 11
+              - button "B20260404-001 failed | success 0 | failed 11" [ref=e483]:
+                - paragraph [ref=e484]: B20260404-001
+                - paragraph [ref=e485]: failed | success 0 | failed 11
+          - generic [ref=e486]:
+            - generic [ref=e487]:
+              - paragraph [ref=e488]: 批次图片清单 (QA-ENH-20260405-094006)
+              - generic [ref=e489]: completed
+            - table [ref=e491]:
+              - rowgroup [ref=e492]:
+                - row "序号 文件 状态 结果数 操作" [ref=e493]:
+                  - columnheader "序号" [ref=e494]
+                  - columnheader "文件" [ref=e495]
+                  - columnheader "状态" [ref=e496]
+                  - columnheader "结果数" [ref=e497]
+                  - columnheader "操作" [ref=e498]
+              - rowgroup [ref=e499]:
+                - row "1 qa1.jpg succeeded 7 查看详情" [ref=e500]:
+                  - cell "1" [ref=e501]
+                  - cell "qa1.jpg" [ref=e502]
+                  - cell "succeeded" [ref=e503]
+                  - cell "7" [ref=e504]
+                  - cell "查看详情" [ref=e505]:
+                    - link "查看详情" [ref=e506] [cursor=pointer]:
+                      - /url: /dashboard/history/res_010662d344474557?returnTo=%2Fdashboard%2Fhistory%3FbatchId%3Dbat_c31d0c4698044890
+                - row "2 qa2.jpg succeeded 4 查看详情" [ref=e507]:
+                  - cell "2" [ref=e508]
+                  - cell "qa2.jpg" [ref=e509]
+                  - cell "succeeded" [ref=e510]
+                  - cell "4" [ref=e511]
+                  - cell "查看详情" [ref=e512]:
+                    - link "查看详情" [ref=e513] [cursor=pointer]:
+                      - /url: /dashboard/history/res_9acad802b0a244e6?returnTo=%2Fdashboard%2Fhistory%3FbatchId%3Dbat_c31d0c4698044890
+      - generic [ref=e515]: 默认展示企业批次视图。需要按旧方式查看单图历史时，展开上方“单图历史”即可。
+    - complementary [ref=e516]:
+      - generic [ref=e518]:
+        - paragraph [ref=e519]: History / Summary
+        - heading "列表状态" [level=2] [ref=e520]
+      - generic [ref=e521]:
+        - paragraph [ref=e522]: 历史档案页保留批次浏览，同时恢复单图历史入口与详情跳转。
+        - generic [ref=e523]:
+          - generic [ref=e524]:
+            - paragraph [ref=e525]: 总记录数
+            - paragraph [ref=e526]: 51 条
+            - paragraph [ref=e527]: 当前历史目录内的全部识别结果。
+          - generic [ref=e528]:
+            - paragraph [ref=e529]: 病害类别
+            - paragraph [ref=e530]: 4 类
+            - paragraph [ref=e531]: 按标准病害语义统计。
+          - generic [ref=e532]:
+            - paragraph [ref=e533]: 当前批次
+            - paragraph [ref=e534]: QA-ENH-20260405-094006
+            - paragraph [ref=e535]: 2 成功 / 0 失败
+  - button "Open Next.js Dev Tools" [ref=e96] [cursor=pointer]:
+    - img [ref=e97]
+  - alert [ref=e136]: History - BDI Infrastructure Scan | BDI Nexus
