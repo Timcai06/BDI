@@ -54,8 +54,16 @@ class DualBranchEnhanceRunner:
             "bridge_weights": self.bridge_weights_path.name,
         }
 
+    def _load_checkpoint(self, path: Path) -> dict:
+        try:
+            return torch.load(path, map_location=self.device, weights_only=False)
+        except TypeError:
+            # Backward compatibility with older torch releases that do not expose
+            # the weights_only parameter.
+            return torch.load(path, map_location=self.device)
+
     def _load_revised(self, path: Path) -> RevisedGenerator:
-        ckpt = torch.load(path, map_location=self.device)
+        ckpt = self._load_checkpoint(path)
         cfg = ckpt.get("config", {}).get("model", {})
         
         G = RevisedGenerator(
@@ -73,7 +81,7 @@ class DualBranchEnhanceRunner:
         return G
 
     def _load_bridge(self, path: Path) -> BridgeGenerator:
-        ckpt = torch.load(path, map_location=self.device)
+        ckpt = self._load_checkpoint(path)
         cfg = ckpt.get("config", {}).get("model", {})
         
         G = BridgeGenerator(
