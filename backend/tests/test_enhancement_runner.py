@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from PIL import Image
+
 from app.adapters.enhancement_runner import DualBranchEnhanceRunner
 
 
@@ -42,3 +44,13 @@ def test_enhancement_runner_uses_weights_only_false_when_loading_checkpoints(mon
     assert runner.describe()["algorithm"] == "Img_Enhance"
     assert calls[0][2] is False
     assert calls[1][2] is False
+
+
+def test_fuse_average_resizes_second_branch_to_match_first() -> None:
+    runner = DualBranchEnhanceRunner.__new__(DualBranchEnhanceRunner)
+    img1 = Image.new("RGB", (1024, 684), color=(10, 20, 30))
+    img2 = Image.new("RGB", (1024, 682), color=(30, 40, 50))
+
+    fused = runner._fuse_average(img1, img2)
+
+    assert fused.size == img1.size

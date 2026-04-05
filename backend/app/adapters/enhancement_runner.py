@@ -204,6 +204,8 @@ class DualBranchEnhanceRunner:
         return TF.to_pil_image(t)
 
     def _fuse_average(self, img1: Image.Image, img2: Image.Image) -> Image.Image:
+        if img1.size != img2.size:
+            img2 = img2.resize(img1.size, Image.BICUBIC)
         a1 = np.array(img1, dtype=np.float32)
         a2 = np.array(img2, dtype=np.float32)
         fused = np.clip(0.5 * a1 + 0.5 * a2, 0, 255).astype(np.uint8)
