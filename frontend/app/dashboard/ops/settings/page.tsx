@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 import { OpsSettingsShell } from "@/components/ops/ops-settings-shell";
 
 export const metadata = {
@@ -5,5 +7,9 @@ export const metadata = {
 };
 
 export default function DashboardOpsSettingsPage() {
-  return <OpsSettingsShell />;
+  return (
+    <Suspense fallback={<div className="relative z-10 flex-1 p-8 text-sm text-white/60">加载中...</div>}>
+      <OpsSettingsShell />
+    </Suspense>
+  );
 }

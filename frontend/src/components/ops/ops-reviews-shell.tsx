@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { OpsPageHeader } from "@/components/ops/ops-page-header";
 import { listV1Batches, listV1Reviews } from "@/lib/predict-client";
 import type { BatchV1, ReviewRecordV1 } from "@/lib/types";
 
@@ -92,28 +93,27 @@ export function OpsReviewsShell() {
   return (
     <div className="relative z-10 flex flex-1 flex-col overflow-hidden bg-black/40 backdrop-blur-3xl">
       <div className="relative flex-1 overflow-y-auto p-6 lg:p-8 space-y-6">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-6">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.8)]" />
-              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-cyan-400 m-0">REVIEWS</p>
-            </div>
-            <h1 className="text-xl lg:text-3xl font-black tracking-tight text-white uppercase">复核中心</h1>
-            <p className="text-xs text-white/40 mt-1 uppercase tracking-widest">
+        <OpsPageHeader
+          eyebrow="REVIEWS"
+          title="复核中心"
+          subtitle={
+            <>
               DECISION TRACKING / <span className="font-mono">{reviews.length} RECORDS FOUND</span>
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              void runQuery();
-            }}
-            disabled={loading}
-            className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-xs font-bold text-cyan-200 transition-all hover:bg-cyan-500/20 disabled:opacity-30 active:scale-95"
-          >
-            {loading ? "SYNCING..." : "RELOAD RECORDS"}
-          </button>
-        </header>
+            </>
+          }
+          actions={
+            <button
+              type="button"
+              onClick={() => {
+                void runQuery();
+              }}
+              disabled={loading}
+              className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-xs font-bold text-cyan-200 transition-all hover:bg-cyan-500/20 disabled:opacity-30 active:scale-95"
+            >
+              {loading ? "SYNCING..." : "RELOAD RECORDS"}
+            </button>
+          }
+        />
 
         <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
           <div className="flex items-center justify-between mb-4">

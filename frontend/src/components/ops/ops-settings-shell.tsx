@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+import { OpsPageHeader } from "@/components/ops/ops-page-header";
 import {
   getV1AlertRules,
   listV1AlertRulesAudit,
@@ -110,45 +111,45 @@ export function OpsSettingsShell() {
   return (
     <div className="relative z-10 flex flex-1 flex-col overflow-hidden bg-black/40 backdrop-blur-3xl">
       <div className="relative flex-1 overflow-y-auto p-6 lg:p-10 space-y-8">
-        <header className="flex flex-wrap items-center justify-between gap-6 border-b border-white/5 pb-8">
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="h-2 w-2 rounded-full bg-slate-400 shadow-[0_0_10px_rgba(148,163,184,0.8)]" />
-              <p className="text-[10px] font-bold uppercase tracking-[0.4em] text-slate-400/60 m-0">SETTINGS</p>
+        <OpsPageHeader
+          eyebrow="SETTINGS"
+          title="全局配置与审计"
+          subtitle={
+            <>
+              SYSTEM PREFERENCES /{" "}
+              <span className="font-mono text-cyan-200/40">RUNTIME ENVIRONMENT</span>
+            </>
+          }
+          accent="slate"
+          actions={
+            <div className="flex rounded-2xl border border-white/5 bg-white/[0.03] p-1 shadow-2xl">
+              <button
+                onClick={() => {
+                  setActiveTab("config");
+                  setSelectedAuditId(null);
+                  setAuditDetail(null);
+                }}
+                className={`rounded-xl px-6 py-2.5 text-xs font-bold uppercase tracking-[0.1em] transition-all ${
+                  activeTab === "config"
+                    ? "bg-white/10 text-white shadow-xl"
+                    : "text-white/30 hover:text-white/60"
+                }`}
+              >
+                配置管理 / CONFIG
+              </button>
+              <button
+                onClick={() => setActiveTab("audit")}
+                className={`rounded-xl px-6 py-2.5 text-xs font-bold uppercase tracking-[0.1em] transition-all ${
+                  activeTab === "audit"
+                    ? "bg-white/10 text-white shadow-xl"
+                    : "text-white/30 hover:text-white/60"
+                }`}
+              >
+                操作审计 / AUDIT
+              </button>
             </div>
-            <h1 className="text-2xl lg:text-4xl font-black tracking-tighter text-white uppercase">全局配置与审计</h1>
-            <p className="text-xs text-white/30 mt-1.5 uppercase tracking-[0.2em]">
-              SYSTEM PREFERENCES / <span className="font-mono text-cyan-200/40">RUNTIME ENVIRONMENT</span>
-            </p>
-          </div>
-
-          <div className="flex rounded-2xl bg-white/[0.03] p-1 border border-white/5 shadow-2xl">
-            <button
-              onClick={() => {
-                setActiveTab("config");
-                setSelectedAuditId(null);
-                setAuditDetail(null);
-              }}
-              className={`rounded-xl px-6 py-2.5 text-xs font-bold uppercase tracking-[0.1em] transition-all ${
-                activeTab === "config" 
-                ? "bg-white/10 text-white shadow-xl" 
-                : "text-white/30 hover:text-white/60"
-              }`}
-            >
-              配置管理 / CONFIG
-            </button>
-            <button
-              onClick={() => setActiveTab("audit")}
-              className={`rounded-xl px-6 py-2.5 text-xs font-bold uppercase tracking-[0.1em] transition-all ${
-                activeTab === "audit" 
-                ? "bg-white/10 text-white shadow-xl" 
-                : "text-white/30 hover:text-white/60"
-              }`}
-            >
-              操作审计 / AUDIT
-            </button>
-          </div>
-        </header>
+          }
+        />
 
         {notice && (
           <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-[rgba(16,185,129,0.15)] px-8 py-5 text-emerald-100 backdrop-blur-3xl animate-in fade-in slide-in-from-bottom-6 shadow-[0_30px_70px_rgba(0,0,0,0.6)]">

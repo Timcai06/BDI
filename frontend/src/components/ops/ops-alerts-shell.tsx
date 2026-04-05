@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+import { OpsPageHeader } from "@/components/ops/ops-page-header";
 import { listV1Alerts, updateV1AlertStatus } from "@/lib/predict-client";
 import type { AlertV1 } from "@/lib/types";
 
@@ -188,24 +189,25 @@ export function OpsAlertsShell() {
   return (
     <div className="relative z-10 flex flex-1 flex-col overflow-hidden bg-black/40 backdrop-blur-3xl">
       <div className="relative flex-1 overflow-y-auto p-6 lg:p-8 space-y-6">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-6">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.8)]" />
-              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-rose-400 m-0">ALERTS</p>
-            </div>
-            <h1 className="text-xl lg:text-3xl font-black tracking-tight text-white uppercase">告警中心</h1>
-            <p className="text-xs text-white/40 mt-1 uppercase tracking-widest">
-              MANAGEMENT & ACKNOWLEDGEMENT / <span className="font-mono">{displayedAlerts.length} ACTIVE</span>
-            </p>
-          </div>
-          <Link
-            href="/dashboard/ops"
-            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-white/70 transition-all hover:bg-white/10 hover:text-white"
-          >
-            返回巡检工作台
-          </Link>
-        </header>
+        <OpsPageHeader
+          eyebrow="ALERTS"
+          title="告警中心"
+          subtitle={
+            <>
+              MANAGEMENT & ACKNOWLEDGEMENT /{" "}
+              <span className="font-mono">{displayedAlerts.length} ACTIVE</span>
+            </>
+          }
+          accent="rose"
+          actions={
+            <Link
+              href="/dashboard/ops"
+              className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-medium text-white/70 transition-all hover:bg-white/10 hover:text-white"
+            >
+              返回巡检工作台
+            </Link>
+          }
+        />
 
         <section className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           <div className="xl:col-span-8 rounded-2xl border border-white/10 bg-white/[0.02] p-5 space-y-4">

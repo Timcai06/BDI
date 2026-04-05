@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DashboardRightRail } from "@/components/dashboard-right-rail";
 import { HistoryPanel } from "@/components/history";
+import { OpsPageHeader } from "@/components/ops/ops-page-header";
 import { getCanonicalCategoryOptions, getDefectLabel } from "@/lib/defect-visuals";
 import type { HistorySortMode } from "@/lib/history-utils";
 import {
@@ -274,26 +275,21 @@ export function HistoryRouteShell() {
 
   return (
     <>
-      <section className="relative z-10 flex min-w-0 flex-1 flex-col bg-transparent">
+      <section className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden bg-black/40 backdrop-blur-3xl">
         <div className="relative flex-1 overflow-y-auto p-6 lg:p-10">
           <div className="mx-auto flex min-h-full max-w-[1800px] flex-col lg:px-2">
-            <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-8">
-              <div>
-                <div className="mb-1.5 flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.8)]" />
-                  <p className="m-0 text-[10px] font-bold uppercase tracking-[0.4em] text-amber-500">
-                    ARCHIVE
-                  </p>
-                </div>
-                <h1 className="text-2xl font-black tracking-tighter text-white uppercase lg:text-4xl">
-                  任务历史
-                </h1>
-                <p className="mt-1.5 text-xs uppercase tracking-[0.2em] text-white/30">
+            <OpsPageHeader
+              eyebrow="ARCHIVE"
+              title="任务历史"
+              subtitle={
+                <>
                   BATCH REGISTRY /{" "}
                   <span className="font-mono text-amber-200/50">{batches.length} RECORDS ATTESTED</span>
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
+                </>
+              }
+              accent="amber"
+              actions={
+                <>
                 <Link
                   href="/dashboard/ops"
                   className="rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-xs font-bold text-white/70 transition-all hover:bg-white/10 hover:text-white"
@@ -307,8 +303,9 @@ export function HistoryRouteShell() {
                 >
                   {showLegacyHistory ? "收起单图历史" : "展开单图历史"}
                 </button>
-              </div>
-            </header>
+                </>
+              }
+            />
 
             <div className="mb-4 mt-6 rounded-2xl border border-white/6 bg-white/[0.025] px-4 py-3 text-sm text-white/55">
               {status.message}

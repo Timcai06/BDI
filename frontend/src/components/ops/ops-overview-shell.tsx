@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { OpsPageHeader } from "@/components/ops/ops-page-header";
 import {
   getV1OpsMetrics,
   listV1Alerts,
@@ -265,45 +266,39 @@ export function OpsOverviewShell() {
   const failureDist = opsMetrics?.failure_code_breakdown ?? {};
 
   return (
-    <div className="relative z-10 flex-1 overflow-y-auto p-6 lg:p-10 space-y-8 bg-black/40">
+    <div className="relative z-10 flex flex-1 flex-col overflow-y-auto bg-black/40 p-6 backdrop-blur-3xl lg:p-8 space-y-8">
       {/* --- HEADER --- */}
-      <header className="flex flex-wrap items-end justify-between gap-6 overflow-hidden">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">运营总览</h1>
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20">
-              <div className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.6)]" />
-              <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-widest">Live System</span>
+      <OpsPageHeader
+        eyebrow="OVERVIEW"
+        title="运营总览"
+        subtitle="闭环数据看板 / 风险优先级与处置效率"
+        actions={
+          <>
+            <div className="flex rounded-xl border border-white/5 bg-white/[0.03] p-1">
+              {[24, 72, 168].map((h) => (
+                <button
+                  key={h}
+                  onClick={() => setWindowHours(h)}
+                  className={`rounded-lg px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all ${
+                    windowHours === h ? "bg-white/10 text-white shadow-xl" : "text-white/30 hover:text-white/60"
+                  }`}
+                >
+                  {h === 168 ? "7d" : `${h}h`}
+                </button>
+              ))}
             </div>
-          </div>
-          <p className="text-sm text-white/40 max-w-xl font-light">
-            通过资产、检测、复核与告警的闭环数据，掌控大规模巡检的风险优先级与处置效率。
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-3 self-center lg:self-end">
-          <div className="flex p-1 rounded-xl bg-white/[0.03] border border-white/5">
-            {[24, 72, 168].map(h => (
-              <button 
-                key={h}
-                onClick={() => setWindowHours(h)}
-                className={`px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${windowHours === h ? 'bg-white/10 text-white shadow-xl' : 'text-white/30 hover:text-white/60'}`}
-              >
-                {h === 168 ? '7d' : `${h}h`}
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={() => setRefreshTick(v => v + 1)}
-            className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-all active:scale-95"
-            title="刷新数据"
-          >
-            <svg className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
-        </div>
-      </header>
+            <button
+              onClick={() => setRefreshTick((v) => v + 1)}
+              className="rounded-xl border border-white/5 bg-white/[0.03] p-2.5 text-white/60 transition-all hover:bg-white/10 hover:text-white active:scale-95"
+              title="刷新数据"
+            >
+              <svg className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          </>
+        }
+      />
 
       {error && (
         <div className="flex items-center gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300">

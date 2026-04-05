@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { OpsPageHeader } from "@/components/ops/ops-page-header";
 import type { BatchV1 } from "@/lib/types";
 
 interface BatchHeaderProps {
@@ -31,102 +32,105 @@ export function BatchHeader({
   const statusColor = statusColors[batch?.status ?? ""] ?? "bg-white/20";
 
   return (
-    <header className="flex flex-wrap items-end justify-between gap-6 border-b border-white/5 bg-white/[0.01] px-6 py-6 lg:px-10">
-      <div className="space-y-1.5">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-white flex items-center gap-3">
-            {batch ? (
-              <>
-                <span className="opacity-40 font-light uppercase">BATCH</span>
-                <span className="bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
-                  {batch.batch_code}
+    <div className="border-b border-white/5 bg-white/[0.01] px-6 py-6 lg:px-10">
+      <OpsPageHeader
+        eyebrow="WORKBENCH"
+        title={batch ? batch.batch_code : "巡检批次中心"}
+        subtitle={
+          batch ? (
+            <span className="inline-flex items-center gap-3">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-0.5">
+                <span className={`h-1.5 w-1.5 rounded-full ${statusColor}`} />
+                <span className="text-[9px] font-bold uppercase tracking-widest text-white/50">
+                  {batch.status}
                 </span>
-              </>
-            ) : (
-              "巡检批次中心 / WORKBENCH"
-            )}
-            {batch && (
-              <span className="px-2 py-0.5 rounded-md border border-white/10 bg-white/5 text-[9px] font-black uppercase tracking-[0.2em] text-white/40">
-                {batch.source_type}
               </span>
-            )}
-          </h1>
-          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/[0.03] border border-white/10">
-            <div className={`h-1.5 w-1.5 rounded-full ${statusColor}`} />
-            <span className="text-[9px] font-bold text-white/50 uppercase tracking-widest">
-              {batch?.status ?? "Inactive"}
+              <span className="opacity-50">CREATED {new Date(batch.created_at).toLocaleDateString()}</span>
+              <span className="font-mono text-[10px] text-white/40">UUID {batch.id.slice(0, 8)}...</span>
+              {lastRefreshedAt ? (
+                <span className="text-cyan-400/60">SYNCED {new Date(lastRefreshedAt).toLocaleTimeString()}</span>
+              ) : null}
             </span>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-4 text-[10px] uppercase tracking-widest font-medium text-white/30">
-          {batch ? (
-            <>
-              <div className="flex items-center gap-1.5">
-                <span className="opacity-50">CREATED</span>
-                <span className="text-white/60">{new Date(batch.created_at).toLocaleDateString()}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="opacity-50">UUID</span>
-                <span className="text-white/40 font-mono text-[9px]">{batch.id.slice(0, 8)}...</span>
-              </div>
-              {lastRefreshedAt && (
-                <div className="flex items-center gap-1.5">
-                  <span className="opacity-50">SYNCED</span>
-                  <span className="text-cyan-400/60">{new Date(lastRefreshedAt).toLocaleTimeString()}</span>
-                </div>
-              )}
-            </>
           ) : (
             "ENTERPRISE INFRASTRUCTURE SCAN WORKBENCH"
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <Link
-          href="/dashboard/history"
-          className="flex h-10 items-center justify-center gap-2 rounded-xl border border-white/5 bg-white/[0.03] px-5 text-[10px] font-bold uppercase tracking-wider text-white/60 transition-all hover:bg-white/10 hover:text-white"
-        >
-          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-          </svg>
-          历史档案
-        </Link>
-        
-        {batch && (
-          <button
-            onClick={onDeleteBatch}
-            disabled={deletingBatch}
-            className="flex h-10 items-center justify-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-5 text-[10px] font-bold uppercase tracking-wider text-rose-300 transition-all hover:bg-rose-500/20 disabled:opacity-30 group"
-          >
-            <svg className={`h-3.5 w-3.5 transition-transform ${deletingBatch ? 'animate-spin' : 'group-hover:scale-110'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            {deletingBatch ? "Deleting..." : "删除批次"}
-          </button>
-        )}
-
-        <button
-          onClick={onRefresh}
-          className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/5 bg-white/[0.03] text-white/30 transition-all hover:bg-white/10 hover:text-white active:scale-95 group"
-          title="刷新数据"
-        >
-          <svg className="h-4 w-4 transition-transform group-hover:rotate-180 duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-        </button>
-
-        <button
-          onClick={onOpenWizard}
-          className="flex h-10 items-center gap-2.5 rounded-xl bg-cyan-500 px-6 text-[10px] font-black uppercase tracking-[0.15em] text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_20px_rgba(34,211,238,0.4)] active:scale-95 group"
-        >
-          <svg className="h-4 w-4 transition-transform group-hover:rotate-90 duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
-          </svg>
-          创建批次 / 导入图片
-        </button>
-      </div>
-    </header>
+          )
+        }
+        actions={
+          <>
+            <Link
+              href="/dashboard/history"
+              className="flex h-10 items-center justify-center gap-2 rounded-xl border border-white/5 bg-white/[0.03] px-5 text-[10px] font-bold uppercase tracking-wider text-white/60 transition-all hover:bg-white/10 hover:text-white"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+                />
+              </svg>
+              历史档案
+            </Link>
+            {batch ? (
+              <button
+                onClick={onDeleteBatch}
+                disabled={deletingBatch}
+                className="flex h-10 items-center justify-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-5 text-[10px] font-bold uppercase tracking-wider text-rose-300 transition-all hover:bg-rose-500/20 disabled:opacity-30 group"
+              >
+                <svg
+                  className={`h-3.5 w-3.5 transition-transform ${
+                    deletingBatch ? "animate-spin" : "group-hover:scale-110"
+                  }`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+                {deletingBatch ? "Deleting..." : "删除批次"}
+              </button>
+            ) : null}
+            <button
+              onClick={onRefresh}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/5 bg-white/[0.03] text-white/30 transition-all hover:bg-white/10 hover:text-white active:scale-95 group"
+              title="刷新数据"
+            >
+              <svg
+                className="h-4 w-4 transition-transform duration-500 group-hover:rotate-180"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            </button>
+            <button
+              onClick={onOpenWizard}
+              className="flex h-10 items-center gap-2.5 rounded-xl bg-cyan-500 px-6 text-[10px] font-black uppercase tracking-[0.15em] text-black transition-all hover:bg-cyan-400 hover:shadow-[0_0_20px_rgba(34,211,238,0.4)] active:scale-95 group"
+            >
+              <svg
+                className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+              </svg>
+              创建批次 / 导入图片
+            </button>
+          </>
+        }
+      />
+    </div>
   );
 }
