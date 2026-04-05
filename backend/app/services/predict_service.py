@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Tuple
 
@@ -12,7 +13,7 @@ from app.adapters.manager import RunnerManager
 from app.adapters.base import ModelRunner
 from app.adapters.registry import ModelSpec
 from app.core.errors import AppError
-from app.models.schemas import ArtifactLinks, Detection, PredictOptions, PredictResponse, RawPrediction
+from app.models.schemas import ArtifactLinks, Detection, EnhancementInfo, PredictOptions, PredictResponse, RawPrediction
 from app.storage.local import LocalArtifactStore
 
 from PIL import Image as PILImage
@@ -94,6 +95,8 @@ class PredictService:
                 # 1. Image Enhancement
                 orig_img = PILImage.open(io.BytesIO(content))
                 enhanced_img = await loop.run_in_executor(None, self.enhance_runner.enhance, orig_img)
+                enhanced_at = datetime.now(timezone.utc)
+                enhance_meta = self.enhance_runner.describe()
                 
                 # 2. Save Enhanced Image
                 buf = io.BytesIO()
@@ -116,6 +119,14 @@ class PredictService:
                     image_id=image_id,
                     upload_path=enhanced_path, # Show enhanced path as its source
                     raw_prediction=enhanced_raw,
+                    result_variant="enhanced",
+                    enhancement_info=EnhancementInfo(
+                        algorithm=enhance_meta["algorithm"],
+                        pipeline=enhance_meta["pipeline"],
+                        revised_weights=enhance_meta["revised_weights"],
+                        bridge_weights=enhance_meta["bridge_weights"],
+                        generated_at=enhanced_at,
+                    ),
                 )
                 
                 # Special artifact handling for secondaryoverlay
@@ -313,9 +324,12 @@ class PredictService:
         image_id: str,
         upload_path: str,
         raw_prediction: RawPrediction,
+        result_variant: str = "original",
+        enhancement_info: EnhancementInfo | None = None,
     ) -> PredictResponse:
         response = PredictResponse(
             image_id=image_id,
+            result_variant=result_variant,
             inference_ms=raw_prediction.inference_ms,
             inference_breakdown=raw_prediction.inference_breakdown,
             model_name=raw_prediction.model_name,
@@ -336,6 +350,7 @@ class PredictService:
                 )
                 for index, item in enumerate(raw_prediction.detections)
             ],
+            enhancement_info=enhancement_info,
             artifacts=ArtifactLinks(upload_path=upload_path, json_path="", overlay_path=None),
         )
         response.mask_detection_count = sum(1 for item in response.detections if item.mask is not None)

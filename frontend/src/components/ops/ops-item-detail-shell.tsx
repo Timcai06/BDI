@@ -6,13 +6,20 @@ import { useEffect, useState } from "react";
 
 import {
   createV1Review,
+  getEnhancedOverlayUrl,
   getEnhancedImageUrl,
+  getOverlayDownloadUrl,
   getResultImageUrl,
   getV1BatchItemDetail,
   getV1BatchItemResult,
-  listV1Detections,
 } from "@/lib/predict-client";
-import type { BatchItemDetailV1Response, DetectionRecordV1, BatchItemResultV1Response } from "@/lib/types";
+import type {
+  BatchItemDetailV1Response,
+  BatchItemResultV1Response,
+  DetectionMask,
+  PredictResponse,
+  ResultDetectionV1,
+} from "@/lib/types";
 
 interface Props {
   batchItemId?: string;
@@ -28,33 +35,87 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
 
   const [item, setItem] = useState<BatchItemDetailV1Response | null>(null);
   const [result, setResult] = useState<BatchItemResultV1Response | null>(null);
-  const [detections, setDetections] = useState<DetectionRecordV1[]>([]);
 
   // UI States
-  const [showEnhanced, setShowEnhanced] = useState(true);
+  const [showEnhanced, setShowEnhanced] = useState(false);
+  const [viewMode, setViewMode] = useState<"image" | "result">("result");
   const [reviewAction, setReviewAction] = useState<"confirm" | "reject">("confirm");
   const [reviewNote, setReviewNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const returnTo = searchParams.get("returnTo");
 
+  function toPrimaryResult(resultData: BatchItemResultV1Response): PredictResponse {
+    const normalizeMask = (mask: ResultDetectionV1["mask"]): DetectionMask | null | undefined => {
+      if (
+        mask &&
+        typeof mask === "object" &&
+        "format" in mask &&
+        "points" in mask &&
+        mask.format === "polygon" &&
+        Array.isArray(mask.points)
+      ) {
+        return mask as unknown as DetectionMask;
+      }
+      return undefined;
+    };
+
+    return {
+      schema_version: resultData.schema_version,
+      image_id: resultData.id,
+      result_variant: "original",
+      inference_ms: resultData.inference_ms,
+      inference_breakdown: resultData.inference_breakdown,
+      model_name: resultData.model_name,
+      model_version: resultData.model_version,
+      backend: resultData.backend,
+      inference_mode: resultData.inference_mode,
+      detections: resultData.detections.map((det) => ({
+        id: det.id,
+        category: det.category,
+        confidence: det.confidence,
+        bbox: det.bbox,
+        mask: normalizeMask(det.mask),
+        metrics: det.metrics,
+        source_role: det.source_role,
+        source_model_name: det.source_model_name,
+        source_model_version: det.source_model_version,
+      })),
+      has_masks: resultData.has_masks,
+      mask_detection_count: resultData.mask_detection_count,
+      artifacts: {
+        upload_path: "",
+        json_path: resultData.json_uri ?? "",
+        overlay_path: resultData.overlay_uri ?? null,
+        enhanced_path: resultData.enhanced_path ?? null,
+        enhanced_overlay_path: resultData.enhanced_overlay_path ?? null,
+      },
+      created_at: resultData.created_at,
+      secondary_result: resultData.secondary_result ?? null,
+    };
+  }
+
+  function summarizeDetections(detectionItems: ResultDetectionV1[] | PredictResponse["detections"]) {
+    const totalConfidence = detectionItems.reduce((sum, det) => sum + det.confidence, 0);
+    const categories = new Set(detectionItems.map((det) => det.category));
+    return {
+      count: detectionItems.length,
+      categories: categories.size,
+      averageConfidence: detectionItems.length > 0 ? totalConfidence / detectionItems.length : 0,
+    };
+  }
+
   async function loadData() {
     setLoading(true);
     setError(null);
     try {
-      const [itemData, detData] = await Promise.all([
-        getV1BatchItemDetail(resolvedItemId),
-        listV1Detections({ batchItemId: resolvedItemId, limit: 100, offset: 0 })
-      ]);
+      const itemData = await getV1BatchItemDetail(resolvedItemId);
       setItem(itemData);
-      setDetections(detData.items);
       
-      // Try fetching result details for enhanced image path
       try {
         const resultData = await getV1BatchItemResult(resolvedItemId);
         setResult(resultData);
-        if (!resultData.secondary_result) {
-          setShowEnhanced(false);
-        }
+        setShowEnhanced(false);
+        setViewMode(resultData.overlay_uri ? "result" : "image");
       } catch (err) {
         console.warn("No result found for this item yet", err);
         setShowEnhanced(false);
@@ -72,10 +133,13 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
   }, [resolvedItemId]);
 
   async function handleSubmitReview() {
-    // We need a detection ID to submit a review in this API
-    // If no specific detection is selected, we might need a different approach or default to first if exists
-    if (detections.length === 0) {
-      setError("No detections available to review.");
+    if (!result || result.detections.length === 0) {
+      setError("No primary detections available to review.");
+      return;
+    }
+
+    if (showEnhanced) {
+      setError("增强结果当前仅供查看，请切回原图识别后提交复核。");
       return;
     }
 
@@ -83,7 +147,7 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
     setNotice(null);
     try {
       await createV1Review({
-        detectionId: detections[0].id, // Default to first for bulk action/general item review
+        detectionId: result.detections[0].id,
         reviewAction: reviewAction,
         reviewer: "ops-expert",
         reviewNote: reviewNote
@@ -127,10 +191,30 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
 
   const defaultReturnHref = `/dashboard/ops?batchId=${encodeURIComponent(item.batch_id)}`;
   const backHref = returnTo || defaultReturnHref;
+  const primaryResult = result ? toPrimaryResult(result) : null;
+  const enhancedResult = result?.secondary_result ?? null;
+  const activeResult = showEnhanced && enhancedResult ? enhancedResult : primaryResult;
+  const activeDetections = activeResult?.detections ?? [];
+  const primarySummary = result ? summarizeDetections(result.detections) : null;
+  const activeSummary = activeResult ? summarizeDetections(activeDetections) : null;
+  const deltaCount = enhancedResult && primarySummary ? enhancedResult.detections.length - primarySummary.count : 0;
+  const deltaConfidence =
+    enhancedResult && primarySummary
+      ? summarizeDetections(enhancedResult.detections).averageConfidence - primarySummary.averageConfidence
+      : 0;
   const originalUrl = result ? getResultImageUrl(result.id) : null;
-  const enhancedUrl =
-    result && result.secondary_result ? getEnhancedImageUrl(result.id) : null;
-  const activeImageUrl = showEnhanced && enhancedUrl ? enhancedUrl : originalUrl;
+  const originalOverlayUrl = result ? getOverlayDownloadUrl(result.id) : null;
+  const enhancedUrl = result && enhancedResult ? getEnhancedImageUrl(result.id) : null;
+  const enhancedOverlayUrl = result && enhancedResult ? getEnhancedOverlayUrl(result.id) : null;
+  const activeImageUrl = showEnhanced
+    ? (viewMode === "result" ? enhancedOverlayUrl ?? enhancedUrl : enhancedUrl ?? enhancedOverlayUrl)
+    : (viewMode === "result" ? originalOverlayUrl ?? originalUrl : originalUrl ?? originalOverlayUrl);
+  const activeModeLabel = showEnhanced ? "增强后识别" : "原图识别";
+  const activeModeDescription = showEnhanced
+    ? "基于 Img_Enhance 低照度增强图像推理"
+    : "基于原始图像推理";
+  const enhancementInfo = enhancedResult?.enhancement_info ?? null;
+  const reviewDisabled = isSubmitting || showEnhanced || !result || result.detections.length === 0;
 
   return (
     <div className="relative z-10 flex flex-1 flex-col overflow-hidden bg-black/40 backdrop-blur-3xl">
@@ -167,7 +251,7 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
               <div className="absolute top-4 left-4 z-20 flex gap-2">
                 <button
                   onClick={() => setShowEnhanced(true)}
-                  disabled={!enhancedUrl}
+                  disabled={!enhancedResult}
                   className={`rounded-lg border px-4 py-1.5 text-[10px] font-black tracking-widest transition-all ${
                     showEnhanced 
                     ? "border-cyan-500/50 bg-cyan-500/20 text-white shadow-[0_0_20px_rgba(6,182,212,0.2)]" 
@@ -185,6 +269,29 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
                   }`}
                 >
                   ORIGINAL_RAW
+                </button>
+              </div>
+              <div className="absolute top-4 right-4 z-20 flex gap-2">
+                <button
+                  onClick={() => setViewMode("result")}
+                  disabled={showEnhanced ? !enhancedOverlayUrl : !originalOverlayUrl}
+                  className={`rounded-lg border px-3 py-1.5 text-[10px] font-black tracking-widest transition-all ${
+                    viewMode === "result"
+                      ? "border-emerald-500/50 bg-emerald-500/20 text-white"
+                      : "border-white/10 bg-white/5 text-white/40"
+                  } disabled:opacity-40`}
+                >
+                  结果图
+                </button>
+                <button
+                  onClick={() => setViewMode("image")}
+                  className={`rounded-lg border px-3 py-1.5 text-[10px] font-black tracking-widest transition-all ${
+                    viewMode === "image"
+                      ? "border-white/50 bg-white/20 text-white"
+                      : "border-white/10 bg-white/5 text-white/40"
+                  }`}
+                >
+                  原图
                 </button>
               </div>
 
@@ -214,13 +321,62 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
                       <span className="text-[9px] font-bold text-white/20 uppercase tracking-tighter">SEQUENCE</span>
                       <span className="text-xs font-mono text-white/60">NO_{item.sequence_no}</span>
                    </div>
+                   <div className="flex flex-col">
+                      <span className="text-[9px] font-bold text-white/20 uppercase tracking-tighter">RESULT_SOURCE</span>
+                      <span className="text-xs font-semibold text-white/70">{activeModeLabel}</span>
+                   </div>
                 </div>
                 <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-white/10">
                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                   <span className="text-[10px] font-mono text-emerald-400">CLOUD_READY</span>
+                   <span className="text-[10px] font-mono text-emerald-400">{viewMode === "result" ? "RESULT_VIEW" : "SOURCE_VIEW"}</span>
                 </div>
               </div>
             </section>
+
+            <section className="grid gap-4 md:grid-cols-4">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">结果来源</p>
+                <p className="mt-2 text-sm font-black text-white">{activeModeLabel}</p>
+                <p className="mt-1 text-xs text-white/45">{activeModeDescription}</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">病害数量</p>
+                <p className="mt-2 text-sm font-black text-white">{activeSummary?.count ?? 0}</p>
+                {showEnhanced && enhancedResult ? (
+                  <p className={`mt-1 text-xs ${deltaCount >= 0 ? "text-emerald-300/70" : "text-rose-300/70"}`}>
+                    {deltaCount >= 0 ? "+" : ""}{deltaCount} 相比原图
+                  </p>
+                ) : null}
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">类别覆盖</p>
+                <p className="mt-2 text-sm font-black text-white">{activeSummary?.categories ?? 0}</p>
+                <p className="mt-1 text-xs text-white/45">独立病害类别数</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">平均置信度</p>
+                <p className="mt-2 text-sm font-black text-white">
+                  {((activeSummary?.averageConfidence ?? 0) * 100).toFixed(1)}%
+                </p>
+                {showEnhanced && enhancedResult ? (
+                  <p className={`mt-1 text-xs ${deltaConfidence >= 0 ? "text-emerald-300/70" : "text-rose-300/70"}`}>
+                    {deltaConfidence >= 0 ? "+" : ""}{(deltaConfidence * 100).toFixed(1)}% 相比原图
+                  </p>
+                ) : null}
+              </div>
+            </section>
+
+            {showEnhanced && enhancementInfo ? (
+              <section className="rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.04] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300/80">Enhancement Provenance</p>
+                <p className="mt-2 text-sm text-white/80">
+                  {enhancementInfo.algorithm} / {enhancementInfo.pipeline}
+                </p>
+                <p className="mt-1 text-xs text-white/45">
+                  revised: {enhancementInfo.revised_weights ?? "n/a"} | bridge: {enhancementInfo.bridge_weights ?? "n/a"}
+                </p>
+              </section>
+            ) : null}
           </div>
 
           <div className="xl:col-span-4 flex flex-col gap-6">
@@ -228,7 +384,7 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
               <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 m-0">识别诊断 / NEURAL_OUTPUTS</h3>
               
               <div className="space-y-4 max-h-[400px] overflow-auto pr-2 custom-scrollbar">
-                {detections.map((det) => (
+                {activeDetections.map((det) => (
                   <div key={det.id} className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.01] p-3 transition-colors hover:bg-white/[0.03]">
                     <div className="flex items-center gap-3">
                       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/10 text-[9px] font-black text-cyan-400 border border-cyan-500/20">
@@ -236,15 +392,17 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
                       </div>
                       <div className="space-y-0.5">
                         <p className="text-xs font-bold text-white uppercase tracking-tight">{det.category}</p>
-                        <p className="text-[9px] font-mono text-white/20">VAL: {String(det.is_valid)}</p>
+                        <p className="text-[9px] font-mono text-white/20">
+                          {showEnhanced ? "SOURCE: ENHANCED" : "SOURCE: ORIGINAL"}
+                        </p>
                       </div>
                     </div>
-                    {det.area_mm2 && (
-                       <span className="text-[10px] font-mono text-white/40">{det.area_mm2.toFixed(1)} mm²</span>
+                    {det.metrics.area_mm2 && (
+                       <span className="text-[10px] font-mono text-white/40">{det.metrics.area_mm2.toFixed(1)} mm²</span>
                     )}
                   </div>
                 ))}
-                {detections.length === 0 && (
+                {activeDetections.length === 0 && (
                   <div className="py-12 text-center opacity-20">
                     <p className="text-[10px] font-black uppercase tracking-widest">No anomalies verified</p>
                   </div>
@@ -298,14 +456,14 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
 
                 <button
                   onClick={handleSubmitReview}
-                  disabled={isSubmitting}
+                  disabled={reviewDisabled}
                   className={`w-full rounded-xl py-4 text-xs font-black tracking-[0.3em] uppercase transition-all active:scale-[0.98] ${
-                    isSubmitting
+                    reviewDisabled
                       ? "bg-white/5 text-white/20"
                       : "bg-white/10 text-white hover:bg-white/20 shadow-xl"
                   }`}
                 >
-                  {isSubmitting ? "COMMIT_PENDING..." : "COMMIT_ATTESTATION"}
+                  {showEnhanced ? "SWITCH_TO_ORIGINAL_TO_REVIEW" : isSubmitting ? "COMMIT_PENDING..." : "COMMIT_ATTESTATION"}
                 </button>
 
                 <div className="flex items-center justify-center gap-4 text-[9px] font-mono text-white/10 uppercase tracking-[0.2em] py-2">

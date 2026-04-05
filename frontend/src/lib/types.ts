@@ -52,9 +52,18 @@ export interface Artifacts {
   enhanced_overlay_path?: string | null;
 }
 
+export interface EnhancementInfo {
+  algorithm: string;
+  pipeline: string;
+  revised_weights?: string | null;
+  bridge_weights?: string | null;
+  generated_at?: string | null;
+}
+
 export interface PredictResponse {
   schema_version: string;
   image_id: string;
+  result_variant: "original" | "enhanced";
   inference_ms: number;
   inference_breakdown?: Record<string, number>;
   model_name: string;
@@ -64,6 +73,7 @@ export interface PredictResponse {
   detections: Detection[];
   has_masks: boolean;
   mask_detection_count: number;
+  enhancement_info?: EnhancementInfo | null;
   artifacts: Artifacts;
   secondary_result?: PredictResponse | null;
   created_at: string;

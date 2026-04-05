@@ -461,6 +461,7 @@ class TaskService:
                 # Image Enhancement
                 orig_img = PILImage.open(io.BytesIO(image_bytes))
                 enhanced_img = self.enhance_runner.enhance(orig_img)
+                enhance_meta = self.enhance_runner.describe()
                 
                 # Save Enhanced Image
                 buf = io.BytesIO()
@@ -500,6 +501,7 @@ class TaskService:
             secondary_raw=secondary_raw,
             enhanced_uri=enhanced_uri,
             enhanced_overlay_uri=enhanced_overlay_uri,
+            enhancement_meta=enhance_meta if secondary_raw and enhanced_uri else None,
             created_at=result_created_at,
         )
         json_uri = self.store.save_json(image_id=result_id, payload=json_payload)
@@ -965,6 +967,7 @@ class TaskService:
         secondary_raw: Optional[RawPrediction] = None,
         enhanced_uri: Optional[str] = None,
         enhanced_overlay_uri: Optional[str] = None,
+        enhancement_meta: Optional[dict[str, str]] = None,
         created_at: Optional[datetime] = None,
     ) -> dict[str, Any]:
         def _map_detections(r_id: str, d_items: list):
@@ -987,6 +990,7 @@ class TaskService:
             "schema_version": "2.0.0",
             "image_id": result_id,
             "batch_item_id": batch_item_id,
+            "result_variant": "original",
             "model_name": raw.model_name,
             "model_version": raw.model_version,
             "backend": raw.backend,
@@ -1010,6 +1014,7 @@ class TaskService:
             secondary_id = f"{result_id}-enhanced"
             payload["secondary_result"] = {
                 "image_id": secondary_id,
+                "result_variant": "enhanced",
                 "inference_ms": secondary_raw.inference_ms,
                 "inference_breakdown": secondary_raw.inference_breakdown,
                 "model_name": secondary_raw.model_name,
@@ -1020,6 +1025,13 @@ class TaskService:
                 "has_masks": any(item.mask is not None for item in secondary_raw.detections),
                 "mask_detection_count": sum(1 for item in secondary_raw.detections if item.mask is not None),
                 "created_at": (created_at or datetime.now(timezone.utc)).isoformat(),
+                "enhancement_info": {
+                    "algorithm": enhancement_meta["algorithm"],
+                    "pipeline": enhancement_meta["pipeline"],
+                    "revised_weights": enhancement_meta["revised_weights"],
+                    "bridge_weights": enhancement_meta["bridge_weights"],
+                    "generated_at": (created_at or datetime.now(timezone.utc)).isoformat(),
+                } if enhancement_meta is not None else None,
                 "artifacts": {
                     "upload_path": enhanced_uri or "",
                     "json_path": "",

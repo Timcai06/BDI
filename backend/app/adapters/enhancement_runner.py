@@ -29,6 +29,8 @@ class DualBranchEnhanceRunner:
         device: str = "cpu",
         max_side: int = 1024,
     ) -> None:
+        self.revised_weights_path = Path(revised_weights_path)
+        self.bridge_weights_path = Path(bridge_weights_path)
         self.device = torch.device(device if torch.cuda.is_available() and device.startswith("cuda") else "cpu")
         self.max_side = max_side
         
@@ -40,9 +42,17 @@ class DualBranchEnhanceRunner:
         self.bridge_edge_threshold = 0.12
 
         logger.info("Loading enhancement models onto %s", self.device)
-        self.revised_G = self._load_revised(Path(revised_weights_path))
-        self.bridge_G = self._load_bridge(Path(bridge_weights_path))
+        self.revised_G = self._load_revised(self.revised_weights_path)
+        self.bridge_G = self._load_bridge(self.bridge_weights_path)
         logger.info("Enhancement models loaded successfully")
+
+    def describe(self) -> dict[str, str]:
+        return {
+            "algorithm": "Img_Enhance",
+            "pipeline": "dual_branch_fusion",
+            "revised_weights": self.revised_weights_path.name,
+            "bridge_weights": self.bridge_weights_path.name,
+        }
 
     def _load_revised(self, path: Path) -> RevisedGenerator:
         ckpt = torch.load(path, map_location=self.device)

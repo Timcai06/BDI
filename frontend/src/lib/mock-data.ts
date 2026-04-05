@@ -3,6 +3,7 @@ import type { ModelCatalogResponse, PredictionResult } from "@/lib/types";
 export const demoResult: PredictionResult = {
   schema_version: "1.0.0",
   image_id: "bridge-deck-demo.jpg",
+  result_variant: "original",
   inference_ms: 284,
   model_name: "桥梁病害分割演示模型",
   model_version: "v1-demo",

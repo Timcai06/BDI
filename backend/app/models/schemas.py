@@ -61,9 +61,18 @@ class ArtifactLinks(BaseModel):
     enhanced_overlay_path: Optional[str] = None
 
 
+class EnhancementInfo(BaseModel):
+    algorithm: str
+    pipeline: str
+    revised_weights: Optional[str] = None
+    bridge_weights: Optional[str] = None
+    generated_at: Optional[datetime] = None
+
+
 class PredictResponse(BaseModel):
     schema_version: str = "1.0.0"
     image_id: str
+    result_variant: Literal["original", "enhanced"] = "original"
     inference_ms: int = Field(ge=0)
     inference_breakdown: dict[str, int] = Field(default_factory=dict)
     model_name: str
@@ -73,6 +82,7 @@ class PredictResponse(BaseModel):
     detections: list[Detection]
     has_masks: bool = False
     mask_detection_count: int = Field(default=0, ge=0)
+    enhancement_info: Optional[EnhancementInfo] = None
     artifacts: ArtifactLinks
     secondary_result: Optional[PredictResponse] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

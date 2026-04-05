@@ -5,6 +5,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 from fastapi.testclient import TestClient
+from PIL import Image
 from app.main import create_app
 from app.services.result_service import ResultService
 
@@ -12,6 +13,12 @@ from app.services.result_service import ResultService
 def create_test_client(tmp_path: Path, monkeypatch) -> TestClient:
     monkeypatch.setenv("BDI_ARTIFACT_ROOT", str(tmp_path / "artifacts"))
     return TestClient(create_app())
+
+
+def make_test_png_bytes(color: tuple[int, int, int] = (32, 48, 64)) -> bytes:
+    buffer = BytesIO()
+    Image.new("RGB", (16, 16), color).save(buffer, format="PNG")
+    return buffer.getvalue()
 
 
 def test_list_results_returns_recent_saved_predictions(tmp_path: Path, monkeypatch) -> None:
@@ -129,6 +136,40 @@ def test_get_result_returns_saved_prediction_payload(tmp_path: Path, monkeypatch
     payload = response.json()
     assert payload["image_id"] == image_id
     assert payload["schema_version"] == "1.0.0"
+
+
+def test_predict_with_enhancement_exposes_secondary_result_metadata(tmp_path: Path, monkeypatch) -> None:
+    client = create_test_client(tmp_path, monkeypatch)
+
+    class DummyEnhanceRunner:
+        def enhance(self, img):
+            return img
+
+        @staticmethod
+        def describe() -> dict[str, str]:
+            return {
+                "algorithm": "Img_Enhance",
+                "pipeline": "dual_branch_fusion",
+                "revised_weights": "best_psnr_revised.pth",
+                "bridge_weights": "best_psnr_bridge.pth",
+            }
+
+    client.app.state.predict_service.enhance_runner = DummyEnhanceRunner()
+
+    response = client.post(
+        "/predict",
+        files={"file": ("bridge.png", make_test_png_bytes(), "image/png")},
+        data={"return_overlay": "true", "enhance": "true"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["result_variant"] == "original"
+    assert payload["secondary_result"]["result_variant"] == "enhanced"
+    assert payload["secondary_result"]["enhancement_info"]["algorithm"] == "Img_Enhance"
+    assert payload["secondary_result"]["enhancement_info"]["pipeline"] == "dual_branch_fusion"
+    assert payload["secondary_result"]["enhancement_info"]["revised_weights"] == "best_psnr_revised.pth"
+    assert payload["secondary_result"]["enhancement_info"]["bridge_weights"] == "best_psnr_bridge.pth"
 
 
 def test_get_result_returns_not_found_for_unknown_result(tmp_path: Path, monkeypatch) -> None:
