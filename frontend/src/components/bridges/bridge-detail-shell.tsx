@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -59,7 +60,7 @@ export function BridgeDetailShell({ bridgeId }: Props) {
     };
   }, [bridgeId]);
 
-  const latestBatches = useMemo(() => batches.slice(0, 8), [batches]);
+  const latestBatches = useMemo(() => batches.slice(0, 10), [batches]);
   const openAlerts = useMemo(() => alerts.filter((item) => item.status === "open"), [alerts]);
 
   async function handleDeleteBridge() {
@@ -87,32 +88,35 @@ export function BridgeDetailShell({ bridgeId }: Props) {
       contentClassName="space-y-8"
       header={
         <OpsPageHeader
-          eyebrow="BRIDGE"
-          title={bridge?.bridge_name ?? "桥梁资产"}
-          subtitle={bridge ? `${bridge.bridge_code} / 资产视角下查看批次、风险与异常` : "正在载入桥梁资产信息"}
+          eyebrow="资产驾驶舱"
+          title={bridge?.bridge_name ?? "资产详情"}
+          subtitle={bridge ? `${bridge.bridge_code} | 实时监测全桥风险隐患、批次任务与数据完整度` : "正在载入资产底座信息..."}
           accent="cyan"
           actions={
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <Link
                 href="/dashboard/bridges"
-                className="rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-xs font-bold text-white/70 transition-all hover:bg-white/10 hover:text-white"
+                className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-xs font-black text-white/50 transition-all hover:bg-white/10 hover:text-white"
               >
-                返回资产列表
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                返回列表
               </Link>
               <Link
                 href={bridge ? `/dashboard/ops?bridgeId=${encodeURIComponent(bridge.id)}` : "/dashboard/ops"}
-                className="rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-xs font-bold text-white/70 transition-all hover:bg-white/10 hover:text-white"
+                className="flex items-center gap-2 rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-5 py-2.5 text-xs font-black text-cyan-200 transition-all hover:bg-cyan-500/20"
               >
-                批次工作台
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M2 12h20L12 2z"/></svg>
+                批次中心
               </Link>
               {bridge ? (
                 <button
                   type="button"
                   onClick={() => void handleDeleteBridge()}
                   disabled={deleting}
-                  className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-xs font-bold text-rose-200 hover:bg-rose-500/20 disabled:opacity-40"
+                  className="flex items-center gap-2 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-xs font-black text-rose-300 transition-all hover:bg-rose-500/20 disabled:opacity-40"
                 >
-                  {deleting ? "删除中..." : "删除桥梁"}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                  {deleting ? "移除中" : "移除资产"}
                 </button>
               ) : null}
             </div>
@@ -120,80 +124,149 @@ export function BridgeDetailShell({ bridgeId }: Props) {
         />
       }
     >
-      {error ? <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300">{error}</div> : null}
-      {loading ? <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 text-sm text-white/45">正在加载桥梁资产视图...</div> : null}
+      {error ? <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300 backdrop-blur-md">{error}</div> : null}
 
       {bridge ? (
-        <>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="space-y-8"
+        >
+          {/* Top Bento Stats */}
           <section className="grid gap-4 md:grid-cols-4">
-            <article className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">桥梁编码</p>
-              <p className="mt-2 text-base font-black text-white">{bridge.bridge_code}</p>
-              <p className="mt-1 text-xs text-white/45">{bridge.region ?? "未设置区域"}</p>
+            <article className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 backdrop-blur-3xl transition-all hover:border-white/20">
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20">资产区域</p>
+              <p className="mt-2 text-xl font-black text-white">{bridge.region ?? "全域注册"}</p>
+              <p className="mt-1 text-[10px] font-bold text-white/30 uppercase tracking-widest">{bridge.bridge_code}</p>
             </article>
-            <article className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">活跃批次</p>
-              <p className="mt-2 text-base font-black text-white">{bridge.active_batch_count}</p>
+
+            <article className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 backdrop-blur-3xl transition-all hover:border-white/20">
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20">活跃巡检</p>
+              <p className="mt-2 text-3xl font-black text-white tabular-nums">{bridge.active_batch_count}</p>
             </article>
-            <article className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">异常批次</p>
-              <p className="mt-2 text-base font-black text-white">{bridge.abnormal_batch_count}</p>
+
+            <article className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 backdrop-blur-3xl transition-all hover:border-white/20">
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3ZM12 9v4M12 17h.01"/></svg>
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20">异常批次</p>
+              <p className={`mt-2 text-3xl font-black tabular-nums ${bridge.abnormal_batch_count > 0 ? "text-rose-400" : "text-white"}`}>{bridge.abnormal_batch_count}</p>
             </article>
-            <article className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">未关闭告警</p>
-              <p className="mt-2 text-base font-black text-white">{openAlerts.length}</p>
+
+            <article className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 backdrop-blur-3xl transition-all hover:border-white/20">
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20">待处理告警</p>
+              <p className={`mt-2 text-3xl font-black tabular-nums ${openAlerts.length > 0 ? "text-amber-400" : "text-white"}`}>{openAlerts.length}</p>
             </article>
           </section>
 
-          <section className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-              <div className="mb-4 flex items-center justify-between">
+          {/* Detailed Bento Grid */}
+          <section className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+            {/* Recent Batches Card */}
+            <div className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] p-8 backdrop-blur-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] transition-all hover:border-white/20">
+              <div className="absolute -right-24 -top-24 h-96 w-96 rounded-full bg-cyan-500/5 blur-[120px]" />
+              
+              <div className="relative mb-8 flex items-center justify-between">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">最近批次</p>
-                  <p className="mt-1 text-sm text-white/45">从桥梁资产视角查看本桥近批次。</p>
+                  <div className="mb-2 flex items-center gap-2 opacity-30">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em]">时序记录</p>
+                  </div>
+                  <h3 className="text-2xl font-black tracking-tight text-white uppercase">最新巡检动态</h3>
+                  <p className="mt-1 text-xs font-medium text-white/40">该资产下近期发起的数字化巡检任务批次</p>
                 </div>
                 <Link
                   href={`/dashboard/ops?bridgeId=${encodeURIComponent(bridge.id)}`}
-                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-bold text-white/60 hover:bg-white/10 hover:text-white"
+                  className="rounded-full border border-white/5 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white/40 transition-all hover:bg-white/10 hover:text-white"
                 >
-                  进入批次中心
+                  全量记录
                 </Link>
               </div>
-              <div className="space-y-3">
+
+              <div className="relative grid gap-3 sm:grid-cols-2">
                 {latestBatches.map((batch) => (
                   <Link
                     key={batch.id}
                     href={`/dashboard/ops?bridgeId=${encodeURIComponent(bridge.id)}&batchId=${encodeURIComponent(batch.id)}`}
-                    className="flex items-center justify-between rounded-xl border border-white/8 bg-black/20 px-4 py-3 text-sm text-white/75 hover:bg-white/[0.05]"
+                    className="group/item flex flex-col justify-between rounded-2xl border border-white/5 bg-black/40 p-5 ring-1 ring-white/5 transition-all hover:bg-white/[0.04] hover:ring-white/20"
                   >
                     <div>
-                      <p className="font-semibold text-white">{batch.batch_code}</p>
-                      <p className="mt-1 text-xs text-white/45">{batch.status} / success {batch.succeeded_item_count} / failed {batch.failed_item_count}</p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-black text-white">{batch.batch_code}</p>
+                        <span className="rounded-full border border-white/5 bg-white/5 px-2 py-0.5 text-[9px] font-bold text-white/20 uppercase tracking-widest">
+                          {batch.enhancement_mode ?? "auto"}
+                        </span>
+                      </div>
+                      <div className="mt-4 flex items-center gap-4">
+                        <div>
+                          <p className="text-[9px] font-bold text-white/20 uppercase">成功</p>
+                          <p className="text-sm font-black text-emerald-400/80 tabular-nums">{batch.succeeded_item_count}</p>
+                        </div>
+                        <div className="h-4 w-px bg-white/5" />
+                        <div>
+                          <p className="text-[9px] font-bold text-white/20 uppercase">失败</p>
+                          <p className="text-sm font-black text-rose-400/80 tabular-nums">{batch.failed_item_count}</p>
+                        </div>
+                      </div>
                     </div>
-                    <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] uppercase tracking-wider text-white/50">
-                      {batch.enhancement_mode ?? "auto"}
-                    </span>
+                    <div className="mt-4 flex items-center gap-2 border-t border-white/5 pt-3">
+                      <span className={`h-1.5 w-1.5 rounded-full ${batch.status === "completed" ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]" : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.4)]"}`} />
+                      <span className="text-[10px] font-bold text-white/40 uppercase tracking-tighter">{batch.status}</span>
+                    </div>
                   </Link>
                 ))}
-                {latestBatches.length === 0 ? <div className="text-sm text-white/45">当前桥梁还没有巡检批次。</div> : null}
+                {latestBatches.length === 0 ? <div className="col-span-2 py-12 text-center text-sm text-white/10">暂无关联巡检数据</div> : null}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">当前风险摘要</p>
-              <div className="mt-4 space-y-3">
-                {openAlerts.slice(0, 8).map((alert) => (
-                  <div key={alert.id} className="rounded-xl border border-white/8 bg-black/20 px-4 py-3">
-                    <p className="text-sm font-semibold text-white">{alert.title}</p>
-                    <p className="mt-1 text-xs text-white/45">{alert.alert_level} / {alert.status}</p>
+            {/* Risk Summary Card */}
+            <div className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] p-8 backdrop-blur-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] transition-all hover:border-white/20">
+              <div className="absolute -left-24 -bottom-24 h-96 w-96 rounded-full bg-amber-500/5 blur-[120px]" />
+              
+              <div className="relative mb-8">
+                <div className="mb-2 flex items-center gap-2 opacity-30">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3ZM12 9v4M12 17h.01"/></svg>
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em]">风险态势</p>
+                </div>
+                <h3 className="text-2xl font-black tracking-tight text-white uppercase">开放异常告警</h3>
+                <p className="mt-1 text-xs font-medium text-white/40">当前资产存在的未闭环业务预警或结构异常</p>
+              </div>
+
+              <div className="relative space-y-3">
+                {openAlerts.slice(0, 10).map((alert) => (
+                  <div key={alert.id} className="group/item flex items-start justify-between rounded-2xl border border-white/5 bg-black/40 p-4 transition-all hover:bg-white/[0.04]">
+                    <div>
+                      <p className="text-sm font-black text-white">{alert.title}</p>
+                      <div className="mt-1 flex items-center gap-2">
+                        <span className={`text-[10px] font-bold uppercase ${alert.alert_level === "high" ? "text-rose-400" : alert.alert_level === "medium" ? "text-amber-400" : "text-cyan-400"}`}>
+                          {alert.alert_level}
+                        </span>
+                        <span className="h-1 w-1 rounded-full bg-white/10" />
+                        <span className="text-[10px] font-medium text-white/30 lowercase">触发于 {new Date(alert.triggered_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-white/20 transition-all group-hover/item:bg-white/10 group-hover/item:text-white">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                    </div>
                   </div>
                 ))}
-                {openAlerts.length === 0 ? <div className="text-sm text-white/45">当前桥梁没有开放中的异常告警。</div> : null}
+                {openAlerts.length === 0 ? <div className="py-12 text-center text-sm text-white/10">当前全桥状态安全，无活动告警</div> : null}
               </div>
             </div>
           </section>
-        </>
-      ) : null}
+        </motion.div>
+      ) : (
+        !loading && <div className="py-20 text-center text-white/20 font-black">未找到指定的桥梁资产实体</div>
+      )}
     </OpsPageLayout>
   );
 }
