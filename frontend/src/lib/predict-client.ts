@@ -507,7 +507,7 @@ export function getResultImageUrl(
   cacheKey?: string | number | null
 ): string | null {
   if (!API_BASE_URL) {
-    return null;
+    return demoResult.artifacts.upload_path ?? null;
   }
 
   return withCacheKey(`${API_BASE_URL}/results/${encodeImageId(imageId)}/image`, cacheKey);
@@ -518,7 +518,7 @@ export function getEnhancedImageUrl(
   cacheKey?: string | number | null
 ): string | null {
   if (!API_BASE_URL) {
-    return null;
+    return demoResult.artifacts.enhanced_path ?? null;
   }
 
   return withCacheKey(`${API_BASE_URL}/results/${encodeImageId(imageId)}/enhanced`, cacheKey);
@@ -529,7 +529,7 @@ export function getEnhancedOverlayUrl(
   cacheKey?: string | number | null
 ): string | null {
   if (!API_BASE_URL) {
-    return null;
+    return demoResult.artifacts.enhanced_overlay_path ?? null;
   }
 
   return withCacheKey(`${API_BASE_URL}/results/${encodeImageId(imageId)}/enhanced-overlay`, cacheKey);

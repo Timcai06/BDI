@@ -1,5 +1,6 @@
 "use client";
 
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -24,7 +25,7 @@ import type { BatchItemV1, BatchV1, BridgeV1, PredictState, PredictionHistoryIte
 
 const initialStatus: PredictState = {
   phase: "idle",
-  message: "查看、筛选并打开历史识别结果。",
+  message: "选择桥梁与批次以查看任务轨迹，或开启单图历史回顾。",
 };
 
 function downloadBlobFile(blob: Blob, filename: string) {
@@ -41,6 +42,9 @@ export function HistoryRouteShell() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<PredictState>(initialStatus);
+
+  // Archive Visibility Toggle
+  const [showSingleHistory, setShowSingleHistory] = useState(false);
 
   const [historyItems, setHistoryItems] = useState<PredictionHistoryItem[]>([]);
   const [historyTotal, setHistoryTotal] = useState(0);
@@ -76,14 +80,11 @@ export function HistoryRouteShell() {
     [historyItems],
   );
 
-  const selectedBatch = useMemo(
-    () => batches.find((item) => item.id === selectedBatchId) ?? null,
-    [batches, selectedBatchId],
-  );
   const selectedBridge = useMemo(
     () => bridges.find((item) => item.id === selectedBridgeId) ?? null,
     [bridges, selectedBridgeId],
   );
+
   const currentHistoryHref = useMemo(() => {
     const params = new URLSearchParams();
     if (selectedBridgeId) params.set("bridgeId", selectedBridgeId);
@@ -124,7 +125,7 @@ export function HistoryRouteShell() {
         if (!silent) {
           setStatus({
             phase: "success",
-            message: `历史结果已刷新，当前共 ${history.total} 条记录。`,
+            message: `载入完成，档案库中现有 ${history.total} 条数字化记录。`,
           });
         }
       } catch (error) {
@@ -159,7 +160,7 @@ export function HistoryRouteShell() {
       const firstBatchId = batchResponse.items[0]?.id ?? "";
       setSelectedBatchId((current) => current || firstBatchId);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "批次历史读取失败";
+      const message = error instanceof Error ? error.message : "批次列表加载失败";
       setBatchError(message);
     } finally {
       setBatchLoading(false);
@@ -177,7 +178,7 @@ export function HistoryRouteShell() {
       const response = await listV1BatchItems(batchId, 200, 0);
       setSelectedBatchItems(response.items);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "批次图片清单读取失败";
+      const message = error instanceof Error ? error.message : "批次记录明细加载失败";
       setBatchError(message);
       setSelectedBatchItems([]);
     } finally {
@@ -229,47 +230,34 @@ export function HistoryRouteShell() {
       setDeleteSuccessMessage(`记录 ${imageId} 已被移除。`);
       setStatus({
         phase: "success",
-        message: `已删除 ${imageId} 的分析记录。`,
+        message: `已成功移除 ID 为 ${imageId} 的分析记录。`,
       });
       await loadHistory({ silent: true, forceFresh: true });
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "删除记录失败，请稍后重试。";
-      setStatus({
-        phase: "error",
-        message,
-      });
+        error instanceof Error ? error.message : "删除记录操作失败。";
+      setStatus({ phase: "error", message });
     } finally {
       setDeletingImageId(null);
     }
   }
 
   async function handleBatchDeleteHistory(imageIds: string[]) {
-    if (imageIds.length === 0) {
-      return;
-    }
-
+    if (imageIds.length === 0) return;
     setDeletingImageId("batch");
     setDeleteSuccessMessage(null);
     try {
       const response = await batchDeleteResults(imageIds);
-      const deletedIds = response.results
-        .filter((item) => item.deleted)
-        .map((item) => item.image_id);
-
+      const deletedIds = response.results.filter((item) => item.deleted).map((item) => item.image_id);
       if (deletedIds.length > 0) {
         const deletedSet = new Set(deletedIds);
         setHistoryItems((current) => current.filter((item) => !deletedSet.has(item.image_id)));
-        setDeleteSuccessMessage(`已删除 ${deletedIds.length} 条记录。`);
+        setDeleteSuccessMessage(`已批量删除 ${deletedIds.length} 条记录。`);
       }
-
       await loadHistory({ silent: true, forceFresh: true });
       setStatus({
         phase: response.failed_count > 0 ? "error" : "success",
-        message:
-          response.failed_count > 0
-            ? `批量删除部分失败：成功 ${response.deleted_count} 条，失败 ${response.failed_count} 条。`
-            : `批量删除完成：成功 ${response.deleted_count} 条。`,
+        message: response.failed_count > 0 ? `部分删除成功：${response.deleted_count} 条，失败：${response.failed_count} 条。` : `批量删除任务已完成。`,
       });
     } finally {
       setDeletingImageId(null);
@@ -282,7 +270,7 @@ export function HistoryRouteShell() {
     downloadBlobFile(blob, filename);
     setStatus({
       phase: "success",
-      message: `已开始导出 ${imageIds.length} 条历史记录的${exportLabel}压缩包。`,
+      message: `已开始导出 ${imageIds.length} 条历史记录的 ${exportLabel} 压缩包。`,
     });
   }
 
@@ -297,195 +285,212 @@ export function HistoryRouteShell() {
       containerClassName="min-h-full"
       header={
         <OpsPageHeader
-          eyebrow="ARCHIVE"
-          title="任务历史"
-          subtitle={
-            <>
-              BATCH REGISTRY /{" "}
-              <span className="font-mono text-amber-200/50">{batches.length} RECORDS ATTESTED</span>
-            </>
-          }
+          eyebrow="历史档案层"
+          title="巡检档案中心"
+          subtitle="在此追溯所有已完成的资产巡检批次、历史识别结果以及数字化报告"
           accent="amber"
           actions={
-            <Link
-              href="/dashboard/ops"
-              className="rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-xs font-bold text-white/70 transition-all hover:bg-white/10 hover:text-white"
-            >
-              返回实时工作台
-            </Link>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowSingleHistory(!showSingleHistory)}
+                className={`flex items-center gap-2 rounded-xl border px-5 py-2.5 text-xs font-black transition-all ${
+                  showSingleHistory 
+                  ? "border-amber-500/50 bg-amber-500/20 text-amber-200" 
+                  : "border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                {showSingleHistory ? "隐藏单图库" : "查看单图历史"}
+              </button>
+              <Link
+                href="/dashboard/ops"
+                className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-xs font-black text-white/50 transition-all hover:bg-white/10 hover:text-white"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                返回工作台
+              </Link>
+            </div>
           }
         />
       }
     >
+      <div className="space-y-8">
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }} 
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-wrap items-center justify-between gap-3 rounded-[2rem] border border-white/5 bg-white/[0.02] px-6 py-4 text-sm text-white/40 backdrop-blur-xl"
+        >
+          <div className="flex items-center gap-3">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
+            <span className="font-medium">{status.message}</span>
+          </div>
+          <div className="rounded-full border border-white/5 bg-white/5 px-4 py-1 text-[10px] font-black uppercase tracking-widest">
+            {batches.length} 个存证批次
+          </div>
+        </motion.div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/6 bg-white/[0.025] px-4 py-3 text-sm text-white/55">
-              <span>{status.message}</span>
-              <span className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-white/45">
-                批次视图与单图历史已统一展示
-              </span>
-            </div>
+        {batchError && <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300">{batchError}</div>}
 
-            {historyError ? (
-              <div className="mb-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5 text-sm text-rose-200">
-                {historyError}
+        <section className="grid gap-6 lg:grid-cols-[1.2fr_1.8fr]">
+          {/* Batch Selector Card */}
+          <div className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] p-8 backdrop-blur-3xl shadow-2xl transition-all hover:border-white/20">
+            <div className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-amber-500/5 blur-[120px]" />
+            
+            <div className="relative mb-8">
+              <div className="mb-2 flex items-center gap-2 opacity-30">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12M16 2v4M8 2v4M3 10h18"/></svg>
+                <p className="text-[10px] font-black uppercase tracking-[0.3em]">批次目录</p>
               </div>
-            ) : null}
-
-            <section className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.3)] lg:p-6">
-              <div className="mb-5 flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/30">
-                    批次历史视图 / Enterprise Batch Archive
-                  </h2>
-                  <p className="mt-2 text-sm text-white/45">
-                    批次切换、批次内图片浏览、单图详情入口都保留在这里。
-                  </p>
-                </div>
-                <div className="min-w-[240px] rounded-lg border border-white/10 bg-black/20 px-2">
+              <h3 className="text-2xl font-black tracking-tight text-white uppercase">批次历史</h3>
+              
+              <div className="mt-6 flex flex-col gap-4">
+                <div className="relative rounded-2xl border border-white/5 bg-black/40 p-1.5 ring-1 ring-white/5 focus-within:ring-amber-500/50 transition-all">
                   <select
                     value={selectedBridgeId}
                     onChange={(e) => setSelectedBridgeId(e.target.value)}
-                    className="w-full bg-transparent px-2 py-2 text-sm font-semibold text-white outline-none"
+                    className="h-11 w-full bg-transparent px-4 text-sm font-bold text-white outline-none"
                   >
-                    <option value="">选择桥梁资产...</option>
+                    <option value="" className="bg-slate-900">按桥梁资产筛选...</option>
                     {bridges.map((bridge) => (
-                      <option key={bridge.id} value={bridge.id}>
+                      <option key={bridge.id} value={bridge.id} className="bg-slate-900">
                         {bridge.bridge_code} | {bridge.bridge_name}
                       </option>
                     ))}
                   </select>
                 </div>
-              </div>
 
-              {selectedBridge ? (
-                <div className="mb-5 flex items-center justify-between rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-white/55">
-                  <span>当前桥梁：{selectedBridge.bridge_name} / {selectedBridge.bridge_code}</span>
-                  <Link
-                    href={`/dashboard/bridges/${encodeURIComponent(selectedBridge.id)}`}
-                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 font-bold text-white/60 hover:bg-white/10 hover:text-white"
-                  >
-                    查看桥梁详情
-                  </Link>
-                </div>
-              ) : null}
-
-              {batchError ? (
-                <div className="mb-5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
-                  {batchError}
-                </div>
-              ) : null}
-
-              <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
-                <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-white/50">
-                    批次列表
-                  </p>
-                  <div className="max-h-[380px] overflow-auto space-y-2">
-                    {batches.map((batch) => (
-                      <button
-                        key={batch.id}
-                        type="button"
-                        onClick={() => setSelectedBatchId(batch.id)}
-                        className={`w-full rounded-lg border px-3 py-2 text-left text-xs transition-colors ${
-                          selectedBatchId === batch.id
-                            ? "border-cyan-400/40 bg-cyan-500/15 text-cyan-100"
-                            : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
-                        }`}
-                      >
-                        <p className="font-semibold">{batch.batch_code}</p>
-                        <p className="mt-1 text-[10px] opacity-80">
-                          {batch.status} | success {batch.succeeded_item_count} | failed {batch.failed_item_count}
+                <div className="max-h-[500px] overflow-auto space-y-3 pr-2 custom-scrollbar">
+                  {batches.map((batch) => (
+                    <button
+                      key={batch.id}
+                      type="button"
+                      onClick={() => setSelectedBatchId(batch.id)}
+                      className={`group/item w-full rounded-2xl border p-4 text-left transition-all ${
+                        selectedBatchId === batch.id
+                          ? "border-amber-500/40 bg-amber-500/10 ring-1 ring-amber-500/30"
+                          : "border-white/5 bg-white/[0.03] hover:bg-white/[0.06]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className={`text-sm font-black transition-colors ${selectedBatchId === batch.id ? "text-amber-300" : "text-white/80"}`}>
+                          {batch.batch_code}
                         </p>
-                      </button>
-                    ))}
-                    {!batchLoading && batches.length === 0 ? (
-                      <div className="text-xs text-white/40">暂无批次记录</div>
-                    ) : null}
-                  </div>
-                  {hasMoreBatches && !batchLoading ? (
-                    <div className="mt-3">
-                      <button
-                        type="button"
-                        onClick={handleLoadMoreBatches}
-                        className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.2em] text-white/45 hover:bg-white/10 hover:text-white"
-                      >
-                        加载更多批次
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-white/50">
-                      批次图片清单 {selectedBatch ? `(${selectedBatch.batch_code})` : ""}
-                    </p>
-                    {selectedBatch ? (
-                      <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] text-white/50">
-                        {selectedBatch.status}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="max-h-[380px] overflow-auto">
-                    <table className="w-full border-collapse text-left text-xs">
-                      <thead className="border-b border-white/5 text-white/35">
-                        <tr>
-                          <th className="pb-3">序号</th>
-                          <th className="pb-3">文件</th>
-                          <th className="pb-3">状态</th>
-                          <th className="pb-3">结果数</th>
-                          <th className="pb-3 text-right">操作</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/[0.03] text-white/80">
-                        {selectedBatchItems.map((item) => (
-                          <tr key={item.id} className="transition-colors hover:bg-white/[0.02]">
-                            <td className="py-3">{item.sequence_no}</td>
-                            <td className="py-3">{item.original_filename ?? item.source_relative_path ?? item.id}</td>
-                            <td className="py-3">{item.processing_status}</td>
-                            <td className="py-3">{item.defect_count ?? 0}</td>
-                            <td className="py-3 text-right">
-                              {item.latest_result_id ? (
-                                <Link
-                                  href={`/dashboard/history/${encodeURIComponent(item.latest_result_id)}?returnTo=${encodeURIComponent(currentHistoryHref)}`}
-                                  className="rounded-md border border-white/20 px-2 py-1 text-[10px] hover:bg-white/10"
-                                >
-                                  查看详情
-                                </Link>
-                              ) : (
-                                <span className="rounded-md border border-white/10 px-2 py-1 text-[10px] text-white/35">
-                                  暂无结果
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                        {!batchLoading && selectedBatchItems.length === 0 ? (
-                          <tr>
-                            <td colSpan={5} className="py-8 text-center text-white/40">
-                              当前批次暂无图片
-                            </td>
-                          </tr>
-                        ) : null}
-                      </tbody>
-                    </table>
-                  </div>
+                        <span className="text-[9px] font-bold text-white/20 uppercase tabular-nums">
+                          {new Date(batch.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex items-center gap-4 text-[10px] font-bold text-white/40 uppercase">
+                        <span className="flex items-center gap-1"><span className="h-1 w-1 rounded-full bg-emerald-400"/> {batch.succeeded_item_count} 成功</span>
+                        <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-neutral-700"/> {batch.status}</span>
+                      </div>
+                    </button>
+                  ))}
+                  {batches.length === 0 && <div className="py-20 text-center text-xs text-white/20">暂无符合条件的批次</div>}
+                  {hasMoreBatches && (
+                    <button onClick={handleLoadMoreBatches} className="w-full py-4 text-[10px] font-black uppercase tracking-widest text-white/20 hover:text-white/60 transition-colors">
+                      加载更多批次记录
+                    </button>
+                  )}
                 </div>
               </div>
-            </section>
+            </div>
+          </div>
 
-            <div className="min-h-0 flex-1">
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.3)] lg:p-6">
-                <div className="mb-5 flex items-center justify-between gap-3">
-                  <div>
-                    <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/30">
-                      单图历史 / Individual Result Archive
-                    </h2>
-                    <p className="mt-2 text-sm text-white/45">
-                      原始历史记录、筛选、批量导出与详情跳转统一保留在这里。
-                    </p>
-                  </div>
+          {/* Batch Items List Card */}
+          <div className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] p-8 backdrop-blur-3xl shadow-2xl transition-all hover:border-white/20">
+            <div className="absolute -right-24 -bottom-24 h-96 w-96 rounded-full bg-cyan-500/5 blur-[120px]" />
+            
+            <div className="relative mb-8 flex items-center justify-between">
+              <div>
+                <div className="mb-2 flex items-center gap-2 opacity-30">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em]">记录清单</p>
                 </div>
+                <h3 className="text-2xl font-black tracking-tight text-white uppercase">
+                  {selectedBridge?.bridge_name ?? "资产记录"}
+                </h3>
+                <p className="mt-1 text-xs font-medium text-white/40">
+                  {selectedBatchId ? `批次: ${selectedBatchId.slice(-8)} / 存证详情` : "请选择一个批次以查看图片轨迹"}
+                </p>
+              </div>
+              {selectedBridge && (
+                <Link
+                  href={`/dashboard/bridges/${encodeURIComponent(selectedBridge.id)}`}
+                  className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white/40 hover:bg-white/10 hover:text-white transition-all underline decoration-amber-500/30 underline-offset-4"
+                >
+                  资产底座
+                </Link>
+              )}
+            </div>
+
+            <div className="relative">
+              <div className="overflow-hidden rounded-2xl border border-white/5 bg-black/40 shadow-inner">
+                <table className="w-full border-collapse text-left">
+                  <thead className="border-b border-white/5 bg-white/[0.02]">
+                    <tr>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-white/20">序号</th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-white/20">存证文件</th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-white/20 text-center">状态</th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-white/20 text-right">诊断入口</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {selectedBatchItems.map((item) => (
+                      <tr key={item.id} className="group/row transition-colors hover:bg-white/[0.03]">
+                        <td className="px-6 py-4 text-xs font-mono text-white/30 tabular-nums">#{item.sequence_no}</td>
+                        <td className="px-6 py-4">
+                          <p className="max-w-[200px] truncate text-xs font-bold text-white/70">{item.original_filename ?? item.id}</p>
+                          <p className="mt-0.5 text-[10px] font-medium text-white/20 uppercase tracking-tighter">{item.id.slice(0, 12)}</p>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <span className={`inline-block h-1.5 w-1.5 rounded-full ${item.processing_status === "succeeded" ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]" : "bg-white/10"}`} title={item.processing_status} />
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          {item.latest_result_id ? (
+                            <Link
+                              href={`/dashboard/history/${encodeURIComponent(item.latest_result_id)}?returnTo=${encodeURIComponent(currentHistoryHref)}`}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/40 transition-all hover:border-amber-500/30 hover:bg-amber-500/10 hover:text-amber-400"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                            </Link>
+                          ) : (
+                            <span className="text-[10px] font-bold text-white/10 uppercase tracking-widest">无结果</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {selectedBatchItems.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="py-24 text-center text-xs font-black uppercase tracking-[0.3em] text-white/10">
+                          {batchLoading ? "数据同步中..." : "未选定有效批次"}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <AnimatePresence>
+          {showSingleHistory && (
+            <motion.section
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="rounded-[2.5rem] border border-white/10 bg-white/[0.015] p-8 backdrop-blur-3xl shadow-2xl">
+                <div className="mb-8 border-b border-white/5 pb-8">
+                    <div className="mb-2 flex items-center gap-2 opacity-30">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20v-6M6 20V10M18 20V4"/></svg>
+                      <p className="text-[10px] font-black uppercase tracking-[0.3em]">视觉轨迹库</p>
+                    </div>
+                    <h3 className="text-2xl font-black tracking-tight text-white uppercase">单图历史全局回顾</h3>
+                    <p className="mt-1 text-xs font-medium text-white/40">追溯历史识别轨迹，进行批量导出与深度检索</p>
+                </div>
+
                 <HistoryPanel
                   items={historyItems}
                   totalCount={historyTotal}
@@ -498,9 +503,7 @@ export function HistoryRouteShell() {
                   sortMode={historySortMode}
                   availableCategories={availableHistoryCategories}
                   getImageUrl={getHistoryPreviewUrl}
-                  onDeleteRequest={(imageId) => {
-                    void handleDeleteHistory(imageId);
-                  }}
+                  onDeleteRequest={(imageId) => void handleDeleteHistory(imageId)}
                   onBatchDelete={handleBatchDeleteHistory}
                   onBatchExportJson={(imageIds) => handleBatchExportHistory(imageIds, "json")}
                   onBatchExportOverlay={(imageIds) => handleBatchExportHistory(imageIds, "overlay")}
@@ -508,15 +511,16 @@ export function HistoryRouteShell() {
                   onCategoryFilterChange={setHistoryCategoryFilter}
                   onSortModeChange={setHistorySortMode}
                   onOpenUploader={() => router.push("/dashboard/lab-single")}
-                  onRefresh={() => {
-                    void loadHistory();
-                  }}
+                  onRefresh={() => void loadHistory()}
                   onSelect={(imageId) => {
                     router.push(`/dashboard/history/${encodeURIComponent(imageId)}?returnTo=${encodeURIComponent(currentHistoryHref)}`);
                   }}
                 />
               </div>
-            </div>
+            </motion.section>
+          )}
+        </AnimatePresence>
+      </div>
     </OpsPageLayout>
   );
 }

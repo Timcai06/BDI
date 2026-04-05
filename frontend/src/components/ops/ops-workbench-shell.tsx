@@ -600,95 +600,152 @@ export function OpsWorkbenchShell() {
           <BatchHeader />
         }
       >
-        <section className="space-y-4">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 shadow-[0_14px_32px_rgba(0,0,0,0.16)]">
-            <div className="mb-3 flex items-center justify-between">
+        <motion.section 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="relative grid gap-6 lg:grid-cols-[1fr_auto_1fr] items-center"
+        >
+          {/* Bento Navigation: Layer 1 - Bridge Selection */}
+          <div className="group relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-xl transition-all hover:border-white/20 hover:bg-white/[0.05] shadow-[0_24px_48px_-12px_rgba(0,0,0,0.5)]">
+            <div className="absolute -right-12 -top-12 h-64 w-64 rounded-full bg-cyan-500/5 blur-[80px] transition-all group-hover:bg-cyan-500/10" />
+            
+            <div className="relative mb-6 flex items-start justify-between">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">第一层 / 桥梁资产</p>
-                <p className="mt-1 text-sm text-white/45">先选择桥梁资产，再进入该桥下的批次工作流。</p>
+                <div className="mb-1.5 flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)]" />
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-400/80">第一阶段 / 桥梁资产</p>
+                </div>
+                <h3 className="text-lg font-black tracking-tight text-white uppercase">选择资产中心</h3>
+                <p className="mt-1 text-xs font-medium text-white/40">确定当前巡检任务所属的桥梁结构体</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex gap-2">
                 <Link
                   href="/dashboard/bridges"
-                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-xs font-bold text-white/60 hover:bg-white/10 hover:text-white"
+                  title="资产地图"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/60 transition-all hover:bg-white/10 hover:text-white"
                 >
-                  资产列表
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
                 </Link>
-                {selectedBridge ? (
+                {selectedBridge && (
                   <Link
                     href={`/dashboard/bridges/${encodeURIComponent(selectedBridge.id)}`}
-                    className="rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-xs font-bold text-white/60 hover:bg-white/10 hover:text-white"
+                    title="资产详情"
+                    className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white/60 transition-all hover:bg-white/10 hover:text-white"
                   >
-                    资产详情
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                   </Link>
-                ) : null}
+                )}
               </div>
             </div>
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
-              <div className="rounded-xl border border-white/10 bg-black/30 px-2">
-                <select
-                  value={selectedBridgeId}
-                  onChange={(e) => setSelectedBridgeId(e.target.value)}
-                  className="h-12 w-full bg-transparent px-2 text-sm font-bold text-white outline-none"
-                >
-                  <option value="">选择桥梁资产...</option>
-                  {bridges.map((bridge) => (
-                    <option key={bridge.id} value={bridge.id}>
-                      {bridge.bridge_code} | {bridge.bridge_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button
-                onClick={() => router.push("/dashboard/bridges")}
-                className="h-12 rounded-xl bg-cyan-500 px-4 text-xs font-bold text-black hover:bg-cyan-400"
+
+            <div className="relative rounded-2xl border border-white/5 bg-black/40 p-1.5 ring-1 ring-white/5 focus-within:ring-cyan-500/50 transition-all">
+              <select
+                value={selectedBridgeId}
+                onChange={(e) => setSelectedBridgeId(e.target.value)}
+                className="h-12 w-full appearance-none bg-transparent px-4 text-sm font-bold text-white outline-none"
               >
-                新建桥梁资产
-              </button>
+                <option value="" className="bg-[#121212]">请选择桥梁资产...</option>
+                {bridges.map((bridge) => (
+                  <option key={bridge.id} value={bridge.id} className="bg-[#121212]">
+                    {bridge.bridge_code} | {bridge.bridge_name}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 opacity-30">
+                <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M1 1L6 6L11 1" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 shadow-[0_14px_32px_rgba(0,0,0,0.16)]">
-            <div className="mb-3 flex items-center justify-between">
+          {/* Sequential Arrow Connector */}
+          <div className="hidden lg:flex items-center justify-center">
+            <div className={`flex h-12 w-12 items-center justify-center rounded-full border transition-all duration-500 shadow-lg ${
+              selectedBridgeId 
+                ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-400" 
+                : "bg-white/5 border-white/10 text-white/20"
+            }`}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={selectedBridgeId ? "animate-pulse" : ""}>
+                <path d="M5 12H19M19 12L13 6M19 12L13 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Bento Navigation: Layer 2 - Batch Selection */}
+          <div className={`group relative overflow-hidden rounded-3xl border transition-all duration-500 p-6 backdrop-blur-xl shadow-[0_24px_48px_-12px_rgba(0,0,0,0.5)] ${
+            selectedBridgeId 
+              ? "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]" 
+              : "border-white/5 bg-white/[0.01] opacity-60 grayscale"
+          }`}>
+            <div className={`absolute -right-12 -top-12 h-64 w-64 rounded-full blur-[80px] transition-all ${
+              selectedBridgeId ? "bg-emerald-500/5 group-hover:bg-emerald-500/10" : "bg-white/0"
+            }`} />
+
+            <div className="relative mb-6 flex items-start justify-between">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">第二层 / 批次工作台</p>
-                <p className="mt-1 text-sm text-white/45">批次只属于当前桥梁资产，新建和切换都在这一层完成。</p>
+                <div className="mb-1.5 flex items-center gap-2">
+                  <span className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                    selectedBridgeId ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" : "bg-white/20"
+                  }`} />
+                  <p className={`text-[10px] font-black uppercase tracking-[0.3em] transition-colors ${
+                    selectedBridgeId ? "text-emerald-400/80" : "text-white/20"
+                  }`}>第二阶段 / 工作批次</p>
+                </div>
+                <h3 className="text-lg font-black tracking-tight text-white uppercase">批次工作台</h3>
+                <p className="mt-1 text-xs font-medium text-white/40">基于所选资产的巡检成果管理</p>
               </div>
-              <div className="flex items-center gap-2">
-                {selectedBatch ? (
+              <div className="flex gap-2">
+                {selectedBatch && (
                   <button
                     onClick={handleDeleteCurrentBatch}
                     disabled={deletingBatch}
-                    className="h-12 rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 text-xs font-bold text-rose-200 hover:bg-rose-500/20 disabled:opacity-40"
+                    title="删除当前批次"
+                    className="flex h-10 w-10 items-center justify-center rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-300/80 transition-all hover:bg-rose-500/20 disabled:opacity-40"
                   >
-                    {deletingBatch ? "删除中..." : "删除批次"}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                   </button>
-                ) : null}
+                )}
                 <button
                   onClick={() => setIsWizardOpen(true)}
                   disabled={!selectedBridgeId}
-                  className="h-12 rounded-xl bg-cyan-500 px-4 text-xs font-bold text-black hover:bg-cyan-400 disabled:opacity-40"
+                  title="新建批次"
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500 text-black transition-all hover:scale-110 active:scale-95 disabled:opacity-30 disabled:hover:scale-100"
                 >
-                  新建批次
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 </button>
               </div>
             </div>
-            <div className="rounded-xl border border-white/10 bg-black/30 px-2">
+
+            <div className={`relative rounded-2xl border border-white/5 bg-black/40 p-1.5 ring-1 ring-white/5 transition-all ${
+              selectedBridgeId ? "focus-within:ring-emerald-500/50" : ""
+            }`}>
               <select
                 value={selectedBatchId}
                 onChange={(e) => setSelectedBatchId(e.target.value)}
-                className="h-12 w-full bg-transparent px-2 text-sm font-bold text-white outline-none"
+                disabled={!selectedBridgeId}
+                className="h-12 w-full appearance-none bg-transparent px-4 text-sm font-bold text-white outline-none disabled:cursor-not-allowed"
               >
-                <option value="">{selectedBridgeId ? "选择当前桥梁的批次..." : "请先选择桥梁资产..."}</option>
+                <option value="" className="bg-[#121212]">
+                  {selectedBridgeId ? "请选择当前桥梁的批次..." : "待锁定桥梁资产..."}
+                </option>
                 {batches.map((batch) => (
-                  <option key={batch.id} value={batch.id}>
+                  <option key={batch.id} value={batch.id} className="bg-[#121212]">
                     {batch.batch_code} ({batch.status})
                   </option>
                 ))}
               </select>
+              <div className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 opacity-30">
+                <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M1 1L6 6L11 1" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </div>
             </div>
           </div>
-        </section>
+        </motion.section>
+
+
 
         {error && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300">
@@ -714,138 +771,159 @@ export function OpsWorkbenchShell() {
           />
         ) : (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-700">
-            <section className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+            <section className="overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] backdrop-blur-3xl">
               <button
                 type="button"
                 onClick={() => setSummaryExpanded((value) => !value)}
-                className="flex w-full flex-wrap items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-white/[0.03]"
+                className="group flex w-full flex-wrap items-center justify-between gap-6 px-8 py-6 text-left transition-all hover:bg-white/[0.04]"
               >
-                <div className="grid flex-1 gap-3 md:grid-cols-5">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">当前桥梁</p>
-                    <p className="mt-1 text-sm font-black text-white">{selectedBridge?.bridge_name ?? "-"}</p>
-                    <p className="text-xs text-white/45">{selectedBridge?.bridge_code ?? "-"}</p>
+                <div className="grid flex-1 gap-8 md:grid-cols-4 lg:grid-cols-5">
+                  <div className="relative">
+                    <div className="mb-2 flex items-center gap-2 opacity-40">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M3 7l9-4 9 4M5 7v14M19 7v14M10 21v-8h4v8m-7-8h10"/></svg>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em]">当前资产</p>
+                    </div>
+                    <p className="truncate text-sm font-black tracking-tight text-white uppercase">{selectedBridge?.bridge_name ?? "-"}</p>
+                    <p className="mt-0.5 text-[10px] font-bold text-cyan-400/60 tabular-nums">{selectedBridge?.bridge_code ?? "-"}</p>
                   </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">当前批次</p>
-                    <p className="mt-1 text-sm font-black text-white">{selectedBatch?.batch_code ?? "-"}</p>
-                    <p className="text-xs text-white/45">{selectedBatch?.status ?? "-"}</p>
+
+                  <div className="relative">
+                    <div className="mb-2 flex items-center gap-2 opacity-40">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12M16 2v4M8 2v4M3 10h18"/></svg>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em]">任务批次</p>
+                    </div>
+                    <p className="truncate text-sm font-black tracking-tight text-white uppercase">{selectedBatch?.batch_code ?? "-"}</p>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <span className={`h-1.5 w-1.5 rounded-full ${selectedBatch?.status === "completed" ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]"}`} />
+                      <p className="text-[10px] font-bold text-white/50">{selectedBatch?.status ?? "-"}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">处理状态</p>
-                    <p className="mt-1 text-sm font-black text-white">
-                      Q {queuedCount} / R {runningCount} / S {succeededCount} / F {failedCount}
-                    </p>
-                    <p className="text-xs text-white/45">{batchItemTotal} 项素材</p>
+
+                  <div className="relative">
+                    <div className="mb-2 flex items-center gap-2 opacity-40">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em]">处理进度</p>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <p className="text-sm font-black tracking-tight text-white tabular-nums">{succeededCount}</p>
+                      <p className="text-[10px] font-bold text-white/30">/ {batchItemTotal}</p>
+                    </div>
+                    <div className="mt-1.5 h-1 w-24 overflow-hidden rounded-full bg-white/5">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: batchItemTotal > 0 ? `${(succeededCount / batchItemTotal) * 100}%` : 0 }}
+                        className="h-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.4)]" 
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">业务状态</p>
-                    <p className="mt-1 text-sm font-black text-white">
-                      病害 {defectCount} / 复核 {reviewCount}
-                    </p>
-                    <p className="text-xs text-white/45">告警 {alertCount}</p>
+
+                  <div className="relative">
+                    <div className="mb-2 flex items-center gap-2 opacity-40">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3ZM12 9v4M12 17h.01"/></svg>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em]">业务预警</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div>
+                        <p className="text-sm font-black text-rose-400 tabular-nums">{alertCount}</p>
+                        <p className="text-[9px] font-bold uppercase text-white/30">告警</p>
+                      </div>
+                      <div className="h-4 w-px bg-white/10" />
+                      <div>
+                        <p className="text-sm font-black text-amber-400 tabular-nums">{defectCount}</p>
+                        <p className="text-[9px] font-bold uppercase text-white/30">病害</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">展开详情</p>
-                    <p className="mt-1 text-sm font-black text-white">{summaryExpanded ? "收起总览" : "查看过滤与策略"}</p>
-                    <p className="text-xs text-white/45">点击切换</p>
+
+                  <div className="hidden lg:block relative text-right">
+                    <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 transition-all ${summaryExpanded ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-400" : "border-white/10 bg-white/5 text-white/40 group-hover:text-white"}`}>
+                      <span className="text-[9px] font-black uppercase tracking-widest">{summaryExpanded ? "收起面板" : "精细过滤"}</span>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-500 ${summaryExpanded ? "rotate-180" : ""}`}><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
                   </div>
-                </div>
-                <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/55">
-                  {summaryExpanded ? "expanded" : "collapsed"}
                 </div>
               </button>
 
-              {summaryExpanded ? (
-                <div className="grid gap-6 border-t border-white/5 px-5 py-5 lg:grid-cols-[1.2fr_1fr_1fr]">
-                  <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">状态与桥梁摘要</p>
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <motion.div
+                initial={false}
+                animate={{ height: summaryExpanded ? "auto" : 0 }}
+                className="overflow-hidden"
+              >
+                <div className="grid gap-6 border-t border-white/5 bg-black/40 px-8 py-8 lg:grid-cols-3">
+                  {/* Card 1: Asset Summary */}
+                  <div className="relative rounded-[2rem] border border-white/5 bg-white/[0.02] p-6 shadow-inner transition-all hover:bg-white/[0.03]">
+                    <p className="mb-6 text-[10px] font-black uppercase tracking-[0.3em] text-white/20">资产层级 / 资产摘要</p>
+                    <div className="grid grid-cols-2 gap-y-6">
                       <div>
-                        <p className="text-[10px] uppercase tracking-widest text-white/20">活跃批次</p>
-                        <p className="mt-1 text-sm font-black text-white">{selectedBridge?.active_batch_count ?? 0}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-white/20">活跃批次</p>
+                        <p className="mt-1 text-xl font-black text-white tabular-nums">{selectedBridge?.active_batch_count ?? 0}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-widest text-white/20">异常批次</p>
-                        <p className="mt-1 text-sm font-black text-white">{selectedBridge?.abnormal_batch_count ?? 0}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-white/20">异常批次</p>
+                        <p className="mt-1 text-xl font-black text-rose-500/80 tabular-nums">{selectedBridge?.abnormal_batch_count ?? 0}</p>
                       </div>
-                      <div>
-                        <p className="text-[10px] uppercase tracking-widest text-white/20">增强策略</p>
-                        <p className="mt-1 text-sm font-black text-white">
-                          {selectedBatch?.enhancement_mode === "always" ? "全量增强" : selectedBatch?.enhancement_mode === "off" ? "关闭增强" : "低照度自动增强"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase tracking-widest text-white/20">总素材</p>
-                        <p className="mt-1 text-sm font-black text-white">{batchItemTotal}</p>
+                      <div className="col-span-2">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-white/20">智能增强策略</p>
+                        <div className="mt-2 flex items-center gap-3">
+                          <div className={`rounded-xl border px-3 py-1.5 text-xs font-black ${selectedBatch?.enhancement_mode === "off" ? "border-white/10 text-white/40" : "border-cyan-500/30 bg-cyan-500/10 text-cyan-400"}`}>
+                            {selectedBatch?.enhancement_mode === "always" ? "全量增强" : selectedBatch?.enhancement_mode === "off" ? "关闭增强" : "低照度自适应增强"}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">过滤与检索</p>
-                    <div className="mt-4 space-y-4">
-                      <div className="flex items-center justify-between text-xs font-medium">
-                        <span className="text-white/40">Detections</span>
-                        <span className="tabular-nums text-white/80">{detections.length}</span>
+                  {/* Card 2: Filters */}
+                  <div className="relative rounded-[2rem] border border-white/5 bg-white/[0.02] p-6 shadow-inner transition-all hover:bg-white/[0.03]">
+                    <p className="mb-6 text-[10px] font-black uppercase tracking-[0.3em] text-white/20">智能检索 / 过滤策略</p>
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">检测项总数</span>
+                        <span className="text-sm font-black text-white tabular-nums">{detections.length}</span>
                       </div>
-                      <div className="flex items-center justify-between text-xs font-medium">
-                        <span className="text-white/40">Confidence</span>
-                        <span className="font-bold text-cyan-400">{minConfidence}</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => setMinConfidence("0.0")}
-                          className={`rounded-lg border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all ${
-                            minConfidence === "0.0"
-                              ? "border-cyan-500/40 bg-cyan-500/20 text-cyan-200"
-                              : "border-white/5 bg-white/5 text-white/40 hover:border-white/10 hover:text-white/60"
-                          }`}
-                        >
-                          全部
-                        </button>
-                        <button
-                          onClick={() => setMinConfidence("0.8")}
-                          className={`rounded-lg border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all ${
-                            minConfidence === "0.8"
-                              ? "border-cyan-500/40 bg-cyan-500/20 text-cyan-200"
-                              : "border-white/5 bg-white/5 text-white/40 hover:border-white/10 hover:text-white/60"
-                          }`}
-                        >
-                          高置信
-                        </button>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-white/30">置信度过滤 (Confidence)</span>
+                        <div className="mt-3 flex gap-2">
+                          {["0.0", "0.6", "0.8", "0.9"].map((val) => (
+                            <button
+                              key={val}
+                              onClick={() => setMinConfidence(val)}
+                              className={`flex-1 rounded-xl border py-2 text-[10px] font-bold transition-all ${
+                                minConfidence === val 
+                                  ? "border-cyan-500/50 bg-cyan-500/20 text-cyan-200 shadow-[0_0_12px_rgba(34,211,238,0.2)]" 
+                                  : "border-white/5 bg-white/5 text-white/30 hover:border-white/10 hover:text-white"
+                              }`}
+                            >
+                              {val === "0.0" ? "ALL" : `>${val}`}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">批量动作与策略</p>
-                    <div className="mt-4 space-y-3">
-                      <div className="flex items-center justify-between text-xs font-medium">
-                        <span className="text-white/40">Selected</span>
-                        <span className="font-bold tabular-nums text-amber-400">{selectedItemIds.length}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs font-medium">
-                        <span className="text-white/40">Failed Filter</span>
-                        <span className="text-white/80">{showFailedItemsOnly ? "仅失败项" : "全部素材"}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs font-medium">
-                        <span className="text-white/40">Model Policy</span>
-                        <span className="truncate pl-4 text-white/80">{modelPolicy}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs font-medium">
-                        <span className="text-white/40">Collector</span>
-                        <span className="text-white/80">{sourceDevice}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs font-medium">
-                        <span className="text-white/40">Operator</span>
-                        <span className="text-white/80">{createdBy}</span>
-                      </div>
+                  {/* Card 3: Batch Meta */}
+                  <div className="relative rounded-[2rem] border border-white/5 bg-white/[0.02] p-6 shadow-inner transition-all hover:bg-white/[0.03]">
+                    <p className="mb-6 text-[10px] font-black uppercase tracking-[0.3em] text-white/20">基础元数据 / 批次详情</p>
+                    <div className="space-y-3">
+                      {[
+                        { label: "已选对比素材", value: selectedItemIds.length, color: "text-amber-400" },
+                        { label: "素材过滤状态", value: showFailedItemsOnly ? "仅失败项" : "全部素材", color: "text-white" },
+                        { label: "模型推理策略", value: modelPolicy, color: "text-white/60", truncate: true },
+                        { label: "数据采集终端", value: sourceDevice, color: "text-white/60" },
+                        { label: "当前操作员", value: createdBy, color: "text-white/60" }
+                      ].map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-[11px] font-medium leading-relaxed">
+                          <span className="text-white/20">{item.label}</span>
+                          <span className={`${item.color} ${item.truncate ? "max-w-[120px] truncate pl-4" : ""}`}>{item.value}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
-              ) : null}
+              </motion.div>
             </section>
+
 
             <ItemGrid 
               items={visibleItems}
