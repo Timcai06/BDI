@@ -2,7 +2,7 @@
 
 import { startTransition, useDeferredValue, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { ResultDashboard } from "@/components/result-dashboard";
 import { getDefectLabel } from "@/lib/defect-visuals";
@@ -45,6 +45,7 @@ interface HistoryDetailShellProps {
 
 export function HistoryDetailShell({ imageId }: HistoryDetailShellProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [result, setResult] = useState<PredictionResult | null>(null);
   const [comparisonResult, setComparisonResult] = useState<PredictionResult | null>(null);
   const [availableModels, setAvailableModels] = useState<ModelCatalogItem[]>([]);
@@ -64,6 +65,7 @@ export function HistoryDetailShell({ imageId }: HistoryDetailShellProps) {
 
   const deferredCategoryFilter = useDeferredValue(categoryFilter);
   const deferredMinConfidence = useDeferredValue(minConfidence);
+  const returnTo = searchParams.get("returnTo") || "/dashboard/history";
 
   useEffect(() => {
     let cancelled = false;
@@ -258,7 +260,7 @@ export function HistoryDetailShell({ imageId }: HistoryDetailShellProps) {
           </div>
           <div className="flex items-center gap-3">
             <Link
-              href="/dashboard/history"
+              href={returnTo}
               className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-white/70 transition-colors hover:bg-white/[0.08] hover:text-white"
             >
               返回历史列表
@@ -317,7 +319,7 @@ export function HistoryDetailShell({ imageId }: HistoryDetailShellProps) {
           maskDisabled={!result.has_masks}
           selectedDetectionId={selectedDetectionId}
           onSelectDetection={(detection) => setSelectedDetectionId(detection.id)}
-          onOpenHistory={() => router.push("/dashboard/history")}
+          onOpenHistory={() => router.push(returnTo)}
           onReset={() => router.push("/dashboard")}
           onRerun={() => router.push("/dashboard")}
           onCompareModelVersionChange={setCompareModelVersion}
