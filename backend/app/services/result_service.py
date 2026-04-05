@@ -99,26 +99,50 @@ class ResultService:
         )
 
     def get_enhanced_path(self, *, image_id: str) -> Path:
+        payload = self.store.load_result(image_id=image_id)
+        normalized = self._normalize_payload(payload) if payload is not None else None
+        if isinstance(normalized, dict):
+            artifacts = normalized.get("artifacts")
+            if isinstance(artifacts, dict):
+                raw_enhanced_path = artifacts.get("enhanced_path")
+                if isinstance(raw_enhanced_path, str) and raw_enhanced_path:
+                    resolved = self._resolve_artifact_path(raw_enhanced_path)
+                    if resolved is not None:
+                        return resolved
+
         enhanced_path = self.store.enhanced_path(image_id)
-        if not enhanced_path.exists():
-            raise AppError(
-                code="ENHANCED_IMAGE_NOT_FOUND",
-                message="Enhanced image does not exist.",
-                status_code=status.HTTP_404_NOT_FOUND,
-                details={"image_id": image_id},
-            )
-        return enhanced_path
+        if enhanced_path.exists():
+            return enhanced_path
+
+        raise AppError(
+            code="ENHANCED_IMAGE_NOT_FOUND",
+            message="Enhanced image does not exist.",
+            status_code=status.HTTP_404_NOT_FOUND,
+            details={"image_id": image_id},
+        )
 
     def get_enhanced_overlay_path(self, *, image_id: str) -> Path:
+        payload = self.store.load_result(image_id=image_id)
+        normalized = self._normalize_payload(payload) if payload is not None else None
+        if isinstance(normalized, dict):
+            artifacts = normalized.get("artifacts")
+            if isinstance(artifacts, dict):
+                raw_enhanced_overlay_path = artifacts.get("enhanced_overlay_path")
+                if isinstance(raw_enhanced_overlay_path, str) and raw_enhanced_overlay_path:
+                    resolved = self._resolve_artifact_path(raw_enhanced_overlay_path)
+                    if resolved is not None:
+                        return resolved
+
         overlay_path = self.store.enhanced_overlay_path(image_id)
-        if not overlay_path.exists():
-            raise AppError(
-                code="ENHANCED_OVERLAY_NOT_FOUND",
-                message="Enhanced overlay does not exist.",
-                status_code=status.HTTP_404_NOT_FOUND,
-                details={"image_id": image_id},
-            )
-        return overlay_path
+        if overlay_path.exists():
+            return overlay_path
+
+        raise AppError(
+            code="ENHANCED_OVERLAY_NOT_FOUND",
+            message="Enhanced overlay does not exist.",
+            status_code=status.HTTP_404_NOT_FOUND,
+            details={"image_id": image_id},
+        )
 
     def delete_result(self, *, image_id: str) -> DeleteResultResponse:
         if self.store.load_result(image_id=image_id) is None:
