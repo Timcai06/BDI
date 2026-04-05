@@ -274,8 +274,8 @@ export function HistoryRouteShell() {
 
   return (
     <section className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden bg-black/40 backdrop-blur-3xl">
-        <div className="relative flex-1 overflow-y-auto p-6 lg:p-10">
-          <div className="mx-auto flex min-h-full max-w-[1800px] flex-col lg:px-2">
+        <div className="relative flex-1 overflow-y-auto p-6 lg:p-8">
+          <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col space-y-6">
             <OpsPageHeader
               eyebrow="ARCHIVE"
               title="任务历史"
@@ -296,7 +296,7 @@ export function HistoryRouteShell() {
               }
             />
 
-            <div className="mb-4 mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/6 bg-white/[0.025] px-4 py-3 text-sm text-white/55">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/6 bg-white/[0.025] px-4 py-3 text-sm text-white/55">
               <span>{status.message}</span>
               <button
                 type="button"
@@ -313,7 +313,7 @@ export function HistoryRouteShell() {
               </div>
             ) : null}
 
-            <section className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.3)] lg:p-8">
+            <section className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.3)] lg:p-6">
               <div className="mb-5 flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/30">
@@ -340,12 +340,12 @@ export function HistoryRouteShell() {
                 </div>
               ) : null}
 
-              <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
+              <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
                 <div className="rounded-xl border border-white/10 bg-black/20 p-3">
                   <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-white/50">
                     批次列表
                   </p>
-                  <div className="max-h-[420px] overflow-auto space-y-2">
+                  <div className="max-h-[380px] overflow-auto space-y-2">
                     {batches.map((batch) => (
                       <button
                         key={batch.id}
@@ -391,7 +391,7 @@ export function HistoryRouteShell() {
                       </span>
                     ) : null}
                   </div>
-                  <div className="max-h-[420px] overflow-auto">
+                  <div className="max-h-[380px] overflow-auto">
                     <table className="w-full border-collapse text-left text-xs">
                       <thead className="border-b border-white/5 text-white/35">
                         <tr>
@@ -439,9 +439,9 @@ export function HistoryRouteShell() {
               </div>
             </section>
 
-            <div className="mt-6 min-h-0 flex-1">
+            <div className="min-h-0 flex-1">
               {showLegacyHistory ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.3)] lg:p-6">
                   <HistoryPanel
                     items={historyItems}
                     totalCount={historyTotal}
