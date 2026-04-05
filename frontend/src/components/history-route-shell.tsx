@@ -289,26 +289,24 @@ export function HistoryRouteShell() {
               }
               accent="amber"
               actions={
-                <>
                 <Link
                   href="/dashboard/ops"
                   className="rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-xs font-bold text-white/70 transition-all hover:bg-white/10 hover:text-white"
                 >
                   返回实时工作台
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => setShowLegacyHistory((current) => !current)}
-                  className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-5 py-2.5 text-xs font-bold text-cyan-100 transition-all hover:bg-cyan-500/20"
-                >
-                  {showLegacyHistory ? "收起单图历史" : "展开单图历史"}
-                </button>
-                </>
               }
             />
 
-            <div className="mb-4 mt-6 rounded-2xl border border-white/6 bg-white/[0.025] px-4 py-3 text-sm text-white/55">
-              {status.message}
+            <div className="mb-4 mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/6 bg-white/[0.025] px-4 py-3 text-sm text-white/55">
+              <span>{status.message}</span>
+              <button
+                type="button"
+                onClick={() => setShowLegacyHistory((current) => !current)}
+                className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 px-4 py-2 text-xs font-bold text-cyan-100 transition-all hover:bg-cyan-500/20"
+              >
+                {showLegacyHistory ? "收起单图历史" : "展开单图历史"}
+              </button>
             </div>
 
             {historyError ? (

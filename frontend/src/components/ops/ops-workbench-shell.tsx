@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
@@ -654,14 +655,47 @@ export function OpsWorkbenchShell() {
     <div className="relative z-10 flex flex-1 flex-col overflow-hidden bg-black/40 backdrop-blur-3xl">
       <BatchHeader 
         batch={selectedBatch} 
-        onOpenWizard={() => setIsWizardOpen(true)} 
-        onRefresh={() => setRefreshTick(v => v + 1)}
-        onDeleteBatch={handleDeleteCurrentBatch}
-        deletingBatch={deletingBatch}
         lastRefreshedAt={lastRefreshedAt}
       />
 
       <main className="flex-1 overflow-y-auto p-6 lg:p-8 space-y-8">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-3">
+          <div className="text-xs uppercase tracking-[0.2em] text-white/35">
+            {selectedBatch
+              ? `CURRENT BATCH / ${selectedBatch.batch_code}`
+              : "WORKBENCH ACTIONS / SELECT OR CREATE A BATCH"}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/dashboard/history"
+              className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-white/65 transition-all hover:bg-white/10 hover:text-white"
+            >
+              历史档案
+            </Link>
+            {selectedBatch ? (
+              <button
+                onClick={handleDeleteCurrentBatch}
+                disabled={deletingBatch}
+                className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-xs font-bold text-rose-300 transition-all hover:bg-rose-500/20 disabled:opacity-30"
+              >
+                {deletingBatch ? "删除中..." : "删除当前批次"}
+              </button>
+            ) : null}
+            <button
+              onClick={() => setRefreshTick((v) => v + 1)}
+              className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-bold text-white/70 transition-all hover:bg-white/10 hover:text-white"
+            >
+              刷新数据
+            </button>
+            <button
+              onClick={() => setIsWizardOpen(true)}
+              className="rounded-xl bg-cyan-500 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-black transition-all hover:bg-cyan-400 active:scale-95"
+            >
+              创建批次
+            </button>
+          </div>
+        </div>
+
         {error && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300">
             {error}
