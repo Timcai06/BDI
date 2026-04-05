@@ -160,11 +160,22 @@ export function ItemGrid({
                 <tr
                   key={item.id}
                   onClick={() => onToggleSelectItem(item.id)}
-                  className={`group cursor-pointer transition-all duration-300 ${isSelected ? 'bg-cyan-500/[0.03]' : 'hover:bg-white/[0.02]'}`}
+                  className={`group cursor-pointer transition-all duration-300 ${
+                    isSelected
+                      ? "bg-cyan-500/[0.08] shadow-[inset_3px_0_0_rgba(34,211,238,0.9)]"
+                      : "hover:bg-white/[0.02]"
+                  }`}
                 >
                   <td className="px-6 py-5">
                     <div className="flex flex-col gap-1.5">
-                      <span className="text-xs font-bold text-white/80 group-hover:text-white transition-colors">{displayName}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-white/80 group-hover:text-white transition-colors">{displayName}</span>
+                        {isSelected ? (
+                          <span className="inline-flex items-center rounded-full border border-cyan-400/30 bg-cyan-500/10 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-cyan-300">
+                            selected
+                          </span>
+                        ) : null}
+                      </div>
                       <div className="flex items-center gap-2 text-[9px] text-white/20 font-black uppercase tracking-tighter">
                         <span className="px-1.5 py-0.5 rounded bg-white/[0.05]">seq {item.sequence_no}</span>
                         <span className="truncate max-w-[120px]">{item.source_relative_path ?? "Root"}</span>
@@ -173,14 +184,12 @@ export function ItemGrid({
                     </div>
                   </td>
                   <td className="px-6 py-5 text-center">
-                    <div className="flex flex-col items-center gap-1.5">
-                      {renderStatusBadge(item.processing_status)}
-                      {item.latest_task_status ? renderStatusBadge(item.latest_task_status) : null}
-                    </div>
+                    {renderStatusBadge(item.processing_status)}
                   </td>
                   <td className="px-6 py-5">
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[9px] font-black uppercase tracking-tighter text-white/30">
                       <span>Task: <span className="text-white/50">{item.latest_task_id ? item.latest_task_id.slice(0, 8) : "-"}</span></span>
+                      <span>State: <span className="text-white/50">{item.latest_task_status ?? "-"}</span></span>
                       <span>Retry: <span className="text-white/50">{item.latest_task_attempt_no ?? "0"}</span></span>
                       <span className="col-span-2">Policy: <span className="text-cyan-400/40">{item.model_policy ?? "default"}</span></span>
                     </div>
