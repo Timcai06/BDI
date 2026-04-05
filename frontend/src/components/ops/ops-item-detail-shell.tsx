@@ -37,7 +37,8 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
   const [result, setResult] = useState<BatchItemResultV1Response | null>(null);
 
   // UI States
-  const [showEnhanced, setShowEnhanced] = useState(false);
+  const [imageSource, setImageSource] = useState<"original" | "enhanced">("original");
+  const [resultSource, setResultSource] = useState<"original" | "enhanced">("original");
   const [viewMode, setViewMode] = useState<"image" | "result">("result");
   const [reviewAction, setReviewAction] = useState<"confirm" | "reject">("confirm");
   const [reviewNote, setReviewNote] = useState("");
@@ -114,11 +115,13 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
       try {
         const resultData = await getV1BatchItemResult(resolvedItemId);
         setResult(resultData);
-        setShowEnhanced(false);
+        setImageSource("original");
+        setResultSource("original");
         setViewMode(resultData.overlay_uri ? "result" : "image");
       } catch (err) {
         console.warn("No result found for this item yet", err);
-        setShowEnhanced(false);
+        setImageSource("original");
+        setResultSource("original");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "图片详情载入失败");
@@ -138,7 +141,7 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
       return;
     }
 
-    if (showEnhanced) {
+    if (resultSource === "enhanced") {
       setError("增强结果当前仅供查看，请切回原图识别后提交复核。");
       return;
     }
@@ -193,7 +196,9 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
   const backHref = returnTo || defaultReturnHref;
   const primaryResult = result ? toPrimaryResult(result) : null;
   const enhancedResult = result?.secondary_result ?? null;
-  const activeResult = showEnhanced && enhancedResult ? enhancedResult : primaryResult;
+  const showEnhancedResult = resultSource === "enhanced" && enhancedResult;
+  const showEnhancedImage = imageSource === "enhanced";
+  const activeResult = showEnhancedResult ? enhancedResult : primaryResult;
   const activeDetections = activeResult?.detections ?? [];
   const primarySummary = result ? summarizeDetections(result.detections) : null;
   const activeSummary = activeResult ? summarizeDetections(activeDetections) : null;
@@ -204,17 +209,18 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
       : 0;
   const originalUrl = result ? getResultImageUrl(result.id) : null;
   const originalOverlayUrl = result ? getOverlayDownloadUrl(result.id) : null;
-  const enhancedUrl = result && enhancedResult ? getEnhancedImageUrl(result.id) : null;
-  const enhancedOverlayUrl = result && enhancedResult ? getEnhancedOverlayUrl(result.id) : null;
-  const activeImageUrl = showEnhanced
+  const enhancedUrl = result?.enhanced_path ? getEnhancedImageUrl(result.id) : null;
+  const enhancedOverlayUrl = result?.enhanced_overlay_path ? getEnhancedOverlayUrl(result.id) : null;
+  const activeImageUrl = showEnhancedImage
     ? (viewMode === "result" ? enhancedOverlayUrl ?? enhancedUrl : enhancedUrl ?? enhancedOverlayUrl)
     : (viewMode === "result" ? originalOverlayUrl ?? originalUrl : originalUrl ?? originalOverlayUrl);
-  const activeModeLabel = showEnhanced ? "增强后识别" : "原图识别";
-  const activeModeDescription = showEnhanced
+  const activeModeLabel = showEnhancedResult ? "增强后识别" : "原图识别";
+  const activeModeDescription = showEnhancedResult
     ? "基于 Img_Enhance 低照度增强图像推理"
     : "基于原始图像推理";
+  const activeImageLabel = showEnhancedImage ? "增强后原图" : "增强前原图";
   const enhancementInfo = enhancedResult?.enhancement_info ?? null;
-  const reviewDisabled = isSubmitting || showEnhanced || !result || result.detections.length === 0;
+  const reviewDisabled = isSubmitting || resultSource === "enhanced" || !result || result.detections.length === 0;
 
   return (
     <div className="relative z-10 flex flex-1 flex-col overflow-hidden bg-black/40 backdrop-blur-3xl">
@@ -250,31 +256,54 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
             <section className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] shadow-2xl">
               <div className="absolute top-4 left-4 z-20 flex gap-2">
                 <button
-                  onClick={() => setShowEnhanced(true)}
+                  onClick={() => setResultSource("enhanced")}
                   disabled={!enhancedResult}
                   className={`rounded-lg border px-4 py-1.5 text-[10px] font-black tracking-widest transition-all ${
-                    showEnhanced 
+                    resultSource === "enhanced"
                     ? "border-cyan-500/50 bg-cyan-500/20 text-white shadow-[0_0_20px_rgba(6,182,212,0.2)]" 
                     : "border-white/10 bg-white/5 text-white/40"
                   } disabled:opacity-40`}
                 >
-                  ENHANCED_V2
+                  增强后识别
                 </button>
                 <button
-                  onClick={() => setShowEnhanced(false)}
+                  onClick={() => setResultSource("original")}
                   className={`rounded-lg border px-4 py-1.5 text-[10px] font-black tracking-widest transition-all ${
-                    !showEnhanced 
+                    resultSource === "original"
                     ? "border-white/50 bg-white/20 text-white" 
                     : "border-white/10 bg-white/5 text-white/40"
                   }`}
                 >
-                  ORIGINAL_RAW
+                  原图识别
+                </button>
+              </div>
+              <div className="absolute left-4 top-14 z-20 flex gap-2">
+                <button
+                  onClick={() => setImageSource("enhanced")}
+                  disabled={!enhancedUrl}
+                  className={`rounded-lg border px-4 py-1.5 text-[10px] font-black tracking-widest transition-all ${
+                    imageSource === "enhanced"
+                      ? "border-amber-500/50 bg-amber-500/20 text-white"
+                      : "border-white/10 bg-white/5 text-white/40"
+                  } disabled:opacity-40`}
+                >
+                  增强后原图
+                </button>
+                <button
+                  onClick={() => setImageSource("original")}
+                  className={`rounded-lg border px-4 py-1.5 text-[10px] font-black tracking-widest transition-all ${
+                    imageSource === "original"
+                      ? "border-white/50 bg-white/20 text-white"
+                      : "border-white/10 bg-white/5 text-white/40"
+                  }`}
+                >
+                  增强前原图
                 </button>
               </div>
               <div className="absolute top-4 right-4 z-20 flex gap-2">
                 <button
                   onClick={() => setViewMode("result")}
-                  disabled={showEnhanced ? !enhancedOverlayUrl : !originalOverlayUrl}
+                  disabled={showEnhancedImage ? !enhancedOverlayUrl : !originalOverlayUrl}
                   className={`rounded-lg border px-3 py-1.5 text-[10px] font-black tracking-widest transition-all ${
                     viewMode === "result"
                       ? "border-emerald-500/50 bg-emerald-500/20 text-white"
@@ -325,6 +354,10 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
                       <span className="text-[9px] font-bold text-white/20 uppercase tracking-tighter">RESULT_SOURCE</span>
                       <span className="text-xs font-semibold text-white/70">{activeModeLabel}</span>
                    </div>
+                   <div className="flex flex-col">
+                      <span className="text-[9px] font-bold text-white/20 uppercase tracking-tighter">IMAGE_SOURCE</span>
+                      <span className="text-xs font-semibold text-white/70">{activeImageLabel}</span>
+                   </div>
                 </div>
                 <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 border border-white/10">
                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -342,7 +375,7 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
               <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">病害数量</p>
                 <p className="mt-2 text-sm font-black text-white">{activeSummary?.count ?? 0}</p>
-                {showEnhanced && enhancedResult ? (
+                {resultSource === "enhanced" && enhancedResult ? (
                   <p className={`mt-1 text-xs ${deltaCount >= 0 ? "text-emerald-300/70" : "text-rose-300/70"}`}>
                     {deltaCount >= 0 ? "+" : ""}{deltaCount} 相比原图
                   </p>
@@ -358,7 +391,7 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
                 <p className="mt-2 text-sm font-black text-white">
                   {((activeSummary?.averageConfidence ?? 0) * 100).toFixed(1)}%
                 </p>
-                {showEnhanced && enhancedResult ? (
+                {resultSource === "enhanced" && enhancedResult ? (
                   <p className={`mt-1 text-xs ${deltaConfidence >= 0 ? "text-emerald-300/70" : "text-rose-300/70"}`}>
                     {deltaConfidence >= 0 ? "+" : ""}{(deltaConfidence * 100).toFixed(1)}% 相比原图
                   </p>
@@ -366,7 +399,7 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
               </div>
             </section>
 
-            {showEnhanced && enhancementInfo ? (
+            {resultSource === "enhanced" && enhancementInfo ? (
               <section className="rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.04] p-4">
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300/80">Enhancement Provenance</p>
                 <p className="mt-2 text-sm text-white/80">
@@ -393,7 +426,7 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
                       <div className="space-y-0.5">
                         <p className="text-xs font-bold text-white uppercase tracking-tight">{det.category}</p>
                         <p className="text-[9px] font-mono text-white/20">
-                          {showEnhanced ? "SOURCE: ENHANCED" : "SOURCE: ORIGINAL"}
+                          {resultSource === "enhanced" ? "SOURCE: ENHANCED" : "SOURCE: ORIGINAL"}
                         </p>
                       </div>
                     </div>
@@ -463,7 +496,7 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
                       : "bg-white/10 text-white hover:bg-white/20 shadow-xl"
                   }`}
                 >
-                  {showEnhanced ? "SWITCH_TO_ORIGINAL_TO_REVIEW" : isSubmitting ? "COMMIT_PENDING..." : "COMMIT_ATTESTATION"}
+                  {resultSource === "enhanced" ? "SWITCH_TO_ORIGINAL_TO_REVIEW" : isSubmitting ? "COMMIT_PENDING..." : "COMMIT_ATTESTATION"}
                 </button>
 
                 <div className="flex items-center justify-center gap-4 text-[9px] font-mono text-white/10 uppercase tracking-[0.2em] py-2">

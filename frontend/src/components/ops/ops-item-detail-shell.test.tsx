@@ -103,7 +103,7 @@ describe("OpsItemDetailShell", () => {
     expect(screen.getAllByText("原图识别").length).toBeGreaterThan(0);
     expect(screen.queryByText("corrosion")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "ENHANCED_V2" }));
+    fireEvent.click(screen.getByRole("button", { name: "增强后识别" }));
 
     await waitFor(() => {
       expect(screen.getAllByText("增强后识别").length).toBeGreaterThan(0);
