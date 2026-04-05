@@ -44,6 +44,11 @@
 - 已完成全量页面中文化（英文标签 → 中文，按钮图标化，圆角统一升级）
 - 已全面接入 Framer Motion 动画（页面入场、状态提示、进度条、折叠面板）
 - 已实现预测客户端 demo 降级（无后端时自动回退到演示产物路径）
+- 已完成全量文案精简：去除冗余修饰词，统一为简洁直白表述
+- 已完成素材列表（Item Grid）重设计：状态 badge 中文化、选择操作栏条件显示 + AnimatePresence 折叠、表头全中文
+- 已完成工作台骨架屏（OpsWorkbenchSkeleton）：AnimatePresence mode="wait" 实现三态平滑切换
+- 已实现 notice 提示 3 秒自动消失
+- 已优化滚动性能：移除部分面板 backdrop-blur
 
 ## 当前重点
 
