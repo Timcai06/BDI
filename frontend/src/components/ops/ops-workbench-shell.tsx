@@ -288,14 +288,14 @@ export function OpsWorkbenchShell() {
   }, [ready, batchOffset, refreshTick, selectedBridgeId]);
 
   useEffect(() => {
-    if (!selectedBatchId) {
+    if (!selectedBatchId || isWizardOpen) {
       return;
     }
     const timer = window.setInterval(() => {
       setRefreshTick((value) => value + 1);
     }, 5000);
     return () => window.clearInterval(timer);
-  }, [selectedBatchId]);
+  }, [selectedBatchId, isWizardOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -988,7 +988,7 @@ export function OpsWorkbenchShell() {
 
       {isWizardOpen ? (
         <IngestionWizard
-          key={`${selectedBridgeId || "no-bridge"}-${refreshTick}`}
+          key={selectedBridgeId || "no-bridge"}
           isOpen={isWizardOpen}
           onClose={() => setIsWizardOpen(false)}
           onFinish={handleWizardFinish}
