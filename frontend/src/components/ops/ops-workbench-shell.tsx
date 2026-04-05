@@ -582,87 +582,64 @@ export function OpsWorkbenchShell() {
           <BatchHeader />
         }
       >
-        <section className="rounded-3xl border border-white/10 bg-white/[0.02] p-5 shadow-[0_20px_50px_rgba(0,0,0,0.18)]">
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_auto] xl:items-end">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-white/30">
-                  批次入口 / Batch Switch
-                </p>
-                <div className="flex flex-wrap items-center gap-3">
-                  <h2 className="text-xl font-bold tracking-tight text-white">
-                    {selectedBatch ? selectedBatch.batch_code : "选择一个批次开始"}
-                  </h2>
-                  {selectedBatch ? (
-                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white/55">
-                      {selectedBatch.status}
-                    </span>
-                  ) : null}
-                </div>
-                <p className="text-sm text-white/38">
-                  这里负责切换当前批次，并保持页面主体聚焦在该批次的状态与素材清单。
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="min-w-[280px] flex-1 rounded-2xl border border-white/10 bg-black/30 p-1.5">
-                  <select
-                    value={selectedBatchId}
-                    onChange={(e) => setSelectedBatchId(e.target.value)}
-                    className="w-full rounded-xl bg-transparent px-3 py-2.5 text-sm font-bold text-white outline-none"
-                  >
-                    <option value="">快速切换批次...</option>
-                    {batches.map((batch) => (
-                      <option key={batch.id} value={batch.id}>
-                        {batch.batch_code} ({batch.status})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex items-center gap-2 rounded-2xl border border-white/5 bg-white/[0.03] p-1.5">
-                  <button
-                    disabled={!canPrevBatchPage}
-                    onClick={() => setBatchOffset((prev) => Math.max(0, prev - batchLimit))}
-                    className="rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-white/45 transition-all hover:bg-white/10 hover:text-white disabled:opacity-20"
-                  >
-                    Prev
-                  </button>
-                  <span className="px-2 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-300/65">
-                    {currentBatchPage} / {totalBatchPages}
-                  </span>
-                  <button
-                    disabled={!canNextBatchPage}
-                    onClick={() => setBatchOffset((prev) => prev + batchLimit)}
-                    className="rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-white/45 transition-all hover:bg-white/10 hover:text-white disabled:opacity-20"
-                  >
-                    Next
-                  </button>
-                </div>
-
-                {selectedBatch ? (
-                  <div className="rounded-2xl border border-white/5 bg-white/[0.03] px-4 py-3 text-[10px] font-bold uppercase tracking-[0.16em] text-white/42">
-                    成功 {selectedBatch.succeeded_item_count} / 失败 {selectedBatch.failed_item_count} / 运行 {selectedBatch.running_item_count}
-                  </div>
-                ) : null}
-              </div>
+        <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 shadow-[0_14px_32px_rgba(0,0,0,0.16)]">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">
+              Batch
+            </span>
+            <div className="min-w-[240px] flex-1 rounded-xl border border-white/10 bg-black/30 px-2">
+              <select
+                value={selectedBatchId}
+                onChange={(e) => setSelectedBatchId(e.target.value)}
+                className="w-full bg-transparent px-2 py-2 text-sm font-bold text-white outline-none"
+              >
+                <option value="">快速切换批次...</option>
+                {batches.map((batch) => (
+                  <option key={batch.id} value={batch.id}>
+                    {batch.batch_code} ({batch.status})
+                  </option>
+                ))}
+              </select>
             </div>
-
-            <div className="flex flex-wrap items-center gap-3 xl:justify-end">
+            <div className="flex items-center gap-1 rounded-xl border border-white/5 bg-white/[0.03] p-1">
+              <button
+                disabled={!canPrevBatchPage}
+                onClick={() => setBatchOffset((prev) => Math.max(0, prev - batchLimit))}
+                className="rounded-lg px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white/45 transition-all hover:bg-white/10 hover:text-white disabled:opacity-20"
+              >
+                Prev
+              </button>
+              <span className="px-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-cyan-300/65">
+                {currentBatchPage}/{totalBatchPages}
+              </span>
+              <button
+                disabled={!canNextBatchPage}
+                onClick={() => setBatchOffset((prev) => prev + batchLimit)}
+                className="rounded-lg px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white/45 transition-all hover:bg-white/10 hover:text-white disabled:opacity-20"
+              >
+                Next
+              </button>
+            </div>
+            {selectedBatch ? (
+              <span className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white/46">
+                S {selectedBatch.succeeded_item_count} / F {selectedBatch.failed_item_count} / R {selectedBatch.running_item_count}
+              </span>
+            ) : null}
+            <div className="ml-auto flex items-center gap-2">
               {selectedBatch ? (
                 <button
                   onClick={handleDeleteCurrentBatch}
                   disabled={deletingBatch}
-                  className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2 text-xs font-bold text-rose-300 transition-all hover:bg-rose-500/20 disabled:opacity-30"
+                  className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-1.5 text-[11px] font-bold text-rose-300 transition-all hover:bg-rose-500/20 disabled:opacity-30"
                 >
-                  {deletingBatch ? "删除中..." : "删除当前批次"}
+                  {deletingBatch ? "删除中..." : "删除"}
                 </button>
               ) : null}
               <button
                 onClick={() => setIsWizardOpen(true)}
-                className="rounded-xl bg-cyan-500 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-black transition-all hover:bg-cyan-400 active:scale-95"
+                className="rounded-lg bg-cyan-500 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-black transition-all hover:bg-cyan-400 active:scale-95"
               >
-                创建批次
+                新建批次
               </button>
             </div>
           </div>
