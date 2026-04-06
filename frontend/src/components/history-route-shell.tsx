@@ -37,6 +37,42 @@ function downloadBlobFile(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+function toProcessingStatusLabel(status: string): string {
+  switch (status) {
+    case "succeeded":
+      return "已完成";
+    case "failed":
+      return "失败";
+    case "running":
+      return "处理中";
+    case "queued":
+      return "排队中";
+    case "received":
+      return "已接收";
+    default:
+      return status;
+  }
+}
+
+function toBatchStatusLabel(status: string): string {
+  switch (status) {
+    case "created":
+      return "已创建";
+    case "ingesting":
+      return "入库中";
+    case "running":
+      return "处理中";
+    case "succeeded":
+      return "已完成";
+    case "failed":
+      return "失败";
+    case "partial_failed":
+      return "部分失败";
+    default:
+      return status;
+  }
+}
+
 export function HistoryRouteShell() {
   const router = useRouter();
   const pathname = usePathname();
@@ -74,7 +110,7 @@ export function HistoryRouteShell() {
     () =>
       getCanonicalCategoryOptions().filter((category) =>
         historyItems.some((item) =>
-          item.categories.some((value) => getDefectLabel(value) === category),
+          (item.categories ?? []).some((value) => getDefectLabel(value) === category),
         ),
       ),
     [historyItems],
@@ -248,7 +284,7 @@ export function HistoryRouteShell() {
     setDeleteSuccessMessage(null);
     try {
       const response = await batchDeleteResults(imageIds);
-      const deletedIds = response.results.filter((item) => item.deleted).map((item) => item.image_id);
+      const deletedIds = (response.results ?? []).filter((item) => item.deleted).map((item) => item.image_id);
       if (deletedIds.length > 0) {
         const deletedSet = new Set(deletedIds);
         setHistoryItems((current) => current.filter((item) => !deletedSet.has(item.image_id)));
@@ -372,42 +408,19 @@ export function HistoryRouteShell() {
                           {new Date(batch.created_at).toLocaleDateString()}
                         </span>
                       </div>
-                      <div className="mt-2 flex items-center gap-2 text-[10px] font-medium text-white/35">
-                        <span className="rounded-full border border-white/10 bg-black/30 px-2 py-0.5 tabular-nums">
-                          已收录 {batch.received_item_count}
-                        </span>
-                        <span className="rounded-full border border-white/10 bg-black/30 px-2 py-0.5 tabular-nums">
-                          失败 {batch.failed_item_count}
-                        </span>
-                      </div>
-                      <div className="mt-3 flex items-center gap-4 text-[10px] font-bold text-white/40 uppercase">
+                      <div
+                        className="mt-3 flex items-center gap-2 text-[10px] font-bold text-white/40"
+                        title={`批次状态：${toBatchStatusLabel(batch.status)}`}
+                      >
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-emerald-300 normal-case">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                           {batch.succeeded_item_count} 成功
                         </span>
                         <span
-                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-wide normal-case ${
-                            batch.status === "succeeded"
-                              ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
-                              : batch.status === "failed" || batch.status === "partial_failed"
-                                ? "border-rose-400/30 bg-rose-400/10 text-rose-300"
-                                : batch.status === "running" || batch.status === "ingesting"
-                                  ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-300"
-                                  : "border-white/10 bg-white/5 text-white/45"
-                          }`}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/25 bg-rose-400/10 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-rose-300 normal-case"
                         >
-                          <span
-                            className={`h-1.5 w-1.5 rounded-full ${
-                              batch.status === "succeeded"
-                                ? "bg-emerald-400"
-                                : batch.status === "failed" || batch.status === "partial_failed"
-                                  ? "bg-rose-400"
-                                  : batch.status === "running" || batch.status === "ingesting"
-                                    ? "bg-cyan-400"
-                                    : "bg-white/20"
-                            }`}
-                          />
-                          {batch.status}
+                          <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
+                          {batch.failed_item_count} 失败
                         </span>
                       </div>
                     </button>
@@ -487,7 +500,7 @@ export function HistoryRouteShell() {
                                   ? "bg-rose-400"
                                   : "bg-white/20"
                             }`} />
-                            {item.processing_status}
+                            {toProcessingStatusLabel(item.processing_status)}
                           </span>
                         </td>
                         <td className="px-5 py-3 text-right">

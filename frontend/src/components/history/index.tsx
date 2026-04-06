@@ -98,8 +98,8 @@ export function HistoryPanel({
 
     // Category filter
     if (categoryFilter !== "全部") {
-      result = result.filter(item => 
-        item.categories.includes(categoryFilter)
+      result = result.filter(item =>
+        (item.categories ?? []).includes(categoryFilter)
       );
     }
 

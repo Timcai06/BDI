@@ -38,8 +38,9 @@ export function HistoryCard({
 }: HistoryCardProps) {
   const isDeleting = deletingImageId === item.image_id;
   const imageUrl = getImageUrl(item);
-  const primaryCategory = item.categories[0] ?? "default";
-  const remainingCategoryCount = Math.max(item.categories.length - 1, 0);
+  const categories = item.categories ?? [];
+  const primaryCategory = categories[0] ?? "default";
+  const remainingCategoryCount = Math.max(categories.length - 1, 0);
 
   return (
     <article
@@ -191,7 +192,7 @@ export function HistoryCard({
               <>
                 {/* Categories */}
                 <div className="mb-2 flex min-h-[28px] flex-wrap gap-1.5">
-                  {item.categories.slice(0, 3).map((category) => (
+                  {categories.slice(0, 3).map((category) => (
                     <span
                       key={category}
                       className="rounded-full px-2 py-0.5 text-[9px] font-medium border"
@@ -211,9 +212,9 @@ export function HistoryCard({
                   }`}>
                     {item.has_masks ? `MASK ${item.mask_detection_count}` : "BBOX ONLY"}
                   </span>
-                  {item.categories.length > 3 && (
+                  {categories.length > 3 && (
                     <span className="rounded-full px-2 py-0.5 text-[9px] text-white/40 bg-white/5 border border-white/10">
-                      +{item.categories.length - 3}
+                      +{categories.length - 3}
                     </span>
                   )}
                 </div>

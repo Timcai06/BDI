@@ -21,7 +21,7 @@ export function filterHistoryItems(
       item.backend.toLowerCase().includes(query);
 
     const matchesCategory =
-      options.category === "全部" || item.categories.includes(options.category);
+      options.category === "全部" || (item.categories ?? []).includes(options.category);
 
     return matchesQuery && matchesCategory;
   });
