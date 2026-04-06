@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "generate:types": "sh -c 'PY=../backend/.venv-yolo/bin/python; [ -x \"$PY\" ] || PY=../backend/.venv/bin/python; [ -x \"$PY\" ] || PY=python3; \"$PY\" ../scripts/generate_openapi_schema.py && openapi-typescript ../artifacts/openapi/frontend-openapi.json -o ./src/lib/api/generated.ts'"
   },
   "dependencies": {
     "framer-motion": "^12.36.0",
@@ -31,6 +32,7 @@
     "eslint": "^9.18.0",
     "eslint-config-next": "^16.0.0",
     "jsdom": "^26.0.0",
+    "openapi-typescript": "^7.13.0",
     "postcss": "^8.5.0",
     "tailwindcss": "^4.1.0",
     "typescript": "^5.7.0",
