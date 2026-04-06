@@ -51,7 +51,7 @@ export function OpsPageHeader({
         </div>
         <h1 className="text-xl font-black tracking-tight text-white uppercase lg:text-3xl">{title}</h1>
         {subtitle ? (
-          <p className="mt-1 text-xs uppercase tracking-widest text-white/40">{subtitle}</p>
+          <div className="mt-1 text-xs uppercase tracking-widest text-white/40">{subtitle}</div>
         ) : null}
       </div>
       {actions ? <div className="flex items-center gap-3">{actions}</div> : null}

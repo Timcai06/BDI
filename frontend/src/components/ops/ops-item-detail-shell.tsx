@@ -49,6 +49,18 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
   const returnTo = searchParams.get("returnTo");
 
   function toPrimaryResult(resultData: BatchItemResultV1Response): PredictResponse {
+    const normalizeInferenceBreakdown = (
+      value: BatchItemResultV1Response["inference_breakdown"],
+    ): Record<string, number> => {
+      if (!value || typeof value !== "object") {
+        return {};
+      }
+
+      return Object.fromEntries(
+        Object.entries(value).filter((entry): entry is [string, number] => typeof entry[1] === "number"),
+      );
+    };
+
     const normalizeMask = (mask: ResultDetectionV1["mask"]): DetectionMask | null | undefined => {
       if (
         mask &&
@@ -63,23 +75,36 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
       return undefined;
     };
 
+    const normalizeBoundingBox = (bbox: ResultDetectionV1["bbox"]) => ({
+      x: typeof bbox?.x === "number" ? bbox.x : 0,
+      y: typeof bbox?.y === "number" ? bbox.y : 0,
+      width: typeof bbox?.width === "number" ? bbox.width : 0,
+      height: typeof bbox?.height === "number" ? bbox.height : 0,
+    });
+
+    const normalizeMetrics = (metrics: ResultDetectionV1["metrics"]) => ({
+      length_mm: typeof metrics?.length_mm === "number" ? metrics.length_mm : null,
+      width_mm: typeof metrics?.width_mm === "number" ? metrics.width_mm : null,
+      area_mm2: typeof metrics?.area_mm2 === "number" ? metrics.area_mm2 : null,
+    });
+
     return {
       schema_version: resultData.schema_version,
       image_id: resultData.id,
       result_variant: "original",
       inference_ms: resultData.inference_ms,
-      inference_breakdown: resultData.inference_breakdown,
+      inference_breakdown: normalizeInferenceBreakdown(resultData.inference_breakdown),
       model_name: resultData.model_name,
       model_version: resultData.model_version,
       backend: resultData.backend,
       inference_mode: resultData.inference_mode,
-      detections: resultData.detections.map((det) => ({
+      detections: (resultData.detections ?? []).map((det) => ({
         id: det.id,
         category: det.category,
         confidence: det.confidence,
-        bbox: det.bbox,
+        bbox: normalizeBoundingBox(det.bbox),
         mask: normalizeMask(det.mask),
-        metrics: det.metrics,
+        metrics: normalizeMetrics(det.metrics),
         source_role: det.source_role,
         source_model_name: det.source_model_name,
         source_model_version: det.source_model_version,

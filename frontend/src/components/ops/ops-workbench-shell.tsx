@@ -18,6 +18,7 @@ import {
   retryV1Task
 } from "@/lib/predict-client";
 import { BatchHeader } from "./batch-header";
+import { BatchStatusBar } from "./batch-status-bar";
 import { ItemGrid } from "./item-grid";
 import { IngestionWizard } from "./ingestion-wizard";
 import { OpsPageHeader } from "./ops-page-header";
@@ -380,13 +381,6 @@ export function OpsWorkbenchShell() {
     [bridges, selectedBridgeId]
   );
   const batchStatusBreakdown = stats?.status_breakdown ?? {};
-  const queuedCount = batchStatusBreakdown.queued ?? 0;
-  const runningCount = batchStatusBreakdown.running ?? 0;
-  const succeededCount = batchStatusBreakdown.succeeded ?? 0;
-  const failedCount = batchStatusBreakdown.failed ?? 0;
-  const reviewCount = Object.values(stats?.review_breakdown ?? {}).reduce((sum, value) => sum + value, 0);
-  const defectCount = Object.values(stats?.category_breakdown ?? {}).reduce((sum, value) => sum + value, 0);
-  const alertCount = Object.values(stats?.alert_breakdown ?? {}).reduce((sum, value) => sum + value, 0);
 
   useEffect(() => {
     setBatchItemOffset(0);
@@ -802,78 +796,16 @@ export function OpsWorkbenchShell() {
               transition={{ duration: 0.4 }}
               className="space-y-8"
             >
-            <section className="overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)]">
-              <button
-                type="button"
-                onClick={() => setSummaryExpanded((value) => !value)}
-                className="group flex w-full flex-wrap items-center justify-between gap-6 px-8 py-6 text-left transition-all hover:bg-white/[0.04]"
-              >
-                <div className="grid flex-1 gap-8 md:grid-cols-4 lg:grid-cols-5">
-                  <div className="relative">
-                    <div className="mb-2 flex items-center gap-2 opacity-40">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M3 7l9-4 9 4M5 7v14M19 7v14M10 21v-8h4v8m-7-8h10"/></svg>
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em]">当前资产</p>
-                    </div>
-                    <p className="truncate text-sm font-black tracking-tight text-white uppercase">{selectedBridge?.bridge_name ?? "-"}</p>
-                    <p className="mt-0.5 text-[10px] font-bold text-cyan-400/60 tabular-nums">{selectedBridge?.bridge_code ?? "-"}</p>
-                  </div>
+            <div className="overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)]">
+              <BatchStatusBar
+                stats={stats}
+                selectedBridge={selectedBridge}
+                selectedBatch={selectedBatch}
+                batchItemTotal={batchItemTotal}
+                expanded={summaryExpanded}
+                onToggleExpand={() => setSummaryExpanded(!summaryExpanded)}
+              />
 
-                  <div className="relative">
-                    <div className="mb-2 flex items-center gap-2 opacity-40">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12M16 2v4M8 2v4M3 10h18"/></svg>
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em]">任务批次</p>
-                    </div>
-                    <p className="truncate text-sm font-black tracking-tight text-white uppercase">{selectedBatch?.batch_code ?? "-"}</p>
-                    <div className="mt-1 flex items-center gap-1.5">
-                      <span className={`h-1.5 w-1.5 rounded-full ${selectedBatch?.status === "completed" ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]"}`} />
-                      <p className="text-[10px] font-bold text-white/50">{selectedBatch?.status ?? "-"}</p>
-                    </div>
-                  </div>
-
-                  <div className="relative">
-                    <div className="mb-2 flex items-center gap-2 opacity-40">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em]">处理进度</p>
-                    </div>
-                    <div className="flex items-baseline gap-1">
-                      <p className="text-sm font-black tracking-tight text-white tabular-nums">{succeededCount}</p>
-                      <p className="text-[10px] font-bold text-white/30">/ {batchItemTotal}</p>
-                    </div>
-                    <div className="mt-1.5 h-1 w-24 overflow-hidden rounded-full bg-white/5">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: batchItemTotal > 0 ? `${(succeededCount / batchItemTotal) * 100}%` : 0 }}
-                        className="h-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.4)]" 
-                      />
-                    </div>
-                  </div>
-
-                  <div className="relative">
-                    <div className="mb-2 flex items-center gap-2 opacity-40">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3ZM12 9v4M12 17h.01"/></svg>
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em]">业务预警</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <p className="text-sm font-black text-rose-400 tabular-nums">{alertCount}</p>
-                        <p className="text-[9px] font-bold uppercase text-white/30">告警</p>
-                      </div>
-                      <div className="h-4 w-px bg-white/10" />
-                      <div>
-                        <p className="text-sm font-black text-amber-400 tabular-nums">{defectCount}</p>
-                        <p className="text-[9px] font-bold uppercase text-white/30">病害</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="hidden lg:block relative text-right">
-                    <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 transition-all ${summaryExpanded ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-400" : "border-white/10 bg-white/5 text-white/40 group-hover:text-white"}`}>
-                      <span className="text-[9px] font-black uppercase tracking-widest">{summaryExpanded ? "收起面板" : "精细过滤"}</span>
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-500 ${summaryExpanded ? "rotate-180" : ""}`}><path d="m6 9 6 6 6-6"/></svg>
-                    </div>
-                  </div>
-                </div>
-              </button>
 
               <motion.div
                 initial={false}
@@ -953,7 +885,7 @@ export function OpsWorkbenchShell() {
                   </div>
                 </div>
               </motion.div>
-            </section>
+            </div>
 
 
             <ItemGrid 

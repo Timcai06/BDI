@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { OpsPageHeader } from "@/components/ops/ops-page-header";
 import { OpsPageLayout } from "@/components/ops/ops-page-layout";
 import {
@@ -248,21 +249,21 @@ export function OpsOverviewShell() {
 
   return (
     <OpsPageLayout
-      contentClassName="space-y-8"
+      contentClassName="space-y-12 pb-24"
       header={
         <OpsPageHeader
           eyebrow="OVERVIEW"
           title="运营总览"
-          subtitle="闭环数据看板 / 风险优先级与处置效率"
+          subtitle="全链路数据看板 / 风险优先级与处置效率 / REAL-TIME"
           actions={
-            <>
+            <div className="flex items-center gap-3">
               <div className="flex rounded-xl border border-white/5 bg-white/[0.03] p-1">
                 {[24, 72, 168].map((h) => (
                   <button
                     key={h}
                     onClick={() => setWindowHours(h)}
-                    className={`rounded-lg px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all ${
-                      windowHours === h ? "bg-white/10 text-white shadow-xl" : "text-white/30 hover:text-white/60"
+                    className={`rounded-lg px-4 py-1.5 text-[9px] font-bold uppercase tracking-wider transition-all ${
+                      windowHours === h ? "bg-white/10 text-cyan-400 shadow-xl" : "text-white/30 hover:text-white/60"
                     }`}
                   >
                     {h === 168 ? "7d" : `${h}h`}
@@ -271,190 +272,134 @@ export function OpsOverviewShell() {
               </div>
               <button
                 onClick={() => setRefreshTick((v) => v + 1)}
-                className="rounded-xl border border-white/5 bg-white/[0.03] p-2.5 text-white/60 transition-all hover:bg-white/10 hover:text-white active:scale-95"
+                className="group relative flex h-10 w-10 items-center justify-center rounded-xl border border-white/5 bg-white/[0.03] text-white/40 transition-all hover:bg-white/10 hover:text-white"
                 title="刷新数据"
               >
-                <svg className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className={`h-4 w-4 transition-transform group-hover:rotate-180 ${loading ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
               </button>
-            </>
+            </div>
           }
         />
       }
     >
+      <AnimatePresence mode="wait">
+        <motion.div 
+          key={windowHours}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="space-y-12"
+        >
+          {error && (
+            <div className="flex items-center gap-3 rounded-[1.5rem] border border-rose-500/20 bg-rose-500/10 p-4 text-xs font-bold text-rose-300">
+              <span className="h-2 w-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]" />
+              {error}
+            </div>
+          )}
 
-      {error && (
-        <div className="flex items-center gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300">
-          <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          {error}
-        </div>
-      )}
-
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-32 rounded-2xl bg-white/[0.02] border border-white/5 animate-pulse" />
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 auto-rows-auto">
-          
-          {/* --- TOP ROW: CORE KPIS --- */}
-          <div className="lg:col-span-3">
+          {/* --- Zone 1: Real-time Status Snapshot --- */}
+          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <MetricCard 
               label="任务处理成功率" 
               value={`${successRate.toFixed(1)}%`} 
-              hint="由 InferenceTask 统计的端到端执行成功情况。"
+              hint="端到端执行结果统计。"
               status={successRate > 95 ? "healthy" : successRate > 85 ? "warning" : "risk"}
-              trend={[70, 85, 80, 92, 95, 94, successRate]} // Mock trend for visualization
+              trend={[70, 85, 80, 92, 95, 94, successRate]}
             />
-          </div>
-          <div className="lg:col-span-3">
-            <MetricCard 
-              label="AI 数据通过率" 
-              value={`${autoPassPercent.toFixed(1)}%`} 
-              hint="succeeded_items / received_items，体现模型过滤效能。"
-              status="healthy"
-              trend={[40, 45, 42, 50, 48, 55, autoPassPercent]}
-            />
-          </div>
-          <div className="lg:col-span-3">
-            <MetricCard 
-              label="人机复核覆盖率" 
-              value={`${reviewCoveragePercent.toFixed(1)}%`} 
-              hint="已复核检测记录占总检测结果的比例。"
-              status={reviewCoveragePercent > 50 ? "healthy" : "warning"}
-            />
-          </div>
-          <div className="lg:col-span-3">
             <MetricCard 
               label="活跃 Open 告警" 
               value={String(openAlerts.length)} 
-              hint="系统中尚未解决的各级别告警总数。"
+              hint="各级别待处理告警总数。"
               status={openAlerts.length > 50 ? "risk" : openAlerts.length > 20 ? "warning" : "healthy"}
             />
-          </div>
+            <MetricCard 
+              label="AI 数据通过率" 
+              value={`${autoPassPercent.toFixed(1)}%`} 
+              hint="体现模型异常过滤效能。"
+              status="healthy"
+              trend={[40, 45, 42, 50, 48, 55, autoPassPercent]}
+            />
+            <MetricCard 
+              label="人机复核覆盖率" 
+              value={`${reviewCoveragePercent.toFixed(1)}%`} 
+              hint="已复核检测结果比例。"
+              status={reviewCoveragePercent > 50 ? "healthy" : "warning"}
+            />
+          </section>
 
-          {/* --- SECOND ROW: DETAILS & RISKS (Bento) --- */}
-          
-          {/* Priority Queue / Action items */}
-          <div className="lg:col-span-4 rounded-3xl border border-white/5 bg-white/[0.02] p-6 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-white tracking-widest uppercase opacity-70">处置优先队列</h2>
-                <span className="px-2 py-0.5 rounded bg-rose-500/20 text-[10px] font-bold text-rose-400">High Actionable</span>
-              </div>
-              <div className="mt-6 space-y-6">
-                <div className="flex items-center gap-4">
-                  <ProgressRing percent={(highPriorityOpenAlertsCount / (openAlerts.length || 1)) * 100} color="#fb7185" />
-                  <div>
-                    <p className="text-xl font-bold text-white">{highPriorityOpenAlertsCount}</p>
-                    <p className="text-[10px] text-white/30 uppercase tracking-wider">高危未入账告警 (High/Critical)</p>
+          {/* --- Zone 2: Action & Risk Workcenter --- */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Focus: Risk Ranking & Actions */}
+            <div className="lg:col-span-8 flex flex-col gap-8">
+              <div className="relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.03] p-8 shadow-2xl backdrop-blur-2xl">
+                <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-rose-500/5 blur-[100px]" />
+                
+                <div className="relative mb-8 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.6)]" />
+                    <h2 className="text-[11px] font-black uppercase tracking-[0.3em] text-white/40">风险处置中心 / RISK ACTION CENTER</h2>
                   </div>
+                  <Link href="/dashboard/ops/alerts" className="text-[9px] font-bold text-white/30 hover:text-cyan-400 uppercase tracking-widest transition-colors">视图全局告警 &rarr;</Link>
                 </div>
-                <div className="flex items-center gap-4">
-                  <ProgressRing percent={(overdueOpenAlertsCount / (openAlerts.length || 1)) * 100} color="#fbbf24" />
-                  <div>
-                    <p className="text-xl font-bold text-white">{overdueOpenAlertsCount}</p>
-                    <p className="text-[10px] text-white/30 uppercase tracking-wider">超 24h 待处理告警</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <Link 
-              href="/dashboard/ops/alerts"
-              className="mt-8 flex items-center justify-center gap-2 py-3 rounded-2xl bg-white/[0.05] border border-white/10 text-xs font-bold text-white/80 hover:bg-white/10 hover:text-white transition-all group"
-            >
-              进入告警中心
-              <svg className="h-3 w-3 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
-            </Link>
-          </div>
 
-          {/* Infrastructure Health */}
-          <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="rounded-3xl border border-white/5 bg-white/[0.02] p-6 overflow-hidden relative">
-              <h2 className="text-sm font-bold text-white tracking-widest uppercase opacity-70 mb-5">资产与闭环就绪度</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5">
-                  <p className="text-xs text-white/30">检测记录数</p>
-                  <p className="text-2xl font-bold text-white mt-1">{detections.length}</p>
-                </div>
-                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5">
-                  <p className="text-xs text-white/30">复核记录数</p>
-                  <p className="text-2xl font-bold text-white mt-1">{reviews.length}</p>
-                </div>
-                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5">
-                  <p className="text-xs text-white/30">桥梁资产</p>
-                  <p className="text-2xl font-bold text-white mt-1">{bridges.length}</p>
-                </div>
-                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5">
-                  <p className="text-xs text-white/30">巡检批次</p>
-                  <p className="text-2xl font-bold text-white mt-1">{batches.length}</p>
-                </div>
-              </div>
-              {/* Background accent */}
-              <div className="absolute -bottom-10 -right-10 h-32 w-32 bg-cyan-500/10 blur-[60px] rounded-full pointer-events-none" />
-            </div>
-
-            <div className="rounded-3xl border border-white/5 bg-white/[0.02] p-6">
-              <h2 className="text-sm font-bold text-white tracking-widest uppercase opacity-70 mb-5">处理延迟指标</h2>
-              <div className="space-y-5">
-                <div>
-                  <div className="flex justify-between text-[11px] mb-2 uppercase tracking-wider">
-                    <span className="text-white/40 font-medium">P95 排队时延 (Queue Wait)</span>
-                    <span className="text-cyan-400 font-bold">{opsMetrics?.p95_queue_wait_ms ?? 0} ms</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-white/[0.05] rounded-full overflow-hidden">
-                    <div className="h-full bg-cyan-400/60 rounded-full" style={{ width: `${Math.min(100, (opsMetrics?.p95_queue_wait_ms ?? 0) / 10)}%` }} />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-[11px] mb-2 uppercase tracking-wider">
-                    <span className="text-white/40 font-medium">P95 运行耗时 (Execution)</span>
-                    <span className="text-cyan-400 font-bold">{opsMetrics?.p95_run_ms ?? 0} ms</span>
-                  </div>
-                  <div className="h-1.5 w-full bg-white/[0.05] rounded-full overflow-hidden">
-                    <div className="h-full bg-cyan-400/60 rounded-full" style={{ width: `${Math.min(100, (opsMetrics?.p95_run_ms ?? 0) / 100)}%` }} />
-                  </div>
-                </div>
-                <p className="text-[10px] text-white/20 mt-4 leading-relaxed italic">
-                  * 延迟指标直接反映后端的弹性计算负载与 Worker 处理能力。
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* --- THIRD ROW: DISTRIBUTIONS & RANKINGS --- */}
-          
-          <div className="lg:col-span-8 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="rounded-3xl border border-white/5 bg-white/[0.02] p-6">
-                <h3 className="text-[11px] font-bold text-white/40 uppercase tracking-[0.2em] mb-4">异常失败码 Top 5</h3>
-                <div className="space-y-3">
-                  {Object.entries(failureDist).length === 0 ? (
-                    <p className="text-xs text-white/20 italic py-4">暂无失败记录</p>
-                  ) : (
-                    Object.entries(failureDist).slice(0, 5).sort((a, b) => b[1] - a[1]).map(([code, count]) => (
-                      <div key={code} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5 hover:border-white/10 transition-colors">
-                        <span className="text-xs font-mono text-rose-300/80">{code}</span>
-                        <span className="text-xs font-bold text-white/60">{count}</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Action Items List */}
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6 hover:bg-white/[0.04] transition-all">
+                      <div className="flex items-center gap-4">
+                        <ProgressRing percent={(highPriorityOpenAlertsCount / (openAlerts.length || 1)) * 100} color="#fb7185" size={56} />
+                        <div>
+                          <p className="text-2xl font-black text-rose-400 tabular-nums">{highPriorityOpenAlertsCount}</p>
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-white/30">核心待办 (High/Critical)</p>
+                        </div>
                       </div>
-                    ))
-                  )}
+                    </div>
+                    <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-6 hover:bg-white/[0.04] transition-all">
+                      <div className="flex items-center gap-4">
+                        <ProgressRing percent={(overdueOpenAlertsCount / (openAlerts.length || 1)) * 100} color="#fbbf24" size={56} />
+                        <div>
+                          <p className="text-2xl font-black text-amber-400 tabular-nums">{overdueOpenAlertsCount}</p>
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-white/30">超时未处置 (Over 24h)</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Top Risks */}
+                  <div className="space-y-3">
+                    {topRiskBatches.slice(0, 3).map((item, idx) => (
+                      <div key={item.id} className="group relative p-4 rounded-2xl border border-white/5 bg-black/20 hover:bg-white/[0.05] transition-all overflow-hidden cursor-default">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-black text-white uppercase group-hover:text-rose-400 transition-colors">{item.code}</span>
+                          <span className="text-[9px] font-bold text-rose-400/60 tracking-wider">RANK {idx + 1}</span>
+                        </div>
+                        <p className="truncate text-[9px] text-white/20 mb-2">{item.bridge}</p>
+                        <div className="flex gap-4">
+                          <span className="text-[8px] font-bold text-rose-400 uppercase tracking-tighter">Fail {item.failed}</span>
+                          <span className="text-[8px] font-bold text-amber-400 uppercase tracking-tighter">Alert {item.alerts}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {topRiskBatches.length === 0 && <p className="text-[10px] text-white/10 italic py-8 text-center uppercase tracking-widest">No matching risk nodes found</p>}
+                  </div>
                 </div>
               </div>
-              <div className="rounded-3xl border border-white/5 bg-white/[0.02] p-6">
-                <h3 className="text-[11px] font-bold text-white/40 uppercase tracking-[0.2em] mb-4">执行状态分布</h3>
-                <div className="space-y-3">
+            </div>
+
+            {/* Side info: Distribution */}
+            <div className="lg:col-span-4 flex flex-col gap-6 h-full">
+              <div className="flex-1 rounded-[2.5rem] border border-white/5 bg-white/[0.01] p-8 backdrop-blur-sm">
+                <div className="mb-6 flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-400/40" />
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">任务执行分布</h3>
+                </div>
+                <div className="space-y-2">
                   {Object.entries(statusDist).map(([status, count]) => (
-                    <div key={status} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                      <span className={`text-xs font-bold uppercase tracking-widest ${status === 'succeeded' ? 'text-cyan-400' : status === 'failed' ? 'text-rose-400' : 'text-amber-400'}`}>{status}</span>
-                      <span className="text-xs font-bold text-white/60">{count}</span>
+                    <div key={status} className="flex items-center justify-between p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] transition-all group">
+                      <span className={`text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${status === 'succeeded' ? 'text-emerald-400' : status === 'failed' ? 'text-rose-400' : 'text-amber-400 group-hover:text-amber-300'}`}>{status}</span>
+                      <span className="text-xs font-black tabular-nums text-white/50">{count}</span>
                     </div>
                   ))}
                 </div>
@@ -462,61 +407,75 @@ export function OpsOverviewShell() {
             </div>
           </div>
 
-          <div className="lg:col-span-4 rounded-3xl border border-white/10 bg-white/[0.02] p-6 shadow-2xl relative overflow-hidden">
-             <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-               <svg className="h-32 w-32" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 3.45l8.28 14.1H3.72L12 5.45zM11 16h2v2h-2v-2zm0-6h2v4h-2v-4z"/></svg>
-             </div>
-             
-             <h3 className="text-sm font-bold text-white tracking-widest uppercase mb-6 flex items-center gap-2">
-               风险批次排名
-               <span className="text-[10px] bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded">Risk Focus</span>
-             </h3>
-             
-             <div className="space-y-3">
-               {topRiskBatches.length === 0 && <p className="text-xs text-white/20 italic">目前无高风险批次需要关注。</p>}
-               {topRiskBatches.map((item, idx) => (
-                 <div key={item.id} className="relative group p-4 rounded-2xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.08] transition-all cursor-default">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-white group-hover:text-cyan-400 transition-colors uppercase tracking-wider">{item.code}</span>
-                      <span className="text-[10px] font-black tabular-nums text-rose-400">SCORE {item.score}</span>
-                    </div>
-                    <p className="text-[10px] text-white/40 mb-3 truncate">{item.bridge}</p>
-                    <div className="flex gap-4">
-                      <div className="text-[9px] text-white/20 uppercase font-bold tracking-tighter">
-                        Fail <span className="text-rose-400 ml-1">{item.failed}</span>
-                      </div>
-                      <div className="text-[9px] text-white/20 uppercase font-bold tracking-tighter">
-                        Alert <span className="text-amber-400 ml-1">{item.alerts}</span>
-                      </div>
-                      <div className="text-[9px] text-white/20 uppercase font-bold tracking-tighter">
-                        Idle <span className="text-white/40 ml-1">{item.pending}</span>
-                      </div>
-                    </div>
-                    {/* Rank number */}
-                    <div className="absolute top-2 right-2 text-[40px] font-black text-white/[0.02] select-none italic">{idx + 1}</div>
-                 </div>
-               ))}
-             </div>
-          </div>
+          {/* --- Zone 3: Infrastructure & Health Base --- */}
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* System Readiness (Compact Tags) */}
+            <div className="grid grid-cols-2 gap-4 rounded-[2rem] border border-white/5 bg-white/[0.01] p-6">
+              {[
+                { label: "巡检批次", val: batches.length },
+                { label: "桥梁资产", val: bridges.length },
+                { label: "检测记录", val: detections.length },
+                { label: "复核记录", val: reviews.length }
+              ].map(tag => (
+                <div key={tag.label} className="p-4 rounded-2xl bg-black/20 border border-white/5">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-white/20 mb-1">{tag.label}</p>
+                  <p className="text-lg font-black text-white/70 tabular-nums">{tag.val}</p>
+                </div>
+              ))}
+            </div>
 
-        </div>
-      )}
+            {/* Latency P95 (Simplified Bars) */}
+            <div className="rounded-[2rem] border border-white/5 bg-white/[0.01] p-6 space-y-6">
+              <div className="flex items-center gap-2 mb-2">
+                 <span className="h-1.5 w-1.5 rounded-full bg-cyan-400/40" />
+                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">P95 系统处理延迟</h3>
+              </div>
+              <div>
+                <div className="flex justify-between text-[9px] font-bold text-white/40 uppercase mb-2">
+                  <span>QUEUE WAIT</span>
+                  <span className="text-cyan-400">{opsMetrics?.p95_queue_wait_ms ?? 0} MS</span>
+                </div>
+                <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, (opsMetrics?.p95_queue_wait_ms ?? 0) / 10)}%` }} className="h-full bg-gradient-to-r from-cyan-500/50 to-cyan-400" />
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between text-[9px] font-bold text-white/40 uppercase mb-2">
+                  <span>EXEC TIME</span>
+                  <span className="text-cyan-400">{opsMetrics?.p95_run_ms ?? 0} MS</span>
+                </div>
+                <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                   <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, (opsMetrics?.p95_run_ms ?? 0) / 100)}%` }} className="h-full bg-gradient-to-r from-cyan-500/50 to-cyan-400" />
+                </div>
+              </div>
+            </div>
 
-      {/* --- FOOTER CTA --- */}
-      <footer className="pt-10 flex flex-wrap gap-4 border-t border-white/5">
-        <Link 
-          href="/dashboard/ops"
-          className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 hover:bg-cyan-500/20 transition-all font-bold text-sm tracking-wide group"
-        >
-          查看批次详情列表
-          <svg className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-          </svg>
-        </Link>
-        <p className="flex-1 text-xs text-white/20 self-center max-w-md">
-          基于研报建议运营视角设计：通过“风险权重积分算法”自动识别待处置项，确保企业巡检数据的闭环处置。
-        </p>
-      </footer>
+            {/* Failure Codes Top 5 */}
+            <div className="rounded-[2rem] border border-white/10 bg-white/[0.02] p-6">
+              <div className="flex items-center gap-2 mb-5">
+                 <span className="h-1.5 w-1.5 rounded-full bg-rose-400/40" />
+                 <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">异常失败 Top 5</h3>
+              </div>
+              <div className="space-y-2">
+                {Object.entries(failureDist).slice(0, 5).sort((a, b) => b[1] - a[1]).map(([code, count]) => (
+                  <div key={code} className="flex items-center justify-between p-2.5 px-4 rounded-xl bg-black/40 border border-white/5">
+                    <span className="text-[9px] font-mono font-bold text-rose-300/60 uppercase">{code}</span>
+                    <span className="text-xs font-black tabular-nums text-white/30">{count}</span>
+                  </div>
+                ))}
+                {Object.entries(failureDist).length === 0 && <p className="text-[10px] text-white/10 italic text-center py-4 uppercase tracking-widest">No errors recorded</p>}
+              </div>
+            </div>
+          </section>
+
+          {/* --- Bottom Footer Annotation --- */}
+          <footer className="pt-8 flex justify-center border-t border-white/5">
+            <p className="text-[9px] font-bold text-white/10 uppercase tracking-[0.4em] max-w-xl text-center leading-relaxed">
+              OPERATIONAL PERSPECTIVE DESIGNED: RISK-WEIGHTED SCORING ALGORITHM AUTOMATICALLY IDENTIFIES PENDING ITEMS.
+            </p>
+          </footer>
+        </motion.div>
+      </AnimatePresence>
     </OpsPageLayout>
   );
 }
