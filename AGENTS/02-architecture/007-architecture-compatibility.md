@@ -116,3 +116,18 @@
 - 后端只调用统一推理接口
 - 模型可以升级，协议尽量不变
 - 存储可升级，业务层不重构
+
+## 增强处理
+
+增强处理有两种触发方式：
+
+1. **批次入库时自动增强**：`enhancement_mode` 默认值为 `always`，批次条目入库后自动触发双分支增强
+2. **事后手动增强**：调用 `POST /results/{image_id}/enhance`，对已有结果手动触发增强识别，支持掩膜输出
+
+增强结果作为 `secondary_result` 写入原始 JSON 产物，包含独立的 detections 列表、enhancement_info 和 artifacts。
+
+变更记录：
+
+- `enhancement_mode` 默认值从 `auto` 改为 `always`（始终增强）
+- 新增事后增强接口 `POST /results/{image_id}/enhance`
+- 增强 runner 支持 mask 输出（`supports_masks=true`）

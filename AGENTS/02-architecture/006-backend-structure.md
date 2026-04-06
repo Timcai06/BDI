@@ -67,6 +67,7 @@
 - `GET /results/{result_id}/overlay`
 - `GET /results/{result_id}/diagnosis`
 - `POST /diagnosis/stream`（LLM流式诊断）
+- `POST /results/{image_id}/enhance` — 事后增强已有结果（支持掩膜输出）
 
 ### Phase 5 接口（`v1_routes.py`，真实巡检路径）
 

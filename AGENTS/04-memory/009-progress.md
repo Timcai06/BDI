@@ -49,6 +49,10 @@
 - 已完成工作台骨架屏（OpsWorkbenchSkeleton）：AnimatePresence mode="wait" 实现三态平滑切换
 - 已实现 notice 提示 3 秒自动消失
 - 已优化滚动性能：移除部分面板 backdrop-blur
+- 已完成增强处理可选化：enhancement_mode 默认值从 auto 改为 always
+- 已完成事后增强接口 POST /results/{image_id}/enhance
+- 已完成增强按钮交互变更：从切换已有结果变为按需生成
+- 已完成掩膜可视化优化：多边形检测框增加填充色与透明度
 
 ## 当前重点
 

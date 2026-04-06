@@ -84,6 +84,10 @@
 - **工作台骨架屏**：新增 `OpsWorkbenchSkeleton` 组件，使用 `AnimatePresence mode="wait"` 实现 skeleton → empty → content 三态平滑切换
 - **通知自动消失**：notice 提示 3 秒后自动隐藏
 - **性能优化**：移除部分面板的 `backdrop-blur` 以提升滚动性能
+- **增强处理可选化**：`enhancement_mode` 默认值从 `auto` 改为 `always`，增强从自动行为变为显式能力
+- **事后增强接口**：新增 `POST /results/{image_id}/enhance`，允许对已有结果手动触发增强识别
+- **增强按钮交互变更**：从"切换已有增强结果"变为"按需生成增强结果"，首次点击触发增强，生成后可切换查看
+- **掩膜可视化优化**：result-dashboard 多边形检测框增加填充色、透明度、描边优化，选中态更明显
 
 ## 当前项目定位
 
