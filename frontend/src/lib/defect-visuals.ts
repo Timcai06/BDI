@@ -38,6 +38,21 @@ const CANONICAL_DEFECT_KEYS = new Set<DefectKey>([
   "reinforcement",
   "seepage",
 ]);
+const ALIAS_TO_KEY: Record<string, DefectKey> = {
+  spalling: "breakage",
+  "剥落": "breakage",
+  "剥蚀": "breakage",
+  rebar: "reinforcement",
+  corrosion: "reinforcement",
+  rust: "reinforcement",
+  "锈蚀": "reinforcement",
+  efflorescence: "seepage",
+  leakage: "seepage",
+  "泛碱": "seepage",
+  "白华": "seepage",
+  "空洞": "hole",
+  "伸缩缝": "comb",
+};
 const LABEL_TO_KEY: Record<string, DefectKey> = Object.entries(DEFECT_DICTIONARY).reduce(
   (accumulator, [key, value]) => {
     accumulator[value.label] = key as DefectKey;
@@ -52,7 +67,7 @@ export function normalizeCategory(category: string): DefectKey {
   if (CANONICAL_DEFECT_KEYS.has(value)) {
     return value;
   }
-  return LABEL_TO_KEY[raw] ?? "default";
+  return ALIAS_TO_KEY[value] ?? LABEL_TO_KEY[raw] ?? "default";
 }
 
 export function getDefectColorHex(category: string): string {

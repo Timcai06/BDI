@@ -62,9 +62,12 @@ def execute_task(service: Any, session: Session, task: InferenceTask) -> str:
     }
     task.runtime_payload = runtime_payload
 
+    inference_mode = task.inference_mode or "direct"
+    task.inference_mode = inference_mode
+
     options = PredictOptions(
         model_version=spec.model_version,
-        inference_mode=task.inference_mode,
+        inference_mode=inference_mode,
         return_overlay=True,
     )
 

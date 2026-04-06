@@ -8,8 +8,8 @@ from fastapi.testclient import TestClient
 from app.main import create_app
 from app.models.schemas import (
     AlertListResponse,
-    AlertRulesConfigResponse,
     AlertResponse,
+    AlertRulesConfigResponse,
     BatchCreateResponse,
     BatchDeleteResponse,
     BatchIngestResponse,
@@ -28,9 +28,9 @@ from app.models.schemas import (
     OpsAuditLogListResponse,
     OpsAuditLogResponse,
     OpsMetricsResponse,
+    ResultDetectionResponse,
     ReviewListResponse,
     ReviewRecordResponse,
-    ResultDetectionResponse,
     TaskProcessResponse,
     TaskResponse,
     TaskRetryResponse,
@@ -454,6 +454,32 @@ def test_phase5_batch_item_result_endpoint_returns_detections() -> None:
     payload = response.json()
     assert payload["id"] == "res_1"
     assert payload["detections"][0]["category"] == "crack"
+
+
+def test_phase5_ingest_items_endpoint_returns_payload() -> None:
+    client, _ = create_phase5_client()
+
+    response = client.post(
+        "/api/v1/batches/bat_1/items",
+        files=[("files", ("bridge.jpg", b"fake-jpeg-data", "image/jpeg"))],
+        data={"model_policy": "fusion-default", "enhancement_mode": "off"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["batch_id"] == "bat_1"
+    assert payload["accepted_count"] == 0
+
+
+def test_phase5_process_next_endpoint_returns_payload() -> None:
+    client, _ = create_phase5_client()
+
+    response = client.post("/api/v1/tasks/process-next")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["processed"] is True
+    assert payload["task_id"] == "tsk_1"
 
 
 def test_phase5_delete_batch_endpoint_returns_payload() -> None:

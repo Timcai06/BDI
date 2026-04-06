@@ -172,8 +172,8 @@ async def ingest_batch_items(
                     )
                 )
 
-        batch.received_item_count += len(accepted)
-        batch.expected_item_count = max(batch.expected_item_count, batch.received_item_count)
+        batch.received_item_count = (batch.received_item_count or 0) + len(accepted)
+        batch.expected_item_count = max(batch.expected_item_count or 0, batch.received_item_count)
         service._refresh_batch_aggregates(session=session, batch_id=batch_id)
         session.commit()
         return BatchIngestResponse(

@@ -120,3 +120,5 @@ export function useComparison(
     };
   }, [primaryResult, comparisonResult]);
 }
+
+export type ComparisonState = NonNullable<ReturnType<typeof useComparison>>;

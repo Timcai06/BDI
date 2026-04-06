@@ -51,6 +51,13 @@ rtk npm --prefix frontend run generate:types
 
 业务代码仍然通过 `frontend/src/lib/types.ts` 引用类型；该文件现在只是生成类型的门面层。
 
+## 延伸文档
+
+- 架构总览：`docs/architecture-overview.md`
+- 运行时说明：`docs/runtime-guide.md`
+- 故障排查：`docs/troubleshooting.md`
+- 安全准备清单：`docs/security-readiness.md`
+
 ## 启动前检查
 
 真实模式下至少确认：
