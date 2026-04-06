@@ -8,10 +8,9 @@ from fastapi import APIRouter, File, Form, Request, UploadFile, status
 from app.models.schemas import (
     AlertCreateRequest,
     AlertListResponse,
-    AlertRulesConfigResponse,
-    OpsAuditLogListResponse,
-    AlertRulesUpdateRequest,
     AlertResponse,
+    AlertRulesConfigResponse,
+    AlertRulesUpdateRequest,
     AlertStatusUpdateRequest,
     BatchCreateRequest,
     BatchCreateResponse,
@@ -28,14 +27,15 @@ from app.models.schemas import (
     BridgeListResponse,
     BridgeResponse,
     DetectionListResponse,
+    OpsAuditLogListResponse,
     OpsMetricsResponse,
     ReviewCreateRequest,
     ReviewListResponse,
     ReviewRecordResponse,
     TaskProcessResponse,
+    TaskResponse,
     TaskRetryRequest,
     TaskRetryResponse,
-    TaskResponse,
 )
 
 router = APIRouter(prefix="/api/v1", tags=["phase5"])

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import io
 import hashlib
+import io
 import json
 import math
 from datetime import datetime, timedelta, timezone
@@ -10,7 +10,8 @@ from typing import Any, Optional
 from uuid import uuid4
 
 from fastapi import UploadFile, status
-from PIL import Image as PILImage, ImageStat
+from PIL import Image as PILImage
+from PIL import ImageStat
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
@@ -33,16 +34,16 @@ from app.models.schemas import (
     AlertListResponse,
     AlertResponse,
     AlertStatusUpdateRequest,
-    BatchItemDetailResponse,
     BatchCreateRequest,
     BatchCreateResponse,
     BatchDeleteResponse,
-    BatchItemListResponse,
-    BatchItemResponse,
-    BatchItemResultResponse,
     BatchIngestItemError,
     BatchIngestItemSuccess,
     BatchIngestResponse,
+    BatchItemDetailResponse,
+    BatchItemListResponse,
+    BatchItemResponse,
+    BatchItemResultResponse,
     BatchListResponse,
     BatchResponse,
     BatchStatsResponse,
@@ -54,10 +55,10 @@ from app.models.schemas import (
     MediaAssetResponse,
     OpsMetricsResponse,
     PredictResponse,
+    ResultDetectionResponse,
     ReviewCreateRequest,
     ReviewListResponse,
     ReviewRecordResponse,
-    ResultDetectionResponse,
 )
 from app.storage.local import LocalArtifactStore
 
@@ -133,22 +134,29 @@ class BatchService:
             .order_by(InspectionBatch.created_at.desc())
             .limit(1)
         )
-        active_batch_count = session.scalar(
-            select(func.count())
-            .select_from(InspectionBatch)
-            .where(
-                InspectionBatch.bridge_id == bridge.id,
-                InspectionBatch.status.in_(("created", "ingesting", "running")),
+        active_batch_count = (
+            session.scalar(
+                select(func.count())
+                .select_from(InspectionBatch)
+                .where(
+                    InspectionBatch.bridge_id == bridge.id,
+                    InspectionBatch.status.in_(("created", "ingesting", "running")),
+                )
             )
-        ) or 0
-        abnormal_batch_count = session.scalar(
-            select(func.count())
-            .select_from(InspectionBatch)
-            .where(
-                InspectionBatch.bridge_id == bridge.id,
-                (InspectionBatch.failed_item_count > 0) | (InspectionBatch.status.in_(("failed", "partial_failed"))),
+            or 0
+        )
+        abnormal_batch_count = (
+            session.scalar(
+                select(func.count())
+                .select_from(InspectionBatch)
+                .where(
+                    InspectionBatch.bridge_id == bridge.id,
+                    (InspectionBatch.failed_item_count > 0)
+                    | (InspectionBatch.status.in_(("failed", "partial_failed"))),
+                )
             )
-        ) or 0
+            or 0
+        )
         payload = BridgeResponse.model_validate(bridge).model_dump()
         payload["latest_batch_id"] = latest_batch.id if latest_batch is not None else None
         payload["latest_batch_code"] = latest_batch.batch_code if latest_batch is not None else None
@@ -191,7 +199,9 @@ class BatchService:
         data["bridge_name"] = bridge.bridge_name if bridge is not None else None
         data["inspection_label"] = payload.inspection_label if payload is not None else None
         fallback = payload.enhancement_mode if payload is not None else "auto"
-        data["enhancement_mode"] = self._resolve_batch_enhancement_mode(session=session, batch_id=batch.id, fallback=fallback)
+        data["enhancement_mode"] = self._resolve_batch_enhancement_mode(
+            session=session, batch_id=batch.id, fallback=fallback
+        )
         return data
 
     def _generate_batch_code(self, *, session: Session, bridge: Bridge, attempt_offset: int = 0) -> str:
@@ -256,12 +266,7 @@ class BatchService:
     def list_bridges(self, *, limit: int, offset: int) -> BridgeListResponse:
         with self.session_factory() as session:
             total = session.scalar(select(func.count()).select_from(Bridge)) or 0
-            rows = session.scalars(
-                select(Bridge)
-                .order_by(Bridge.created_at.desc())
-                .offset(offset)
-                .limit(limit)
-            ).all()
+            rows = session.scalars(select(Bridge).order_by(Bridge.created_at.desc()).offset(offset).limit(limit)).all()
 
             items = [self._build_bridge_response(session=session, bridge=row) for row in rows]
             return BridgeListResponse(items=items, total=total, limit=limit, offset=offset)
@@ -288,9 +293,7 @@ class BatchService:
                     status_code=status.HTTP_404_NOT_FOUND,
                     details={"bridge_id": bridge_id},
                 )
-            batch_ids = session.scalars(
-                select(InspectionBatch.id).where(InspectionBatch.bridge_id == bridge_id)
-            ).all()
+            batch_ids = session.scalars(select(InspectionBatch.id).where(InspectionBatch.bridge_id == bridge_id)).all()
 
         for batch_id in batch_ids:
             self.delete_batch(batch_id)
@@ -343,7 +346,9 @@ class BatchService:
             session.add(batch)
             session.commit()
             session.refresh(batch)
-            return BatchCreateResponse.model_validate(self._build_batch_payload(session=session, batch=batch, bridge=bridge, payload=payload))
+            return BatchCreateResponse.model_validate(
+                self._build_batch_payload(session=session, batch=batch, bridge=bridge, payload=payload)
+            )
 
     def list_batches(
         self,
@@ -370,14 +375,14 @@ class BatchService:
                 query = query.where(InspectionBatch.failed_item_count == 0)
                 count_query = count_query.where(InspectionBatch.failed_item_count == 0)
             total = session.scalar(count_query) or 0
-            rows = session.execute(
-                query.order_by(InspectionBatch.created_at.desc()).offset(offset).limit(limit)
-            ).all()
+            rows = session.execute(query.order_by(InspectionBatch.created_at.desc()).offset(offset).limit(limit)).all()
             dirty = False
             items: list[BatchResponse] = []
             for batch, bridge in rows:
                 dirty = self._reconcile_batch_aggregates(session=session, batch=batch) or dirty
-                items.append(BatchResponse.model_validate(self._build_batch_payload(session=session, batch=batch, bridge=bridge)))
+                items.append(
+                    BatchResponse.model_validate(self._build_batch_payload(session=session, batch=batch, bridge=bridge))
+                )
             if dirty:
                 session.commit()
             return BatchListResponse(items=items, total=total, limit=limit, offset=offset)
@@ -414,19 +419,27 @@ class BatchService:
             batch_item_ids = [row[0] for row in item_rows]
             media_asset_ids = [row[1] for row in item_rows]
 
-            result_rows = session.execute(
-                select(
-                    InferenceResult.id,
-                    InferenceResult.json_uri,
-                    InferenceResult.overlay_uri,
-                    InferenceResult.diagnosis_uri,
-                ).where(InferenceResult.batch_item_id.in_(batch_item_ids))
-            ).all() if batch_item_ids else []
+            result_rows = (
+                session.execute(
+                    select(
+                        InferenceResult.id,
+                        InferenceResult.json_uri,
+                        InferenceResult.overlay_uri,
+                        InferenceResult.diagnosis_uri,
+                    ).where(InferenceResult.batch_item_id.in_(batch_item_ids))
+                ).all()
+                if batch_item_ids
+                else []
+            )
             result_ids = [row[0] for row in result_rows]
 
-            media_rows = session.execute(
-                select(MediaAsset.id, MediaAsset.storage_uri).where(MediaAsset.id.in_(media_asset_ids))
-            ).all() if media_asset_ids else []
+            media_rows = (
+                session.execute(
+                    select(MediaAsset.id, MediaAsset.storage_uri).where(MediaAsset.id.in_(media_asset_ids))
+                ).all()
+                if media_asset_ids
+                else []
+            )
 
             if batch_item_ids:
                 session.execute(
@@ -446,9 +459,12 @@ class BatchService:
             session.execute(delete(InspectionBatch).where(InspectionBatch.id == batch_id))
 
             for media_asset_id, _ in media_rows:
-                ref_count = session.scalar(
-                    select(func.count()).select_from(BatchItem).where(BatchItem.media_asset_id == media_asset_id)
-                ) or 0
+                ref_count = (
+                    session.scalar(
+                        select(func.count()).select_from(BatchItem).where(BatchItem.media_asset_id == media_asset_id)
+                    )
+                    or 0
+                )
                 if ref_count == 0:
                     session.execute(delete(MediaAsset).where(MediaAsset.id == media_asset_id))
 
@@ -505,15 +521,12 @@ class BatchService:
                 count_query = count_query.where(MediaAsset.source_relative_path.ilike(f"{normalized_prefix}%"))
                 query = query.where(MediaAsset.source_relative_path.ilike(f"{normalized_prefix}%"))
             total = session.scalar(count_query) or 0
-            rows = session.execute(
-                query
-                .order_by(BatchItem.sequence_no.asc())
-                .offset(offset)
-                .limit(limit)
-            ).all()
+            rows = session.execute(query.order_by(BatchItem.sequence_no.asc()).offset(offset).limit(limit)).all()
             items: list[BatchItemResponse] = []
             for batch_item, media_asset in rows:
-                latest_task = session.get(InferenceTask, batch_item.latest_task_id) if batch_item.latest_task_id else None
+                latest_task = (
+                    session.get(InferenceTask, batch_item.latest_task_id) if batch_item.latest_task_id else None
+                )
                 item_payload = BatchItemResponse.model_validate(batch_item).model_dump()
                 item_payload["original_filename"] = media_asset.original_filename
                 item_payload["source_device"] = media_asset.source_device
@@ -521,7 +534,9 @@ class BatchService:
                 item_payload["latest_task_status"] = latest_task.status if latest_task is not None else None
                 item_payload["latest_task_attempt_no"] = latest_task.attempt_no if latest_task is not None else None
                 item_payload["latest_failure_code"] = latest_task.failure_code if latest_task is not None else None
-                item_payload["latest_failure_message"] = latest_task.failure_message if latest_task is not None else None
+                item_payload["latest_failure_message"] = (
+                    latest_task.failure_message if latest_task is not None else None
+                )
                 item_payload["model_policy"] = latest_task.model_policy if latest_task is not None else None
                 item_payload["requested_model_version"] = (
                     latest_task.requested_model_version if latest_task is not None else None
@@ -587,7 +602,9 @@ class BatchService:
         window_start = now.timestamp() - float(hours * 3600)
         with self.session_factory() as session:
             rows = session.scalars(
-                select(InferenceTask).where(InferenceTask.created_at >= datetime.fromtimestamp(window_start, timezone.utc))
+                select(InferenceTask).where(
+                    InferenceTask.created_at >= datetime.fromtimestamp(window_start, timezone.utc)
+                )
             ).all()
 
             status_breakdown: dict[str, int] = {}
@@ -690,9 +707,7 @@ class BatchService:
                 )
 
             rows = session.scalars(
-                select(Detection)
-                .where(Detection.result_id == result.id)
-                .order_by(Detection.created_at.asc())
+                select(Detection).where(Detection.result_id == result.id).order_by(Detection.created_at.asc())
             ).all()
             enhanced_path: Optional[str] = None
             enhanced_overlay_path: Optional[str] = None
@@ -784,8 +799,12 @@ class BatchService:
             query = select(Detection)
             count_query = select(func.count()).select_from(Detection)
             if batch_id is not None:
-                query = query.join(BatchItem, BatchItem.id == Detection.batch_item_id).where(BatchItem.batch_id == batch_id)
-                count_query = count_query.join(BatchItem, BatchItem.id == Detection.batch_item_id).where(BatchItem.batch_id == batch_id)
+                query = query.join(BatchItem, BatchItem.id == Detection.batch_item_id).where(
+                    BatchItem.batch_id == batch_id
+                )
+                count_query = count_query.join(BatchItem, BatchItem.id == Detection.batch_item_id).where(
+                    BatchItem.batch_id == batch_id
+                )
             if batch_item_id is not None:
                 query = query.where(Detection.batch_item_id == batch_item_id)
                 count_query = count_query.where(Detection.batch_item_id == batch_item_id)
@@ -866,22 +885,33 @@ class BatchService:
 
             batch_item = session.get(BatchItem, detection.batch_item_id)
             if batch_item is not None:
-                total_detection_count = session.scalar(
-                    select(func.count()).select_from(Detection).where(Detection.batch_item_id == detection.batch_item_id)
-                ) or 0
-                reviewed_detection_count = session.scalar(
-                    select(func.count(func.distinct(ReviewRecord.detection_id)))
-                    .select_from(ReviewRecord)
-                    .where(ReviewRecord.batch_item_id == detection.batch_item_id)
-                ) or 0
-                already_reviewed = session.scalar(
-                    select(func.count())
-                    .select_from(ReviewRecord)
-                    .where(
-                        ReviewRecord.batch_item_id == detection.batch_item_id,
-                        ReviewRecord.detection_id == detection.id,
+                total_detection_count = (
+                    session.scalar(
+                        select(func.count())
+                        .select_from(Detection)
+                        .where(Detection.batch_item_id == detection.batch_item_id)
                     )
-                ) or 0
+                    or 0
+                )
+                reviewed_detection_count = (
+                    session.scalar(
+                        select(func.count(func.distinct(ReviewRecord.detection_id)))
+                        .select_from(ReviewRecord)
+                        .where(ReviewRecord.batch_item_id == detection.batch_item_id)
+                    )
+                    or 0
+                )
+                already_reviewed = (
+                    session.scalar(
+                        select(func.count())
+                        .select_from(ReviewRecord)
+                        .where(
+                            ReviewRecord.batch_item_id == detection.batch_item_id,
+                            ReviewRecord.detection_id == detection.id,
+                        )
+                    )
+                    or 0
+                )
                 projected_reviewed_count = int(reviewed_detection_count) + (0 if already_reviewed else 1)
                 if total_detection_count <= 1 or projected_reviewed_count >= total_detection_count:
                     batch_item.review_status = "reviewed"
@@ -909,8 +939,12 @@ class BatchService:
             query = select(ReviewRecord)
             count_query = select(func.count()).select_from(ReviewRecord)
             if batch_id is not None:
-                query = query.join(BatchItem, BatchItem.id == ReviewRecord.batch_item_id).where(BatchItem.batch_id == batch_id)
-                count_query = count_query.join(BatchItem, BatchItem.id == ReviewRecord.batch_item_id).where(BatchItem.batch_id == batch_id)
+                query = query.join(BatchItem, BatchItem.id == ReviewRecord.batch_item_id).where(
+                    BatchItem.batch_id == batch_id
+                )
+                count_query = count_query.join(BatchItem, BatchItem.id == ReviewRecord.batch_item_id).where(
+                    BatchItem.batch_id == batch_id
+                )
             if batch_item_id is not None:
                 query = query.where(ReviewRecord.batch_item_id == batch_item_id)
                 count_query = count_query.where(ReviewRecord.batch_item_id == batch_item_id)
@@ -1080,9 +1114,12 @@ class BatchService:
                     details={"batch_id": batch_id},
                 )
 
-            current_sequence = session.scalar(
-                select(func.coalesce(func.max(BatchItem.sequence_no), 0)).where(BatchItem.batch_id == batch_id)
-            ) or 0
+            current_sequence = (
+                session.scalar(
+                    select(func.coalesce(func.max(BatchItem.sequence_no), 0)).where(BatchItem.batch_id == batch_id)
+                )
+                or 0
+            )
 
             accepted: list[BatchIngestItemSuccess] = []
             errors: list[BatchIngestItemError] = []
@@ -1381,9 +1418,7 @@ class BatchService:
 
     def _apply_overdue_alert_escalation(self, *, session: Session) -> None:
         now = datetime.now(timezone.utc)
-        alerts = session.scalars(
-            select(AlertEvent).where(AlertEvent.status.in_(["open", "acknowledged"]))
-        ).all()
+        alerts = session.scalars(select(AlertEvent).where(AlertEvent.status.in_(["open", "acknowledged"]))).all()
         changed = False
         for alert in alerts:
             payload = dict(alert.trigger_payload or {})

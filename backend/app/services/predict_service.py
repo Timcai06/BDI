@@ -1,23 +1,29 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 from fastapi import UploadFile, status
+from PIL import Image as PILImage
 
+from app.adapters.base import ModelRunner
 from app.adapters.enhancement_runner import DualBranchEnhanceRunner
 from app.adapters.manager import RunnerManager
-from app.adapters.base import ModelRunner
 from app.adapters.registry import ModelSpec
 from app.core.errors import AppError
-from app.models.schemas import ArtifactLinks, Detection, EnhancementInfo, PredictOptions, PredictResponse, RawPrediction
+from app.models.schemas import (
+    ArtifactLinks,
+    Detection,
+    EnhancementInfo,
+    PredictOptions,
+    PredictResponse,
+    RawPrediction,
+)
 from app.storage.local import LocalArtifactStore
-
-from PIL import Image as PILImage
-import io
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +103,7 @@ class PredictService:
                 enhanced_img = await loop.run_in_executor(None, self.enhance_runner.enhance, orig_img)
                 enhanced_at = datetime.now(timezone.utc)
                 enhance_meta = self.enhance_runner.describe()
-                
+
                 # 2. Save Enhanced Image
                 buf = io.BytesIO()
                 # Use WEBP for artifacts to save space, but high quality
@@ -105,7 +111,7 @@ class PredictService:
                 enhanced_content = buf.getvalue()
                 enhanced_path = self.store.save_enhanced(image_id=image_id, content=enhanced_content)
                 response.artifacts.enhanced_path = enhanced_path
-                
+
                 # 3. Detection on Enhanced Image
                 enhanced_raw = await self._run_prediction(
                     file=file,
@@ -114,10 +120,10 @@ class PredictService:
                     runner=runner,
                     options=normalized_options,
                 )
-                
+
                 secondary_response = self._build_response(
                     image_id=image_id,
-                    upload_path=enhanced_path, # Show enhanced path as its source
+                    upload_path=enhanced_path,  # Show enhanced path as its source
                     raw_prediction=enhanced_raw,
                     result_variant="enhanced",
                     enhancement_info=EnhancementInfo(
@@ -128,19 +134,18 @@ class PredictService:
                         generated_at=enhanced_at,
                     ),
                 )
-                
+
                 # Special artifact handling for secondaryoverlay
                 if normalized_options.return_overlay and enhanced_raw.overlay_png:
                     secondary_overlay_path = self.store.save_enhanced_overlay(
-                        image_id=image_id, 
-                        content=enhanced_raw.overlay_png
+                        image_id=image_id, content=enhanced_raw.overlay_png
                     )
                     secondary_response.artifacts.overlay_path = secondary_overlay_path
                     response.artifacts.enhanced_overlay_path = secondary_overlay_path
-                
+
                 response.secondary_result = secondary_response
                 logger.info("Twin-track prediction complete: image=%s", file.filename)
-                
+
             except Exception:
                 logger.error("Enhancement track failed for %s", file.filename, exc_info=True)
                 # Fallback: response still contains the original detection results
@@ -195,10 +200,7 @@ class PredictService:
             max_upload_size_mb = self.max_upload_size_bytes / (1024 * 1024)
             raise AppError(
                 code="FILE_TOO_LARGE",
-                message=(
-                    f"Uploaded image exceeds the maximum allowed size"
-                    f" of {max_upload_size_mb:g}MB."
-                ),
+                message=(f"Uploaded image exceeds the maximum allowed size of {max_upload_size_mb:g}MB."),
                 status_code=status.HTTP_400_BAD_REQUEST,
                 details={"max_upload_size_bytes": self.max_upload_size_bytes},
             )

@@ -15,7 +15,6 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapters.enhancement_runner import DualBranchEnhanceRunner
-
 from app.adapters.manager import RunnerManager
 from app.core.category_mapper import normalize_defect_category
 from app.core.errors import AppError
@@ -455,8 +454,8 @@ class TaskService:
     ) -> OpsAuditLogListResponse:
         with self.session_factory() as session:
             query = select(OpsAuditLog).where(OpsAuditLog.audit_type == "alert_rules_updated")
-            count_query = select(func.count()).select_from(OpsAuditLog).where(
-                OpsAuditLog.audit_type == "alert_rules_updated"
+            count_query = (
+                select(func.count()).select_from(OpsAuditLog).where(OpsAuditLog.audit_type == "alert_rules_updated")
             )
             if actor:
                 query = query.where(OpsAuditLog.actor == actor)
@@ -567,7 +566,9 @@ class TaskService:
             )
         self._touch_task_lease(task)
         image_bytes = image_path.read_bytes()
-        requested_model_version = task.requested_model_version or self._resolve_requested_model_version(task.model_policy)
+        requested_model_version = task.requested_model_version or self._resolve_requested_model_version(
+            task.model_policy
+        )
         spec, runner = self.runner_manager.resolve(requested_model_version)
         task.requested_model_version = requested_model_version
         task.resolved_model_version = spec.model_version
@@ -597,32 +598,31 @@ class TaskService:
         secondary_raw = None
         enhanced_uri = None
         enhanced_overlay_uri = None
-        
+
         if task.runtime_payload.get("enhance") and self.enhance_runner:
             try:
                 # Image Enhancement
                 orig_img = PILImage.open(io.BytesIO(image_bytes))
                 enhanced_img = self.enhance_runner.enhance(orig_img)
                 enhance_meta = self.enhance_runner.describe()
-                
+
                 # Save Enhanced Image
                 buf = io.BytesIO()
                 enhanced_img.save(buf, format="WEBP", quality=95)
                 enhanced_content = buf.getvalue()
                 enhanced_uri = self.store.save_enhanced(image_id=batch_item.id, content=enhanced_content)
-                
+
                 # Detection on Enhanced Image
                 secondary_raw = runner.predict(
                     image_bytes=enhanced_content,
                     image_name=media_asset.original_filename,
                     options=options,
                 )
-                
+
                 # Save Enhanced Overlay
                 if secondary_raw.overlay_png:
                     enhanced_overlay_uri = self.store.save_enhanced_overlay(
-                        image_id=batch_item.id,
-                        content=secondary_raw.overlay_png
+                        image_id=batch_item.id, content=secondary_raw.overlay_png
                     )
             except Exception:
                 # log and allow Track A to finish
@@ -660,7 +660,7 @@ class TaskService:
             inference_ms=raw.inference_ms + (secondary_raw.inference_ms if secondary_raw else 0),
             inference_breakdown={
                 "original": raw.inference_breakdown,
-                "enhanced": secondary_raw.inference_breakdown if secondary_raw else None
+                "enhanced": secondary_raw.inference_breakdown if secondary_raw else None,
             },
             detection_count=len(raw.detections),
             has_masks=any(item.mask is not None for item in raw.detections),
@@ -933,11 +933,14 @@ class TaskService:
             return retry_task_id
 
     def _next_attempt_no(self, *, session: Session, batch_item_id: str) -> int:
-        max_attempt = session.scalar(
-            select(func.coalesce(func.max(InferenceTask.attempt_no), 0)).where(
-                InferenceTask.batch_item_id == batch_item_id
+        max_attempt = (
+            session.scalar(
+                select(func.coalesce(func.max(InferenceTask.attempt_no), 0)).where(
+                    InferenceTask.batch_item_id == batch_item_id
+                )
             )
-        ) or 0
+            or 0
+        )
         return int(max_attempt) + 1
 
     def _create_retry_task(
@@ -977,7 +980,9 @@ class TaskService:
     def _classify_failure(exc: Exception) -> FailureDecision:
         if isinstance(exc, AppError):
             code = exc.code
-            return FailureDecision(code=code, message=exc.message, retryable=TaskService._is_retryable_failure_code(code))
+            return FailureDecision(
+                code=code, message=exc.message, retryable=TaskService._is_retryable_failure_code(code)
+            )
 
         if isinstance(exc, TimeoutError):
             return FailureDecision(
@@ -1115,17 +1120,19 @@ class TaskService:
         def _map_detections(r_id: str, d_items: list):
             res = []
             for index, item in enumerate(d_items):
-                res.append({
-                    "id": f"{r_id}-{index + 1}",
-                    "category": item.category,
-                    "confidence": item.confidence,
-                    "bbox": item.bbox.model_dump(),
-                    "mask": item.mask.model_dump() if item.mask is not None else None,
-                    "metrics": item.metrics.model_dump(),
-                    "source_role": item.source_role,
-                    "source_model_name": item.source_model_name,
-                    "source_model_version": item.source_model_version,
-                })
+                res.append(
+                    {
+                        "id": f"{r_id}-{index + 1}",
+                        "category": item.category,
+                        "confidence": item.confidence,
+                        "bbox": item.bbox.model_dump(),
+                        "mask": item.mask.model_dump() if item.mask is not None else None,
+                        "metrics": item.metrics.model_dump(),
+                        "source_role": item.source_role,
+                        "source_model_name": item.source_model_name,
+                        "source_model_version": item.source_model_version,
+                    }
+                )
             return res
 
         payload = {
@@ -1149,9 +1156,9 @@ class TaskService:
                 "overlay_path": overlay_uri,
                 "enhanced_path": enhanced_uri,
                 "enhanced_overlay_path": enhanced_overlay_uri,
-            }
+            },
         }
-        
+
         if secondary_raw:
             secondary_id = f"{result_id}-enhanced"
             payload["secondary_result"] = {
@@ -1173,12 +1180,14 @@ class TaskService:
                     "revised_weights": enhancement_meta["revised_weights"],
                     "bridge_weights": enhancement_meta["bridge_weights"],
                     "generated_at": (created_at or datetime.now(timezone.utc)).isoformat(),
-                } if enhancement_meta is not None else None,
+                }
+                if enhancement_meta is not None
+                else None,
                 "artifacts": {
                     "upload_path": enhanced_uri or "",
                     "json_path": "",
                     "overlay_path": enhanced_overlay_uri,
-                }
+                },
             }
 
         return payload

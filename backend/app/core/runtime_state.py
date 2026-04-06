@@ -19,7 +19,9 @@ class RuntimeState:
     cache_hit: bool | None = None
 
 
-def refresh_runtime_state(*, runtime_state: RuntimeState, spec: Any, runner: Any, resolution: dict[str, Any]) -> RuntimeState:
+def refresh_runtime_state(
+    *, runtime_state: RuntimeState, spec: Any, runner: Any, resolution: dict[str, Any]
+) -> RuntimeState:
     details = runner.health_check() if hasattr(runner, "health_check") else {}
     changed = runtime_state.active_model_version != spec.model_version
 

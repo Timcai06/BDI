@@ -324,19 +324,19 @@ export function HistoryRouteShell() {
 
         {batchError && <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300">{batchError}</div>}
 
-        <section className="grid gap-6 lg:grid-cols-[1.2fr_1.8fr]">
+        <section className="grid gap-6 lg:grid-cols-[1.2fr_1.8fr] lg:items-stretch">
           {/* Batch Selector Card */}
-          <div className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] p-8 backdrop-blur-3xl shadow-2xl transition-all hover:border-white/20">
+          <div className="group relative flex min-h-[720px] flex-col overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] p-8 backdrop-blur-3xl shadow-2xl transition-all hover:border-white/20">
             <div className="absolute -left-24 -top-24 h-96 w-96 rounded-full bg-amber-500/5 blur-[120px]" />
             
-            <div className="relative mb-8">
+            <div className="relative flex min-h-0 flex-1 flex-col">
               <div className="mb-2 flex items-center gap-2 opacity-30">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12M16 2v4M8 2v4M3 10h18"/></svg>
                 <p className="text-[10px] font-black uppercase tracking-[0.3em]">批次</p>
               </div>
               <h3 className="text-2xl font-black tracking-tight text-white uppercase">批次列表</h3>
               
-              <div className="mt-6 flex flex-col gap-4">
+              <div className="mt-6 flex min-h-0 flex-1 flex-col gap-4">
                 <div className="relative rounded-2xl border border-white/5 bg-black/40 p-1.5 ring-1 ring-white/5 focus-within:ring-amber-500/50 transition-all">
                   <select
                     value={selectedBridgeId}
@@ -352,7 +352,7 @@ export function HistoryRouteShell() {
                   </select>
                 </div>
 
-                <div className="max-h-[500px] overflow-auto space-y-3 pr-2 custom-scrollbar">
+                <div className="min-h-0 flex-1 overflow-auto space-y-3 pr-2 custom-scrollbar">
                   {batches.map((batch) => (
                     <button
                       key={batch.id}
@@ -364,17 +364,51 @@ export function HistoryRouteShell() {
                           : "border-white/5 bg-white/[0.03] hover:bg-white/[0.06]"
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <p className={`text-sm font-black transition-colors ${selectedBatchId === batch.id ? "text-amber-300" : "text-white/80"}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <p className={`max-w-[68%] truncate text-[13px] font-black tracking-[0.02em] transition-colors ${selectedBatchId === batch.id ? "text-amber-300" : "text-white/85"}`}>
                           {batch.batch_code}
                         </p>
-                        <span className="text-[9px] font-bold text-white/20 uppercase tabular-nums">
+                        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-semibold text-white/35 tabular-nums">
                           {new Date(batch.created_at).toLocaleDateString()}
                         </span>
                       </div>
+                      <div className="mt-2 flex items-center gap-2 text-[10px] font-medium text-white/35">
+                        <span className="rounded-full border border-white/10 bg-black/30 px-2 py-0.5 tabular-nums">
+                          已收录 {batch.received_item_count}
+                        </span>
+                        <span className="rounded-full border border-white/10 bg-black/30 px-2 py-0.5 tabular-nums">
+                          失败 {batch.failed_item_count}
+                        </span>
+                      </div>
                       <div className="mt-3 flex items-center gap-4 text-[10px] font-bold text-white/40 uppercase">
-                        <span className="flex items-center gap-1"><span className="h-1 w-1 rounded-full bg-emerald-400"/> {batch.succeeded_item_count} 成功</span>
-                        <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-neutral-700"/> {batch.status}</span>
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-emerald-300 normal-case">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                          {batch.succeeded_item_count} 成功
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-wide normal-case ${
+                            batch.status === "succeeded"
+                              ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                              : batch.status === "failed" || batch.status === "partial_failed"
+                                ? "border-rose-400/30 bg-rose-400/10 text-rose-300"
+                                : batch.status === "running" || batch.status === "ingesting"
+                                  ? "border-cyan-400/30 bg-cyan-400/10 text-cyan-300"
+                                  : "border-white/10 bg-white/5 text-white/45"
+                          }`}
+                        >
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              batch.status === "succeeded"
+                                ? "bg-emerald-400"
+                                : batch.status === "failed" || batch.status === "partial_failed"
+                                  ? "bg-rose-400"
+                                  : batch.status === "running" || batch.status === "ingesting"
+                                    ? "bg-cyan-400"
+                                    : "bg-white/20"
+                            }`}
+                          />
+                          {batch.status}
+                        </span>
                       </div>
                     </button>
                   ))}
@@ -390,7 +424,7 @@ export function HistoryRouteShell() {
           </div>
 
           {/* Batch Items List Card */}
-          <div className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] p-8 backdrop-blur-3xl shadow-2xl transition-all hover:border-white/20">
+          <div className="group relative flex min-h-[720px] flex-col overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] p-8 backdrop-blur-3xl shadow-2xl transition-all hover:border-white/20">
             <div className="absolute -right-24 -bottom-24 h-96 w-96 rounded-full bg-cyan-500/5 blur-[120px]" />
             
             <div className="relative mb-8 flex items-center justify-between">
@@ -416,38 +450,56 @@ export function HistoryRouteShell() {
               )}
             </div>
 
-            <div className="relative">
-              <div className="overflow-hidden rounded-2xl border border-white/5 bg-black/40 shadow-inner">
+            <div className="relative min-h-0 flex-1">
+              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-white/5 bg-black/40 shadow-inner">
                 <table className="w-full border-collapse text-left">
-                  <thead className="border-b border-white/5 bg-white/[0.02]">
+                  <thead className="sticky top-0 z-10 border-b border-white/5 bg-[#0A0F1A]/95 backdrop-blur">
                     <tr>
-                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-white/20">NO.</th>
-                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-white/20">识别图片</th>
-                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-white/20 text-center">状态</th>
-                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-white/20 text-right">操作</th>
+                      <th className="px-5 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-white/25">NO.</th>
+                      <th className="px-5 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-white/25">识别图片</th>
+                      <th className="px-5 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-white/25 text-center">状态</th>
+                      <th className="px-5 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-white/25 text-right">操作</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5">
+                </table>
+                <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar">
+                  <table className="w-full border-collapse text-left">
+                    <tbody className="divide-y divide-white/5">
                     {selectedBatchItems.map((item) => (
-                      <tr key={item.id} className="group/row transition-colors hover:bg-white/[0.03]">
-                        <td className="px-6 py-4 text-xs font-mono text-white/30 tabular-nums">#{item.sequence_no}</td>
-                        <td className="px-6 py-4">
-                          <p className="max-w-[200px] truncate text-xs font-bold text-white/70">{item.original_filename ?? item.id}</p>
-                          <p className="mt-0.5 text-[10px] font-medium text-white/20 uppercase tracking-tighter">{item.id.slice(0, 12)}</p>
+                      <tr key={item.id} className="group/row h-[72px] transition-colors hover:bg-white/[0.03]">
+                        <td className="px-5 py-3 text-[12px] font-mono text-white/35 tabular-nums">#{item.sequence_no}</td>
+                        <td className="px-5 py-3">
+                          <p className="max-w-[260px] truncate text-[12px] font-semibold text-white/75">{item.original_filename ?? item.id}</p>
+                          <p className="mt-1 text-[10px] font-medium text-white/25 uppercase tracking-[0.12em]">{item.id.slice(0, 12)}</p>
                         </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className={`inline-block h-1.5 w-1.5 rounded-full ${item.processing_status === "succeeded" ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.4)]" : "bg-white/10"}`} title={item.processing_status} />
+                        <td className="px-5 py-3 text-center">
+                          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${
+                            item.processing_status === "succeeded"
+                              ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                              : item.processing_status === "failed"
+                                ? "border-rose-400/30 bg-rose-400/10 text-rose-300"
+                                : "border-white/10 bg-white/5 text-white/45"
+                          }`} title={item.processing_status}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${
+                              item.processing_status === "succeeded"
+                                ? "bg-emerald-400"
+                                : item.processing_status === "failed"
+                                  ? "bg-rose-400"
+                                  : "bg-white/20"
+                            }`} />
+                            {item.processing_status}
+                          </span>
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-5 py-3 text-right">
                           {item.latest_result_id ? (
                             <Link
                               href={`/dashboard/history/${encodeURIComponent(item.latest_result_id)}?returnTo=${encodeURIComponent(currentHistoryHref)}`}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/40 transition-all hover:border-amber-500/30 hover:bg-amber-500/10 hover:text-amber-400"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white/45 transition-all hover:border-amber-500/35 hover:bg-amber-500/10 hover:text-amber-300"
                             >
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                             </Link>
                           ) : (
-                            <span className="text-[10px] font-bold text-white/10 uppercase tracking-widest">无结果</span>
+                            <span className="text-[10px] font-semibold text-white/20 uppercase tracking-wider">无结果</span>
                           )}
                         </td>
                       </tr>
@@ -459,8 +511,9 @@ export function HistoryRouteShell() {
                         </td>
                       </tr>
                     )}
-                  </tbody>
-                </table>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
@@ -484,31 +537,33 @@ export function HistoryRouteShell() {
                     <p className="mt-1 text-xs font-medium text-white/40">追溯历史识别轨迹，进行批量导出与深度检索</p>
                 </div>
 
-                <HistoryPanel
-                  items={historyItems}
-                  totalCount={historyTotal}
-                  loading={historyLoading}
-                  errorMessage={historyError}
-                  deletingImageId={deletingImageId}
-                  deleteSuccessMessage={deleteSuccessMessage}
-                  searchQuery={historySearchQuery}
-                  categoryFilter={historyCategoryFilter}
-                  sortMode={historySortMode}
-                  availableCategories={availableHistoryCategories}
-                  getImageUrl={getHistoryPreviewUrl}
-                  onDeleteRequest={(imageId) => void handleDeleteHistory(imageId)}
-                  onBatchDelete={handleBatchDeleteHistory}
-                  onBatchExportJson={(imageIds) => handleBatchExportHistory(imageIds, "json")}
-                  onBatchExportOverlay={(imageIds) => handleBatchExportHistory(imageIds, "overlay")}
-                  onSearchQueryChange={setHistorySearchQuery}
-                  onCategoryFilterChange={setHistoryCategoryFilter}
-                  onSortModeChange={setHistorySortMode}
-                  onOpenUploader={() => router.push("/dashboard/lab-single")}
-                  onRefresh={() => void loadHistory()}
-                  onSelect={(imageId) => {
-                    router.push(`/dashboard/history/${encodeURIComponent(imageId)}?returnTo=${encodeURIComponent(currentHistoryHref)}`);
-                  }}
-                />
+                <div className="min-h-[960px] max-h-[960px] overflow-hidden">
+                  <HistoryPanel
+                    items={historyItems}
+                    totalCount={historyTotal}
+                    loading={historyLoading}
+                    errorMessage={historyError}
+                    deletingImageId={deletingImageId}
+                    deleteSuccessMessage={deleteSuccessMessage}
+                    searchQuery={historySearchQuery}
+                    categoryFilter={historyCategoryFilter}
+                    sortMode={historySortMode}
+                    availableCategories={availableHistoryCategories}
+                    getImageUrl={getHistoryPreviewUrl}
+                    onDeleteRequest={(imageId) => void handleDeleteHistory(imageId)}
+                    onBatchDelete={handleBatchDeleteHistory}
+                    onBatchExportJson={(imageIds) => handleBatchExportHistory(imageIds, "json")}
+                    onBatchExportOverlay={(imageIds) => handleBatchExportHistory(imageIds, "overlay")}
+                    onSearchQueryChange={setHistorySearchQuery}
+                    onCategoryFilterChange={setHistoryCategoryFilter}
+                    onSortModeChange={setHistorySortMode}
+                    onOpenUploader={() => router.push("/dashboard/lab-single")}
+                    onRefresh={() => void loadHistory()}
+                    onSelect={(imageId) => {
+                      router.push(`/dashboard/history/${encodeURIComponent(imageId)}?returnTo=${encodeURIComponent(currentHistoryHref)}`);
+                    }}
+                  />
+                </div>
               </div>
             </motion.section>
           )}

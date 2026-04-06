@@ -48,11 +48,9 @@ def _build_export_response(
     image_ids: list[str],
     asset_type: str,
 ) -> Response:
-    content, filename, exported_count, skipped_count = (
-        request.app.state.result_service.export_results_archive(
-            image_ids=image_ids,
-            asset_type=asset_type,
-        )
+    content, filename, exported_count, skipped_count = request.app.state.result_service.export_results_archive(
+        image_ids=image_ids,
+        asset_type=asset_type,
     )
     return Response(
         content=content,
@@ -252,7 +250,4 @@ async def generate_result_diagnosis(
         if complete_text and not complete_text.startswith("错误：") and not complete_text.startswith("诊断生成失败"):
             result_service.save_diagnosis(image_id=image_id, content=complete_text)
 
-    return StreamingResponse(
-        stream_and_save(),
-        media_type="text/event-stream"
-    )
+    return StreamingResponse(stream_and_save(), media_type="text/event-stream")

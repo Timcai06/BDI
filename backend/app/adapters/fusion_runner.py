@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List
 
 from PIL import Image, ImageDraw
 
@@ -45,8 +45,7 @@ def _dedupe_by_category(
     kept: List[RawDetection] = []
     for detection in sorted(detections, key=lambda item: item.confidence, reverse=True):
         duplicate = any(
-            existing.category == detection.category
-            and _bbox_iou(existing.bbox, detection.bbox) >= iou_threshold
+            existing.category == detection.category and _bbox_iou(existing.bbox, detection.bbox) >= iou_threshold
             for existing in kept
         )
         if not duplicate:

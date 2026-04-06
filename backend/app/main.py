@@ -20,9 +20,9 @@ from app.core.runtime_state import RuntimeState
 from app.db.session import create_session_factory
 from app.models.schemas import HealthResponse
 from app.services.batch_service import BatchService
+from app.services.llm_service import LLMService
 from app.services.predict_service import PredictService
 from app.services.result_service import ResultService
-from app.services.llm_service import LLMService
 from app.services.task_service import TaskService
 from app.services.task_worker import TaskWorker
 from app.storage.local import LocalArtifactStore

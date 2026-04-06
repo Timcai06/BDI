@@ -15,8 +15,7 @@ class ModelRunner(Protocol):
         image_bytes: bytes,
         image_name: str,
         options: PredictOptions,
-    ) -> RawPrediction:
-        ...
+    ) -> RawPrediction: ...
 
     def warmup(self) -> None:
         """Optional: Perform a dummy inference to warm up GPU kernels."""

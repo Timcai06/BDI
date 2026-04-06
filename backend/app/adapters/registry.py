@@ -71,9 +71,7 @@ class ModelRegistry(BaseModel):
         allow_fallback: bool,
     ) -> ModelSpec:
         try:
-            target_spec = (
-                self.get(model_version) if model_version else self.get_active()
-            )
+            target_spec = self.get(model_version) if model_version else self.get_active()
             if target_spec.is_available:
                 return target_spec
         except KeyError:
@@ -87,10 +85,7 @@ class ModelRegistry(BaseModel):
                     return spec
 
         requested = model_version or self.active_version
-        raise RuntimeError(
-            f"Requested model version '{requested}' is unavailable "
-            "and no fallback runner is enabled."
-        )
+        raise RuntimeError(f"Requested model version '{requested}' is unavailable and no fallback runner is enabled.")
 
     @classmethod
     def from_settings(cls, settings: Settings) -> "ModelRegistry":

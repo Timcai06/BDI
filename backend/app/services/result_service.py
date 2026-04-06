@@ -296,8 +296,10 @@ class ResultService:
         resolved = self._resolve_artifact_path(storage_uri)
         if resolved is None:
             return None
-        return resolved, mime_type if isinstance(mime_type, str) else None, (
-            original_filename if isinstance(original_filename, str) and original_filename else resolved.name
+        return (
+            resolved,
+            mime_type if isinstance(mime_type, str) else None,
+            (original_filename if isinstance(original_filename, str) and original_filename else resolved.name),
         )
 
     def _resolve_upload_resource(

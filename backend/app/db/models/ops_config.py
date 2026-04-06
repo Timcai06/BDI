@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from sqlalchemy import Index, String, Text, text
+from sqlalchemy import Index, String, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -12,9 +12,7 @@ from app.db.models.mixins import TimestampMixin
 
 class OpsConfig(Base, TimestampMixin):
     __tablename__ = "ops_configs"
-    __table_args__ = (
-        Index("idx_ops_configs_updated_at", "updated_at"),
-    )
+    __table_args__ = (Index("idx_ops_configs_updated_at", "updated_at"),)
 
     config_key: Mapped[str] = mapped_column(String(64), primary_key=True)
     config_payload: Mapped[dict[str, Any]] = mapped_column(

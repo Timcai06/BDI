@@ -57,8 +57,7 @@ def load_runner_for_spec(spec: ModelSpec, pixels_per_mm: float = 10.0) -> ModelR
     factory_fn = _RUNNER_FACTORIES.get(spec.runner_kind)
     if factory_fn is None:
         raise RuntimeError(
-            f"Unsupported runner kind: {spec.runner_kind}. "
-            f"Registered kinds: {sorted(_RUNNER_FACTORIES)}"
+            f"Unsupported runner kind: {spec.runner_kind}. Registered kinds: {sorted(_RUNNER_FACTORIES)}"
         )
     return factory_fn(spec, pixels_per_mm)
 

@@ -81,7 +81,7 @@ class UltralyticsRunner:
 
         result = results[0]
         assert self.adapter is not None, "Adapter should be initialized"
-        
+
         # Use dynamic pixels_per_mm from options if it differs from the runner default
         detections = self.adapter.adapt(result, pixels_per_mm=options.pixels_per_mm)
 

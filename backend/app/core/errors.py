@@ -32,7 +32,5 @@ class AppError(Exception):
 
 
 async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
-    payload = ErrorResponse(
-        error=ErrorPayload(code=exc.code, message=exc.message, details=exc.details)
-    )
+    payload = ErrorResponse(error=ErrorPayload(code=exc.code, message=exc.message, details=exc.details))
     return JSONResponse(status_code=exc.status_code, content=payload.model_dump())

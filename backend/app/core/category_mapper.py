@@ -10,13 +10,7 @@ def normalize_defect_category(category: str) -> str:
     if "crack" in value or "裂缝" in value:
         return "crack"
 
-    if (
-        "breakage" in value
-        or "破损" in value
-        or "spalling" in value
-        or "剥落" in value
-        or "剥蚀" in value
-    ):
+    if "breakage" in value or "破损" in value or "spalling" in value or "剥落" in value or "剥蚀" in value:
         return "breakage"
 
     if "comb" in value or "梳齿" in value or "伸缩缝" in value:

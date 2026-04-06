@@ -17,7 +17,14 @@ class LocalArtifactStore:
         self.ensure_dirs()
 
     def ensure_dirs(self) -> None:
-        for directory in (self.root, self.uploads_dir, self.results_dir, self.overlays_dir, self.enhanced_dir, self.diagnoses_dir):
+        for directory in (
+            self.root,
+            self.uploads_dir,
+            self.results_dir,
+            self.overlays_dir,
+            self.enhanced_dir,
+            self.diagnoses_dir,
+        ):
             directory.mkdir(parents=True, exist_ok=True)
 
     def build_image_id(self, original_name: str) -> str:
@@ -106,18 +113,18 @@ class LocalArtifactStore:
             reverse=True,
         )
         total = len(files)
-        
+
         results: List[Dict[str, Any]] = []
         # Slice files first before reading
         paged_files = files[offset : offset + limit]
-        
+
         for file_path in paged_files:
             try:
                 payload = json.loads(file_path.read_text(encoding="utf-8"))
                 results.append(payload)
             except Exception:
                 continue
-                
+
         return results, total
 
     def delete_result_artifacts(self, *, image_id: str) -> None:

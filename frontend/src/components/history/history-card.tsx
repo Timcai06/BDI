@@ -43,7 +43,7 @@ export function HistoryCard({
 
   return (
     <article
-      className={`group relative flex w-full flex-col overflow-hidden rounded-[20px] bg-[#030303] transition-all duration-300 cursor-pointer border ${
+      className={`group relative flex h-full min-h-[280px] w-full flex-col overflow-hidden rounded-[20px] bg-[#030303] transition-all duration-300 cursor-pointer border ${
         isSelected
           ? "border-sky-500/60 shadow-[0_0_36px_rgba(56,189,248,0.16)] -translate-y-0.5"
           : "border-white/[0.04] hover:border-white/20 hover:shadow-[0_0_40px_rgba(66,133,244,0.08)]"
@@ -190,7 +190,7 @@ export function HistoryCard({
             ) : (
               <>
                 {/* Categories */}
-                <div className="flex flex-wrap gap-1.5 mb-2">
+                <div className="mb-2 flex min-h-[28px] flex-wrap gap-1.5">
                   {item.categories.slice(0, 3).map((category) => (
                     <span
                       key={category}
@@ -230,7 +230,7 @@ export function HistoryCard({
                     <span className="text-xs">{item.detection_count} 处病害</span>
                   </div>
                   <span className="text-[10px] opacity-50">·</span>
-                  <span className="text-[10px]">{formatTime(item.created_at)}</span>
+                  <span className="truncate text-[10px]">{formatTime(item.created_at)}</span>
                 </div>
               </>
             )}

@@ -239,7 +239,7 @@ export function HistoryPanel({
   const hasFilters = !!searchQuery || categoryFilter !== "全部";
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       {/* Stats */}
       <div className="pb-6">
         <HistoryStats items={items} totalCount={totalCount} filteredCount={filteredItems.length} />
@@ -289,7 +289,7 @@ export function HistoryPanel({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto" style={{ scrollbarGutter: 'stable' }}>
+      <div className="flex-1 min-h-0 overflow-hidden" style={{ scrollbarGutter: 'stable' }}>
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="flex items-center gap-3 text-white/40">
@@ -310,41 +310,45 @@ export function HistoryPanel({
             onUpload={onOpenUploader}
           />
         ) : (
-          <div className={`flex gap-6 ${isBatchMode ? "xl:items-start" : ""}`}>
-            <div className="min-w-0 flex-1 space-y-6">
+          <div className={`flex h-full min-h-0 gap-6 ${isBatchMode ? "xl:items-start" : ""}`}>
+            <div className="flex min-w-0 flex-1 min-h-0 flex-col">
             {/* Grid */}
-            <div className={`grid gap-6 ${isBatchMode ? "grid-cols-1 md:grid-cols-2 2xl:grid-cols-2" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"}`}>
-              {paginatedItems.map((item) => (
-                <HistoryCard
-                  key={item.image_id}
-                  item={item}
-                  isSelected={selectedIds.has(item.image_id)}
-                  isBatchMode={isBatchMode}
-                  deletingImageId={deletingImageId || null}
-                  getImageUrl={getImageUrl}
-                  onSelect={() => onSelect(item.image_id)}
-                  onDeleteRequest={(e) => {
-                    e.stopPropagation();
-                    onDeleteRequest(item.image_id);
-                  }}
-                  onToggleSelect={(e) => {
-                    e.stopPropagation();
-                    handleToggleSelect(item.image_id);
-                  }}
-                />
-              ))}
+            <div className="min-h-0 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+              <div className={`grid gap-6 ${isBatchMode ? "grid-cols-1 md:grid-cols-2 2xl:grid-cols-2" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"}`}>
+                {paginatedItems.map((item) => (
+                  <HistoryCard
+                    key={item.image_id}
+                    item={item}
+                    isSelected={selectedIds.has(item.image_id)}
+                    isBatchMode={isBatchMode}
+                    deletingImageId={deletingImageId || null}
+                    getImageUrl={getImageUrl}
+                    onSelect={() => onSelect(item.image_id)}
+                    onDeleteRequest={(e) => {
+                      e.stopPropagation();
+                      onDeleteRequest(item.image_id);
+                    }}
+                    onToggleSelect={(e) => {
+                      e.stopPropagation();
+                      handleToggleSelect(item.image_id);
+                    }}
+                  />
+                ))}
+              </div>
             </div>
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <HistoryPagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={filteredItems.length}
-                pageSize={pageSize}
-                onPageChange={setCurrentPage}
-                onPageSizeChange={setPageSize}
-              />
+              <div className="pt-6">
+                <HistoryPagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={filteredItems.length}
+                  pageSize={pageSize}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={setPageSize}
+                />
+              </div>
             )}
             </div>
 

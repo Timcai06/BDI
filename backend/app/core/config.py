@@ -6,11 +6,10 @@ from getpass import getuser
 from pathlib import Path
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
 from dotenv import load_dotenv
+from pydantic import BaseModel, Field
 
 from app.core.category_mapper import normalize_defect_category
-
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
@@ -34,9 +33,7 @@ class ConfiguredModel(BaseModel):
     specialist_categories: list[str] = Field(default_factory=list)
 
     def model_post_init(self, __context) -> None:
-        self.specialist_categories = [
-            normalize_defect_category(category) for category in self.specialist_categories
-        ]
+        self.specialist_categories = [normalize_defect_category(category) for category in self.specialist_categories]
 
 
 class Settings(BaseModel):
@@ -112,12 +109,8 @@ def _load_extra_models(raw_value: str | None) -> list[ConfiguredModel]:
         ConfiguredModel(
             **{
                 **item,
-                "weights_path": _resolve_runtime_path(Path(item["weights_path"]))
-                if item.get("weights_path")
-                else None,
-                "runtime_root": _resolve_runtime_path(Path(item["runtime_root"]))
-                if item.get("runtime_root")
-                else None,
+                "weights_path": _resolve_runtime_path(Path(item["weights_path"])) if item.get("weights_path") else None,
+                "runtime_root": _resolve_runtime_path(Path(item["runtime_root"])) if item.get("runtime_root") else None,
             }
         )
         for item in json.loads(raw_value)
@@ -157,9 +150,7 @@ def get_settings() -> Settings:
         model_imgsz=int(os.getenv("BDI_MODEL_IMGSZ", "1280")),
         model_supports_masks=_env_flag("BDI_MODEL_SUPPORTS_MASKS", "true"),
         model_supports_overlay=_env_flag("BDI_MODEL_SUPPORTS_OVERLAY", "true"),
-        model_supports_sliced_inference=_env_flag(
-            "BDI_MODEL_SUPPORTS_SLICED_INFERENCE", "false"
-        ),
+        model_supports_sliced_inference=_env_flag("BDI_MODEL_SUPPORTS_SLICED_INFERENCE", "false"),
         pixels_per_mm=float(os.getenv("BDI_PIXELS_PER_MM", "10.0")),
         allow_mock_fallback=_env_flag("BDI_ALLOW_MOCK_FALLBACK", "true"),
         enhance_enabled=_env_flag("BDI_ENHANCE_ENABLED", "true"),
@@ -184,7 +175,5 @@ def get_settings() -> Settings:
         alert_auto_enabled=_env_flag("BDI_ALERT_AUTO_ENABLED", "true"),
         alert_count_threshold=int(os.getenv("BDI_ALERT_COUNT_THRESHOLD", "3")),
         alert_category_watchlist=_load_category_watchlist(os.getenv("BDI_ALERT_CATEGORY_WATCHLIST")),
-        alert_category_confidence_threshold=float(
-            os.getenv("BDI_ALERT_CATEGORY_CONFIDENCE_THRESHOLD", "0.8")
-        ),
+        alert_category_confidence_threshold=float(os.getenv("BDI_ALERT_CATEGORY_CONFIDENCE_THRESHOLD", "0.8")),
     )
