@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState, useMemo, type SyntheticEvent } from "react";
 
 import { StatusCard } from "@/components/status-card";
+import { DetectionListPanel } from "@/components/result-dashboard-parts/detection-list-panel";
+import { DiagnosisPanel } from "@/components/result-dashboard-parts/diagnosis-panel";
+import { ExportModal } from "@/components/result-dashboard-parts/export-modal";
+import { FocusedDetectionHud } from "@/components/result-dashboard-parts/focused-detection-hud";
+import { ResultDashboardToolbar } from "@/components/result-dashboard-parts/result-dashboard-toolbar";
 import { getDefectColorHex, getDefectLabel } from "@/lib/defect-visuals";
-import { formatDetectionSourceLabel, formatModelLabel } from "@/lib/model-labels";
+import { formatModelLabel } from "@/lib/model-labels";
 import {
   filterDetections,
   getDetectionMaskPolygonPoints,
   getDetectionOverlayStyle,
 } from "@/lib/result-utils";
 import { getDiagnosisRecord, getDiagnosisText, getEnhancedImageUrl, getEnhancedOverlayUrl } from "@/lib/predict-client";
-import ReactMarkdown from 'react-markdown';
-import { motion, AnimatePresence } from 'framer-motion';
 import type { Detection, PredictionResult, PredictState } from "@/lib/types";
 import { useComparison } from "@/hooks/use-comparison";
 
@@ -158,7 +161,6 @@ export function ResultDashboard({
     "正在生成结构化诊断建议…",
   ];
   const frameRef = useRef<HTMLDivElement>(null);
-  const listContainerRef = useRef<HTMLDivElement>(null);
   const detectionItemRefs = useRef<Record<string, HTMLElement | null>>({});
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
@@ -378,156 +380,27 @@ export function ResultDashboard({
         <div className="relative flex min-h-[620px] w-full flex-col overflow-hidden rounded-[2rem] border border-[#00D2FF]/10 bg-[#05080A]/90 shadow-[0_0_80px_rgba(0,210,255,0.05)] backdrop-blur-xl xl:col-span-2">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#00D2FF]/5 via-transparent to-transparent pointer-events-none" />
           <div className="relative z-10 shrink-0 border-b border-white/5 bg-[linear-gradient(180deg,rgba(5,8,10,0.4),rgba(5,8,10,0.1))] px-5 py-3.5">
-            <div className="flex flex-wrap items-center justify-between gap-4 w-full">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-2 w-2 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.8)] animate-pulse" />
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">
-                    AI 分析看板
-                  </span>
-                </div>
-                <div className="h-4 w-px bg-white/10" />
-                <div className="flex rounded-lg border border-white/8 bg-black/20 p-1">
-                  <button
-                    aria-pressed={viewMode === "image"}
-                    className={`h-7 rounded-md px-3 text-[11px] font-semibold transition-colors ${
-                      viewMode === "image"
-                        ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                        : "text-slate-400 hover:bg-white/5 hover:text-white/80"
-                    }`}
-                    type="button"
-                    onClick={() => onViewModeChange("image")}
-                  >
-                    原图
-                  </button>
-                  <button
-                    aria-pressed={viewMode === "result"}
-                    className={`h-7 rounded-md px-3 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                      viewMode === "result"
-                        ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                        : "text-slate-400 hover:bg-white/5 hover:text-white/80"
-                    }`}
-                    disabled={resultDisabled}
-                    type="button"
-                    onClick={() => onViewModeChange("result")}
-                  >
-                    结果图
-                  </button>
-                  <button
-                    aria-pressed={viewMode === "mask"}
-                    className={`h-7 rounded-md px-3 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                      viewMode === "mask"
-                        ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                        : "text-slate-400 hover:bg-white/5 hover:text-white/80"
-                    }`}
-                    disabled={maskDisabled}
-                    type="button"
-                    onClick={() => onViewModeChange("mask")}
-                  >
-                    掩膜图
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  className="flex h-8 items-center rounded-lg bg-white/5 px-3 text-[11px] font-medium text-white/70 transition-all hover:bg-white/10 hover:text-white border border-white/5"
-                  type="button"
-                  onClick={() => setIsExportModalOpen(true)}
-                >
-                  <svg className="mr-2 h-3.5 w-3.5 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
-                  导出与下载
-                </button>
-                
-                {showHistoryButton && (
-                  <button
-                    className="h-8 rounded-lg px-3 text-[11px] font-medium text-white/50 transition-colors hover:bg-white/5 hover:text-white"
-                    type="button"
-                    onClick={onOpenHistory}
-                  >
-                    历史记录
-                  </button>
-                )}
-
-                {showPrimaryActionButton && (
-                  <button
-                    className="ml-2 h-8 rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 text-[11px] font-bold tracking-widest uppercase text-sky-300 transition-colors hover:bg-sky-500/20 hover:text-white"
-                    title={primaryActionTitle}
-                    type="button"
-                    onClick={handlePrimaryAction}
-                  >
-                    {primaryActionLabel}
-                  </button>
-                )}
-
-                <button
-                  className="h-8 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 text-[11px] font-bold tracking-widest uppercase text-emerald-200 transition-colors hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-white/30"
-                  type="button"
-                  title={
-                    comparisonResult
-                      ? "请先清除模型对比结果"
-                      : !hasEnhancedResult && !onGenerateEnhancement
-                        ? "当前记录没有增强结果"
-                        : hasEnhancedResult
-                          ? "切换增强识别结果"
-                          : "生成增强识别结果"
-                  }
-                  disabled={enhancementPending || Boolean(comparisonResult) || (!hasEnhancedResult && !onGenerateEnhancement)}
-                  onClick={() => {
-                    if (hasEnhancedResult) {
-                      setShowEnhancementCompare((value) => !value);
-                      return;
-                    }
-                    void onGenerateEnhancement?.();
-                  }}
-                >
-                  {enhancementPending ? "增强中..." : hasEnhancedResult ? (showEnhancementCompare ? "查看原图" : "查看增强") : "增强"}
-                </button>
-              </div>
-            </div>
-            {/* defect metrics HUD (High-level HUD style) */}
-            <div className={`mt-5 overflow-hidden transition-all duration-500 ${current ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'}`}>
-              <div className="relative flex items-center gap-5 rounded-2xl border border-[#00D2FF]/20 bg-[#00D2FF]/5 p-3.5 group">
-                <div className="absolute inset-0 bg-gradient-to-r from-[#00D2FF]/5 via-transparent to-transparent pointer-events-none" />
-                <div className="shrink-0 flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-[#00D2FF]/10 border border-[#00D2FF]/20">
-                  <svg className="h-6 w-6 text-[#00D2FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} />
-                  </svg>
-                </div>
-                <div className="grid flex-1 grid-cols-2 gap-3 md:grid-cols-4">
-                  <div className="space-y-1">
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-[#00D2FF]/60">病害类别</p>
-                    <p className="text-sm font-semibold text-white">{current ? getDefectLabel(current.category) : "--"}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-[#00D2FF]/60">识别置信度</p>
-                    <p className="text-sm font-mono text-[#00D2FF] font-bold">{current ? `${(current.confidence * 100).toFixed(1)}%` : "--"}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-[#00D2FF]/60">预估长度 (cm)</p>
-                    <p className="text-sm font-mono text-slate-200">{current?.metrics.length_mm ? (current.metrics.length_mm / 10).toFixed(1) : "--"}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-[#00D2FF]/60">预估面积 (cm²)</p>
-                    <p className="text-sm font-mono text-[#7FFFD4] font-bold">{current?.metrics.area_mm2 ? (current.metrics.area_mm2 / 100).toFixed(1) : "--"}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-[#00D2FF]/60">检测来源</p>
-                    <p className="text-sm font-semibold text-white">
-                      {formatDetectionSourceLabel(current?.source_role) ?? "当前模型"}
-                    </p>
-                  </div>
-                </div>
-                <div className="hidden md:flex flex-col items-end gap-1 shrink-0 ml-auto border-l border-white/10 pl-6">
-                   <span className="text-[8px] text-white/30 uppercase tracking-[0.2em]">Sensor Ready</span>
-                   <div className="h-1.5 w-8 rounded-full bg-[#00D2FF]/20 overflow-hidden">
-                      <div className="h-full w-[85%] bg-[#00D2FF] shadow-[0_0_8px_#00D2FF]" />
-                   </div>
-                </div>
-              </div>
-            </div>
+            <ResultDashboardToolbar
+              comparisonResultExists={Boolean(comparisonResult)}
+              currentDetection={current}
+              enhancementPending={enhancementPending}
+              hasEnhancedResult={hasEnhancedResult}
+              maskDisabled={maskDisabled}
+              onGenerateEnhancement={onGenerateEnhancement}
+              onOpenExport={() => setIsExportModalOpen(true)}
+              onOpenHistory={onOpenHistory}
+              onPrimaryAction={handlePrimaryAction}
+              onToggleEnhancementCompare={() => setShowEnhancementCompare((value) => !value)}
+              onViewModeChange={onViewModeChange}
+              primaryActionLabel={primaryActionLabel}
+              primaryActionTitle={primaryActionTitle}
+              resultDisabled={resultDisabled}
+              showEnhancementCompare={showEnhancementCompare}
+              showHistoryButton={showHistoryButton}
+              showPrimaryActionButton={showPrimaryActionButton}
+              viewMode={viewMode}
+            />
+            <FocusedDetectionHud detection={current} />
           </div>
 
           <div className="relative z-10 min-h-[520px] flex-1 overflow-auto bg-[radial-gradient(circle_at_center,rgba(0,210,255,0.05),transparent_70%),linear-gradient(180deg,#05080A,#0B1120)] p-4 md:p-5">
@@ -685,91 +558,13 @@ export function ResultDashboard({
 
         </div>
 
-        <div className="rounded-[1.5rem] border border-white/10 bg-[#05080A]/60 shadow-lg backdrop-blur">
-          <div className="flex items-center justify-between border-b border-white/5 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">
-              病害列表
-            </p>
-            <span className="font-mono text-xs text-slate-400">
-              {prioritizedDetections.length} 项
-            </span>
-          </div>
-
-          <div
-            ref={listContainerRef}
-            className="max-h-[420px] overflow-y-auto p-3 space-y-2"
-          >
-            {prioritizedDetections.map((item, index) => {
-              const colorCode = getDefectColorHex(item.category);
-              const isSelected = item.id === selectedDetectionId;
-              const isHighestPriority = item.id === topPriorityDetection?.id;
-
-              return (
-                <article
-                  key={item.id}
-                  ref={(node) => {
-                    detectionItemRefs.current[item.id] = node;
-                  }}
-                  className={`rounded-xl border p-3 transition-colors group cursor-pointer ${isSelected ? "border-sky-500/40 bg-sky-500/[0.08]" : "border-white/5 bg-white/[0.02] hover:bg-white/[0.04]"}`}
-                  data-detection-id={item.id}
-                  onClick={() => handleFocusDetection(item)}
-                >
-                  <div className="mb-2 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono text-slate-500">
-                        {String(index + 1).padStart(2, "0")}.
-                      </span>
-                      <h4 className="text-sm font-medium text-slate-200 uppercase">
-                        {getDefectLabel(item.category)}
-                      </h4>
-                      {isHighestPriority ? (
-                        <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-200">
-                          优先查看
-                        </span>
-                      ) : null}
-                      {formatDetectionSourceLabel(item.source_role) ? (
-                        <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold text-sky-100">
-                          {formatDetectionSourceLabel(item.source_role)}
-                        </span>
-                      ) : null}
-                    </div>
-                    <span
-                      className="rounded border border-white/10 px-2 py-0.5 text-xs font-mono"
-                      style={{ color: colorCode }}
-                    >
-                      {(item.confidence * 100).toFixed(1)}%
-                    </span>
-                  </div>
-
-                  <div className="grid max-h-0 grid-cols-2 gap-y-2 overflow-hidden text-xs opacity-0 transition-all duration-300 group-hover:mt-3 group-hover:max-h-24 group-hover:opacity-100">
-                    <div className="flex items-center gap-2">
-                      <span className="w-10 text-slate-500">Size</span>
-                      <span className="font-mono text-slate-300">
-                        {item.metrics.length_mm
-                          ? `${(item.metrics.length_mm / 10).toFixed(1)}cm`
-                          : "--"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="w-10 text-slate-500">Area</span>
-                      <span className="font-mono text-slate-300">
-                        {item.metrics.area_mm2
-                          ? `${(item.metrics.area_mm2 / 100).toFixed(1)}cm²`
-                          : "--"}
-                      </span>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-
-            {filteredDetections.length === 0 && (
-              <div className="flex h-32 items-center justify-center font-mono text-sm text-slate-500">
-                [ NO DATA MATCHES FILTERS, TRY LOWER CONFIDENCE ]
-              </div>
-            )}
-          </div>
-        </div>
+        <DetectionListPanel
+          detectionItemRefs={detectionItemRefs}
+          detections={prioritizedDetections}
+          onFocusDetection={handleFocusDetection}
+          selectedDetectionId={selectedDetectionId}
+          topPriorityDetectionId={topPriorityDetection?.id}
+        />
 
         {/* Unified Comparison Workbench */}
         <div className="relative overflow-hidden rounded-[2rem] border border-[#00D2FF]/20 bg-[#05080A]/80 p-8 shadow-[0_32px_128px_rgba(0,0,0,0.5)] backdrop-blur-3xl">
@@ -1365,228 +1160,24 @@ export function ResultDashboard({
         </aside>
       </div>
 
-      <div className="relative flex h-[440px] flex-col overflow-hidden rounded-2xl border border-[#7FFFD4]/30 bg-[linear-gradient(180deg,rgba(127,255,212,0.08),rgba(5,8,10,0.6))] p-4 shadow-2xl transition-all group hover:bg-[#7FFFD4]/8 hover:border-[#7FFFD4]/30">
-        <div className="absolute top-0 right-0 p-8 opacity-10 transition-opacity group-hover:opacity-20">
-          <svg className="h-10 w-10 text-[#7FFFD4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} />
-          </svg>
-        </div>
-
-        <div className="mb-3 flex flex-wrap items-center gap-2.5">
-          <div className="h-1.5 w-8 rounded-full bg-gradient-to-r from-[#7FFFD4] to-transparent" />
-          <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#7FFFD4]">
-            核心诊断建议
-          </p>
-          <div className="ml-2 flex items-center gap-1.5">
-            <span className="rounded border border-[#7FFFD4]/20 bg-[#7FFFD4]/10 px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-[0.18em] text-[#7FFFD4]">OpenCode AI</span>
-            <span className="rounded border border-[#00D2FF]/20 bg-[#00D2FF]/10 px-1.5 py-0.5 text-[7px] font-bold uppercase tracking-[0.18em] text-[#00D2FF]">Kimi K2.5</span>
-          </div>
-          {isDiagnosisLoading && (
-            <div className="ml-auto flex items-center gap-2 rounded-full border border-[#7FFFD4]/20 bg-[#7FFFD4]/10 px-2.5 py-1">
-              <span className="text-[9px] font-medium uppercase text-[#7FFFD4] animate-pulse">Analyzing</span>
-              <span className="flex gap-1">
-                <span className="h-1 w-1 animate-bounce rounded-full bg-[#7FFFD4]" />
-                <span className="h-1 w-1 animate-bounce rounded-full bg-[#7FFFD4] [animation-delay:-0.15s]" />
-                <span className="h-1 w-1 animate-bounce rounded-full bg-[#7FFFD4] [animation-delay:-0.3s]" />
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div className="mb-2 flex items-center justify-between text-[9px] uppercase tracking-[0.14em] text-[#7FFFD4]/35">
-          <span>固定诊断面板</span>
-          <span>滚动查看完整内容</span>
-        </div>
-
-        <div className="relative min-h-0 flex-1 overflow-hidden rounded-xl border border-[#7FFFD4]/10 bg-black/10">
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-10 bg-gradient-to-b from-[#071014] to-transparent" />
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-12 bg-gradient-to-t from-[#071014] to-transparent" />
-
-          <div className="custom-scrollbar h-full max-w-none overflow-y-auto px-1 pr-3 text-[13px] font-light leading-[1.75] text-[#7FFFD4]/90 prose prose-invert prose-emerald scroll-smooth">
-            {diagnosis ? (
-              <ReactMarkdown
-                components={{
-                  h3: ({...props}) => <h3 className="mt-6 mb-2 rounded-r border-l-4 border-[#7FFFD4] bg-[#7FFFD4]/5 py-1.5 pl-3 text-sm font-bold text-[#7FFFD4]" {...props} />,
-                  p: ({...props}) => <p className="mb-3 last:mb-0 leading-relaxed opacity-90" {...props} />,
-                  strong: ({...props}) => <strong className="font-semibold text-[#00D2FF]" {...props} />,
-                  li: ({...props}) => <li className="relative mb-2 list-none pl-5 before:absolute before:left-0 before:text-[#7FFFD4] before:content-['▹']" {...props} />
-                 }}
-              >
-                {diagnosis}
-              </ReactMarkdown>
-            ) : diagnosisMode === "cached" && hasStoredDiagnosis === false && !isDiagnosisLoading ? (
-              <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-5 px-6 text-center">
-                <div className="relative">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full border border-[#7FFFD4]/15 bg-[#7FFFD4]/5" />
-                  <div className="absolute inset-0 flex items-center justify-center text-[#7FFFD4]">
-                    <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs font-mono uppercase tracking-[0.12em] text-[#7FFFD4]/65">
-                    尚未生成专家报告
-                  </p>
-                  <p className="text-[12px] leading-relaxed text-[#7FFFD4]/40">
-                    当前历史记录已有识别结果，但还没有保存过大模型诊断报告。
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="rounded-xl border border-[#7FFFD4]/30 bg-[#7FFFD4]/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#7FFFD4] transition-colors hover:bg-[#7FFFD4]/15"
-                  onClick={() => {
-                    void handleGenerateDiagnosis();
-                  }}
-                >
-                  生成专家报告
-                </button>
-              </div>
-            ) : (
-              <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-6">
-                 <div className="relative">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#7FFFD4]/10 animate-spin-slow" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                       <div className="h-2 w-2 rounded-full bg-[#7FFFD4] animate-ping" />
-                    </div>
-                    <div className="absolute -inset-4 rounded-full border border-[#7FFFD4]/5 animate-pulse" />
-                 </div>
-                 <div className="space-y-2 text-center">
-                   <p className="text-xs font-mono uppercase tracking-[0.1em] text-[#7FFFD4]/60">
-                     {isDiagnosisLoading ? "Consulting Digital Twin..." : "System Idle"}
-                   </p>
-                   {isDiagnosisLoading && (
-                     <motion.p 
-                       initial={{ opacity: 0, y: 5 }}
-                       animate={{ opacity: 1, y: 0 }}
-                       key={thinkingIndex}
-                       className="text-[11px] italic font-light text-[#7FFFD4]/30"
-                     >
-                       {thinkingSteps[thinkingIndex]}
-                     </motion.p>
-                   )}
-                 </div>
-              </div>
-            )}
-            {isDiagnosisLoading && <span className="ml-2 inline-block h-4 w-2 animate-pulse align-middle bg-[#7FFFD4]" />}
-          </div>
-        </div>
-
-        <div className="mt-4 flex items-center justify-between border-t border-[#7FFFD4]/10 pt-3">
-          <p className="text-[10px] italic text-[#7FFFD4]/40">
-            {diagnosisMode === "cached" && hasStoredDiagnosis === false
-              ? "历史详情页默认只读取已保存报告，避免进入页面时重复生成。"
-              : "Powered by OpenCode Kimi K2.5 • 基于结构化特征与桥梁巡检规范之量化评估报告"}
-          </p>
-          <div className="flex gap-4">
-             <span className="h-1 w-8 rounded-full bg-[#7FFFD4]/20" />
-             <span className="h-1 w-8 rounded-full bg-[#00D2FF]/20" />
-          </div>
-        </div>
-      </div>
-      {/* Export Modal */}
-      <AnimatePresence>
-        {isExportModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/60 backdrop-blur-md"
-              onClick={() => setIsExportModalOpen(false)}
-            />
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="relative w-full max-w-md overflow-hidden rounded-[2rem] border border-white/10 bg-[#0B1120]/90 p-8 shadow-[0_32px_128px_rgba(0,0,0,0.8)] backdrop-blur-2xl"
-            >
-              <div className="absolute -right-24 -top-24 h-48 w-48 rounded-full bg-sky-500/10 blur-[64px]" />
-              <div className="absolute -left-24 -bottom-24 h-48 w-48 rounded-full bg-indigo-500/10 blur-[64px]" />
-              
-              <div className="relative">
-                <div className="mb-8 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xl font-light tracking-tight text-white/90">
-                      数据导出与下载
-                    </h3>
-                    <p className="mt-1 text-xs text-white/40">
-                      选择所需的文件格式进行推理结果导出
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setIsExportModalOpen(false)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-white/30 transition-colors hover:bg-white/10 hover:text-white"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  <button
-                    onClick={() => {
-                      onExportJson();
-                      setIsExportModalOpen(false);
-                    }}
-                    className="group relative flex w-full items-center gap-5 rounded-2xl border border-white/5 bg-white/[0.03] p-5 text-left transition-all hover:border-sky-500/30 hover:bg-sky-500/5"
-                  >
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20 transition-transform group-hover:scale-110">
-                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-white/80 group-hover:text-white">JSON 数据</h4>
-                      <p className="mt-0.5 text-xs text-white/40 leading-relaxed">
-                        包含完整的检测元数据及像素级坐标，适用于开发者二次开发。
-                      </p>
-                    </div>
-                  </button>
-
-                  <button
-                    disabled={resultDisabled}
-                    onClick={() => {
-                      onExportOverlay();
-                      setIsExportModalOpen(false);
-                    }}
-                    className="group relative flex w-full items-center gap-5 rounded-2xl border border-white/5 bg-white/[0.03] p-5 text-left transition-all hover:border-emerald-500/30 hover:bg-emerald-500/5 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 transition-transform group-hover:scale-110">
-                      <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-white/80 group-hover:text-white">合成结果图</h4>
-                      <p className="mt-0.5 text-xs text-white/40 leading-relaxed">
-                        包含可视化检测框与掩膜的合成图像，适用于报告文档演示。
-                      </p>
-                    </div>
-                    {!resultDisabled && (
-                      <div className="ml-auto opacity-0 transition-opacity group-hover:opacity-100">
-                        <svg className="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </div>
-                    )}
-                  </button>
-                </div>
-
-                <div className="mt-8 pt-6 border-t border-white/5">
-                  <button
-                    onClick={() => setIsExportModalOpen(false)}
-                    className="w-full rounded-xl bg-white/5 py-2.5 text-xs font-medium text-white/50 transition-colors hover:bg-white/10 hover:text-white"
-                  >
-                    取消
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <DiagnosisPanel
+        diagnosis={diagnosis}
+        diagnosisMode={diagnosisMode}
+        hasStoredDiagnosis={hasStoredDiagnosis}
+        isDiagnosisLoading={isDiagnosisLoading}
+        onGenerateDiagnosis={() => {
+          void handleGenerateDiagnosis();
+        }}
+        thinkingIndex={thinkingIndex}
+        thinkingSteps={thinkingSteps}
+      />
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        onExportJson={onExportJson}
+        onExportOverlay={onExportOverlay}
+        resultDisabled={resultDisabled}
+      />
     </div>
   );
 }
