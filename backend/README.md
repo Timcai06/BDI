@@ -20,6 +20,20 @@ python3 -m pip install -r requirements-dev.txt
 uvicorn app.main:app --reload
 ```
 
+真实模式依赖请区分两层：
+
+- 基础后端依赖：`requirements.txt`
+- 真实推理依赖：`requirements-yolo.txt`
+
+推荐真实环境安装命令：
+
+```bash
+python3 -m venv .venv-yolo
+source .venv-yolo/bin/activate
+python3 -m pip install -r requirements-dev.txt
+python3 -m pip install -r requirements-yolo.txt
+```
+
 ## 数据库（Phase 5）
 
 后端已接入 `PostgreSQL + SQLAlchemy + Alembic` 基础骨架，后续批次任务系统将以数据库为主存储结构化数据。
@@ -148,6 +162,13 @@ backend/models/
 - `fusion-v1`
 
 当前仓库采用“vendored runtimes + vendored weights”的双模型结构，不再依赖个人 `Desktop/` 或 `Downloads/` 目录。
+
+前端类型同步命令：
+
+```bash
+cd ../frontend
+npm run generate:types
+```
 
 目录约定：
 

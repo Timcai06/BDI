@@ -81,6 +81,11 @@ ln -sf "$(pwd)/scripts/bdi" /usr/local/bin/bdi
 ./scripts/dev-check.sh         # 环境检查脚本
 ```
 
+### 开发者快速入口
+
+- 快速文档：[`docs/developer-quickstart.md`](/Users/tim/BDI/docs/developer-quickstart.md)
+- 前端类型同步：`rtk npm --prefix frontend run generate:types`
+
 ---
 
 ## 技术架构
