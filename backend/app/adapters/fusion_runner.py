@@ -12,6 +12,8 @@ from app.adapters.registry import ModelRegistry, ModelSpec
 from app.models.schemas import BoundingBox, PredictOptions, RawDetection, RawPrediction
 
 
+# Backend IoU is the source of truth for fusion-time dedupe and specialist takeover.
+# The frontend keeps a separate UI-only IoU for comparison visualization.
 def _bbox_iou(left: BoundingBox, right: BoundingBox) -> float:
     left_x2 = left.x + left.width
     left_y2 = left.y + left.height

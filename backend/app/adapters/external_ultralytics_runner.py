@@ -99,13 +99,19 @@ class ExternalUltralyticsRunner:
             if options.return_overlay:
                 command.append("--return-overlay")
 
-            subprocess.run(
-                command,
-                cwd=Path(__file__).resolve().parents[2],
-                check=True,
-                capture_output=True,
-                text=True,
-            )
+            try:
+                subprocess.run(
+                    command,
+                    cwd=Path(__file__).resolve().parents[2],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+            except subprocess.CalledProcessError as exc:
+                details = (exc.stderr or exc.stdout or "").strip()
+                if details:
+                    raise RuntimeError(f"External runtime failed: {details}") from exc
+                raise
 
             payload = json.loads(output_path.read_text(encoding="utf-8"))
 

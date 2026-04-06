@@ -31,6 +31,10 @@ class UltralyticsOutputAdapter:
         result = raw_output
         names = result.names
         detections: List[RawDetection] = []
+        xyxy_list: list[Any] = []
+        conf_list: list[Any] = []
+        cls_list: list[Any] = []
+        mask_segments: list[Any] = []
 
         if result.boxes is not None and len(result.boxes) > 0:
             xyxy_list = result.boxes.xyxy.cpu().tolist()
@@ -41,40 +45,40 @@ class UltralyticsOutputAdapter:
             if not (len(xyxy_list) == len(conf_list) == len(cls_list)):
                 raise RuntimeError("Ultralytics output is inconsistent: boxes/conf/classes length mismatch.")
 
-            for index, (xyxy, confidence, cls_id) in enumerate(zip(xyxy_list, conf_list, cls_list, strict=True)):
-                x1, y1, x2, y2 = xyxy
-                bbox = BoundingBox(
-                    x=max(x1, 0),
-                    y=max(y1, 0),
-                    width=max(x2 - x1, 0),
-                    height=max(y2 - y1, 0),
-                )
-                segment = mask_segments[index] if index < len(mask_segments) else None
-                mask = None
-                metrics = DetectionMetrics()
+        for index, (xyxy, confidence, cls_id) in enumerate(zip(xyxy_list, conf_list, cls_list)):  # noqa: B905
+            x1, y1, x2, y2 = xyxy
+            bbox = BoundingBox(
+                x=max(x1, 0),
+                y=max(y1, 0),
+                width=max(x2 - x1, 0),
+                height=max(y2 - y1, 0),
+            )
+            segment = mask_segments[index] if index < len(mask_segments) else None
+            mask = None
+            metrics = DetectionMetrics()
 
-                if segment is not None:
-                    # Convert segment to list format for metrics calculation
-                    segment_points = [point.tolist() for point in segment]
-                    mask = MaskPayload(
-                        points=[[int(round(point[0])), int(round(point[1]))] for point in segment_points]
-                    )
-                    # Calculate physical metrics from mask
-                    physical_metrics = calculate_metrics_from_mask(segment_points, effective_pixels_per_mm)
-                    metrics = DetectionMetrics(
-                        length_mm=physical_metrics.length_mm,
-                        width_mm=physical_metrics.width_mm,
-                        area_mm2=physical_metrics.area_mm2,
-                    )
-
-                category_name = names.get(int(cls_id), str(int(cls_id)))
-                detections.append(
-                    RawDetection(
-                        category=category_name,
-                        confidence=float(confidence),
-                        bbox=bbox,
-                        mask=mask,
-                        metrics=metrics,
-                    )
+            if segment is not None:
+                # Convert segment to list format for metrics calculation
+                segment_points = [point.tolist() for point in segment]
+                mask = MaskPayload(
+                    points=[[int(round(point[0])), int(round(point[1]))] for point in segment_points]
                 )
+                # Calculate physical metrics from mask
+                physical_metrics = calculate_metrics_from_mask(segment_points, effective_pixels_per_mm)
+                metrics = DetectionMetrics(
+                    length_mm=physical_metrics.length_mm,
+                    width_mm=physical_metrics.width_mm,
+                    area_mm2=physical_metrics.area_mm2,
+                )
+
+            category_name = names.get(int(cls_id), str(int(cls_id)))
+            detections.append(
+                RawDetection(
+                    category=category_name,
+                    confidence=float(confidence),
+                    bbox=bbox,
+                    mask=mask,
+                    metrics=metrics,
+                )
+            )
         return detections
