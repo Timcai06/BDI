@@ -73,6 +73,8 @@ export interface DetectionAlignmentResult {
   comparisonOnly: Detection[];
 }
 
+// Frontend IoU is only used for comparison UI alignment and summary rendering.
+// Fusion-time dedupe keeps its own backend-side implementation.
 function getBoundingBoxIou(left: Detection["bbox"], right: Detection["bbox"]): number {
   const leftX2 = left.x + left.width;
   const leftY2 = left.y + left.height;

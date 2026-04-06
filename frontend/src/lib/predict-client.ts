@@ -507,7 +507,7 @@ export function getResultImageUrl(
   cacheKey?: string | number | null
 ): string | null {
   if (!API_BASE_URL) {
-    return demoResult.artifacts.upload_path ?? null;
+    return null;
   }
 
   return withCacheKey(`${API_BASE_URL}/results/${encodeImageId(imageId)}/image`, cacheKey);

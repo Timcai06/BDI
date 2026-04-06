@@ -115,7 +115,7 @@ describe("ResultDashboard", () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByText("1 项")).toBeInTheDocument();
+    expect(screen.getByTestId("detection-count")).toHaveTextContent("1 项");
     expect(screen.getAllByText(/裂缝/i).length).toBeGreaterThan(0);
     expect(container!.querySelectorAll(".cursor-crosshair")).toHaveLength(1);
   });
