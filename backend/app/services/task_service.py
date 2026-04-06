@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import io
-import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -10,7 +8,6 @@ from typing import Any, Optional
 from uuid import uuid4
 
 from fastapi import status
-from PIL import Image as PILImage
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -21,11 +18,8 @@ from app.core.errors import AppError
 from app.db.models import (
     AlertEvent,
     BatchItem,
-    Detection,
-    InferenceResult,
     InferenceTask,
     InspectionBatch,
-    MediaAsset,
     OpsAuditLog,
     OpsConfig,
 )
@@ -34,7 +28,6 @@ from app.models.schemas import (
     AlertRulesUpdateRequest,
     OpsAuditLogListResponse,
     OpsAuditLogResponse,
-    PredictOptions,
     PredictResponse,
     RawPrediction,
     ResultEnhanceRequest,
@@ -43,6 +36,9 @@ from app.models.schemas import (
     TaskRetryRequest,
     TaskRetryResponse,
 )
+from app.services.batch_aggregate_service import refresh_batch_aggregates
+from app.services.task_enhancement_service import enhance_result as enhance_result_via_service
+from app.services.task_execution_service import execute_task as execute_task_via_service
 from app.storage.local import LocalArtifactStore
 
 RETRYABLE_FAILURE_CODES = {
@@ -190,143 +186,7 @@ class TaskService:
                 return TaskProcessResponse(processed=False, task_id=task.id, message=message)
 
     def enhance_result(self, image_id: str, payload: ResultEnhanceRequest) -> PredictResponse:
-        if self.enhance_runner is None:
-            raise AppError(
-                code="ENHANCEMENT_UNAVAILABLE",
-                message="Enhancement runtime is unavailable.",
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                details={"image_id": image_id},
-            )
-
-        with self.session_factory() as session:
-            result = session.get(InferenceResult, image_id)
-            if result is None:
-                raise AppError(
-                    code="RESULT_NOT_FOUND",
-                    message="Result does not exist.",
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    details={"image_id": image_id},
-                )
-
-            batch_item = session.get(BatchItem, result.batch_item_id)
-            if batch_item is None:
-                raise AppError(
-                    code="BATCH_ITEM_NOT_FOUND",
-                    message="Batch item does not exist.",
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    details={"batch_item_id": result.batch_item_id},
-                )
-
-            media_asset = session.get(MediaAsset, batch_item.media_asset_id)
-            if media_asset is None:
-                raise AppError(
-                    code="MEDIA_ASSET_NOT_FOUND",
-                    message="Media asset does not exist.",
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    details={"media_asset_id": batch_item.media_asset_id},
-                )
-
-            image_path = self._resolve_storage_path(media_asset.storage_uri)
-            if not image_path.exists():
-                raise AppError(
-                    code="MEDIA_FILE_NOT_FOUND",
-                    message="Task media file does not exist.",
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    details={"storage_uri": media_asset.storage_uri},
-                )
-
-            spec, runner = self.runner_manager.resolve(result.model_version)
-            options = PredictOptions(
-                model_version=spec.model_version,
-                inference_mode=result.inference_mode,
-                return_overlay=True,
-            )
-
-            image_bytes = image_path.read_bytes()
-            original_img = PILImage.open(io.BytesIO(image_bytes))
-            enhanced_img = self.enhance_runner.enhance(original_img)
-            enhance_meta = self.enhance_runner.describe()
-
-            buf = io.BytesIO()
-            enhanced_img.save(buf, format="WEBP", quality=95)
-            enhanced_content = buf.getvalue()
-            enhanced_uri = self.store.save_enhanced(image_id=batch_item.id, content=enhanced_content)
-
-            secondary_raw = runner.predict(
-                image_bytes=enhanced_content,
-                image_name=media_asset.original_filename,
-                options=options,
-            )
-
-            enhanced_overlay_uri = None
-            if secondary_raw.overlay_png:
-                enhanced_overlay_uri = self.store.save_enhanced_overlay(
-                    image_id=batch_item.id,
-                    content=secondary_raw.overlay_png,
-                )
-
-            payload_path = Path(result.json_uri) if result.json_uri else self.store.result_path(image_id)
-            if not payload_path.exists():
-                raise AppError(
-                    code="RESULT_JSON_NOT_FOUND",
-                    message="Result payload does not exist.",
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    details={"image_id": image_id},
-                )
-
-            raw_payload = json.loads(payload_path.read_text(encoding="utf-8"))
-            created_at = datetime.now(timezone.utc)
-            secondary_id = f"{image_id}-enhanced"
-            raw_payload.setdefault("artifacts", {})
-            raw_payload["artifacts"]["enhanced_path"] = enhanced_uri
-            raw_payload["artifacts"]["enhanced_overlay_path"] = enhanced_overlay_uri
-            raw_payload["secondary_result"] = {
-                "schema_version": raw_payload.get("schema_version", "2.0.0"),
-                "image_id": secondary_id,
-                "result_variant": "enhanced",
-                "inference_ms": secondary_raw.inference_ms,
-                "inference_breakdown": secondary_raw.inference_breakdown,
-                "model_name": secondary_raw.model_name,
-                "model_version": secondary_raw.model_version,
-                "backend": secondary_raw.backend,
-                "inference_mode": secondary_raw.inference_mode,
-                "detections": [
-                    {
-                        "id": f"{secondary_id}-{index + 1}",
-                        "category": item.category,
-                        "confidence": item.confidence,
-                        "bbox": item.bbox.model_dump(),
-                        "mask": item.mask.model_dump() if item.mask is not None else None,
-                        "metrics": item.metrics.model_dump(),
-                        "source_role": item.source_role,
-                        "source_model_name": item.source_model_name,
-                        "source_model_version": item.source_model_version,
-                    }
-                    for index, item in enumerate(secondary_raw.detections)
-                ],
-                "has_masks": any(item.mask is not None for item in secondary_raw.detections),
-                "mask_detection_count": sum(1 for item in secondary_raw.detections if item.mask is not None),
-                "enhancement_info": {
-                    "algorithm": enhance_meta["algorithm"],
-                    "pipeline": enhance_meta["pipeline"],
-                    "revised_weights": enhance_meta["revised_weights"],
-                    "bridge_weights": enhance_meta["bridge_weights"],
-                    "generated_at": created_at.isoformat(),
-                },
-                "artifacts": {
-                    "upload_path": enhanced_uri,
-                    "json_path": raw_payload.get("artifacts", {}).get("json_path", ""),
-                    "overlay_path": enhanced_overlay_uri,
-                },
-                "created_at": created_at.isoformat(),
-            }
-            raw_payload["enhancement_request"] = {
-                "requested_by": payload.requested_by,
-                "reason": payload.reason,
-                "generated_at": created_at.isoformat(),
-            }
-            payload_path.write_text(json.dumps(raw_payload, ensure_ascii=False, indent=2), encoding="utf-8")
-            return PredictResponse.model_validate(raw_payload)
+        return enhance_result_via_service(self, image_id, payload)
 
     def retry_task(self, task_id: str, payload: TaskRetryRequest) -> TaskRetryResponse:
         with self.session_factory() as session:
@@ -539,200 +399,7 @@ class TaskService:
         return task
 
     def _execute_task(self, session: Session, task: InferenceTask) -> str:
-        batch_item = session.get(BatchItem, task.batch_item_id)
-        if batch_item is None:
-            raise AppError(
-                code="BATCH_ITEM_NOT_FOUND",
-                message="Task batch item does not exist.",
-                status_code=status.HTTP_404_NOT_FOUND,
-                details={"batch_item_id": task.batch_item_id},
-            )
-        media_asset = session.get(MediaAsset, batch_item.media_asset_id)
-        if media_asset is None:
-            raise AppError(
-                code="MEDIA_ASSET_NOT_FOUND",
-                message="Task media asset does not exist.",
-                status_code=status.HTTP_404_NOT_FOUND,
-                details={"media_asset_id": batch_item.media_asset_id},
-            )
-
-        image_path = self._resolve_storage_path(media_asset.storage_uri)
-        if not image_path.exists():
-            raise AppError(
-                code="MEDIA_FILE_NOT_FOUND",
-                message="Task media file does not exist.",
-                status_code=status.HTTP_404_NOT_FOUND,
-                details={"storage_uri": media_asset.storage_uri},
-            )
-        self._touch_task_lease(task)
-        image_bytes = image_path.read_bytes()
-        requested_model_version = task.requested_model_version or self._resolve_requested_model_version(
-            task.model_policy
-        )
-        spec, runner = self.runner_manager.resolve(requested_model_version)
-        task.requested_model_version = requested_model_version
-        task.resolved_model_version = spec.model_version
-        runtime_payload = dict(task.runtime_payload or {})
-        runtime_payload["resolved_from_policy"] = {
-            "model_policy": task.model_policy,
-            "requested_model_version": task.requested_model_version,
-            "resolved_model_version": spec.model_version,
-        }
-        task.runtime_payload = runtime_payload
-
-        options = PredictOptions(
-            model_version=spec.model_version,
-            inference_mode=task.inference_mode,
-            return_overlay=True,
-        )
-
-        # 1. Track A: Original (Baseline)
-        raw = runner.predict(
-            image_bytes=image_bytes,
-            image_name=media_asset.original_filename,
-            options=options,
-        )
-        self._touch_task_lease(task)
-
-        # 2. Track B: Enhanced (Twin-track)
-        secondary_raw = None
-        enhanced_uri = None
-        enhanced_overlay_uri = None
-
-        if task.runtime_payload.get("enhance") and self.enhance_runner:
-            try:
-                # Image Enhancement
-                orig_img = PILImage.open(io.BytesIO(image_bytes))
-                enhanced_img = self.enhance_runner.enhance(orig_img)
-                enhance_meta = self.enhance_runner.describe()
-
-                # Save Enhanced Image
-                buf = io.BytesIO()
-                enhanced_img.save(buf, format="WEBP", quality=95)
-                enhanced_content = buf.getvalue()
-                enhanced_uri = self.store.save_enhanced(image_id=batch_item.id, content=enhanced_content)
-
-                # Detection on Enhanced Image
-                secondary_raw = runner.predict(
-                    image_bytes=enhanced_content,
-                    image_name=media_asset.original_filename,
-                    options=options,
-                )
-
-                # Save Enhanced Overlay
-                if secondary_raw.overlay_png:
-                    enhanced_overlay_uri = self.store.save_enhanced_overlay(
-                        image_id=batch_item.id, content=secondary_raw.overlay_png
-                    )
-            except Exception:
-                # log and allow Track A to finish
-                pass
-
-        result_id = _new_id("res")
-        result_created_at = datetime.now(timezone.utc)
-        overlay_uri = None
-        if raw.overlay_png:
-            overlay_uri = self.store.save_overlay(image_id=result_id, content=raw.overlay_png)
-
-        json_payload = self._build_result_json(
-            result_id=result_id,
-            batch_item_id=batch_item.id,
-            raw=raw,
-            upload_uri=media_asset.storage_uri,
-            overlay_uri=overlay_uri,
-            secondary_raw=secondary_raw,
-            enhanced_uri=enhanced_uri,
-            enhanced_overlay_uri=enhanced_overlay_uri,
-            enhancement_meta=enhance_meta if secondary_raw and enhanced_uri else None,
-            created_at=result_created_at,
-        )
-        json_uri = self.store.save_json(image_id=result_id, payload=json_payload)
-
-        result = InferenceResult(
-            id=result_id,
-            task_id=task.id,
-            batch_item_id=batch_item.id,
-            schema_version="2.0.0",
-            model_name=raw.model_name,
-            model_version=raw.model_version,
-            backend=raw.backend,
-            inference_mode=raw.inference_mode,
-            inference_ms=raw.inference_ms + (secondary_raw.inference_ms if secondary_raw else 0),
-            inference_breakdown={
-                "original": raw.inference_breakdown,
-                "enhanced": secondary_raw.inference_breakdown if secondary_raw else None,
-            },
-            detection_count=len(raw.detections),
-            has_masks=any(item.mask is not None for item in raw.detections),
-            mask_detection_count=sum(1 for item in raw.detections if item.mask is not None),
-            overlay_uri=overlay_uri,
-            json_uri=json_uri,
-            created_at=result_created_at,
-        )
-        session.add(result)
-        # Persist the parent row first so child Detection inserts cannot race
-        # ahead of inference_results and trip the FK on result_id.
-        session.flush()
-
-        # Merge detections for persistent record (showing main track detections)
-        for item in raw.detections:
-            session.add(
-                Detection(
-                    id=_new_id("det"),
-                    result_id=result_id,
-                    batch_item_id=batch_item.id,
-                    category=item.category,
-                    confidence=item.confidence,
-                    bbox_x=item.bbox.x,
-                    bbox_y=item.bbox.y,
-                    bbox_width=item.bbox.width,
-                    bbox_height=item.bbox.height,
-                    mask_payload=item.mask.model_dump() if item.mask is not None else None,
-                    length_mm=item.metrics.length_mm,
-                    width_mm=item.metrics.width_mm,
-                    area_mm2=item.metrics.area_mm2,
-                    source_role=item.source_role,
-                    source_model_name=item.source_model_name,
-                    source_model_version=item.source_model_version,
-                )
-            )
-
-        # Flush result and detections before inserting dependent alert rows.
-        session.flush()
-
-        # Keep alert persistence isolated from result persistence. If alert insert fails
-        # (for example FK mismatch from legacy data), result/detection rows should still commit.
-        try:
-            with session.begin_nested():
-                self._emit_auto_alerts(
-                    session=session,
-                    batch_item=batch_item,
-                    result_id=result_id,
-                    raw=raw,
-                )
-                session.flush()
-        except Exception as exc:  # pragma: no cover - defensive path for alert side effects
-            logger.warning(
-                "Auto alert persistence failed but inference result remains valid: batch_item_id=%s result_id=%s error=%s",
-                batch_item.id,
-                result_id,
-                exc,
-            )
-
-        batch_item.processing_status = "succeeded"
-        batch_item.latest_task_id = task.id
-        batch_item.latest_result_id = result_id
-        batch_item.defect_count = len(raw.detections)
-        batch_item.max_confidence = max((item.confidence for item in raw.detections), default=None)
-
-        task.status = "succeeded"
-        task.heartbeat_at = datetime.now(timezone.utc)
-        task.lease_expires_at = None
-        task.finished_at = datetime.now(timezone.utc)
-        task.timing_payload = raw.inference_breakdown
-
-        self._refresh_batch_aggregates(session=session, batch_id=batch_item.batch_id)
-        return result_id
+        return execute_task_via_service(self, session, task)
 
     def _resolve_storage_path(self, storage_uri: str) -> Path:
         candidate = Path(storage_uri)
@@ -848,45 +515,7 @@ class TaskService:
         return candidates
 
     def _refresh_batch_aggregates(self, *, session: Session, batch_id: str) -> None:
-        batch = session.get(InspectionBatch, batch_id)
-        if batch is None:
-            return
-
-        status_counts = dict(
-            session.execute(
-                select(BatchItem.processing_status, func.count())
-                .where(BatchItem.batch_id == batch_id)
-                .group_by(BatchItem.processing_status)
-            ).all()
-        )
-
-        batch.received_item_count = sum(status_counts.values())
-        batch.queued_item_count = int(status_counts.get("queued", 0))
-        batch.running_item_count = int(status_counts.get("running", 0))
-        batch.succeeded_item_count = int(status_counts.get("succeeded", 0))
-        batch.failed_item_count = int(status_counts.get("failed", 0))
-
-        if batch.received_item_count == 0:
-            batch.status = "ingesting"
-            batch.started_at = None
-            batch.finished_at = None
-            return
-
-        if batch.started_at is None:
-            batch.started_at = datetime.now(timezone.utc)
-
-        if batch.running_item_count > 0 or batch.queued_item_count > 0:
-            batch.status = "running"
-            batch.finished_at = None
-        elif batch.failed_item_count > 0 and batch.succeeded_item_count > 0:
-            batch.status = "partial_failed"
-            batch.finished_at = datetime.now(timezone.utc)
-        elif batch.failed_item_count > 0 and batch.succeeded_item_count == 0:
-            batch.status = "failed"
-            batch.finished_at = datetime.now(timezone.utc)
-        elif batch.succeeded_item_count > 0:
-            batch.status = "completed"
-            batch.finished_at = datetime.now(timezone.utc)
+        refresh_batch_aggregates(self, session=session, batch_id=batch_id)
 
     def _mark_task_failed(
         self,
