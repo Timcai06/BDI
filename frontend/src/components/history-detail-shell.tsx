@@ -8,6 +8,7 @@ import { ResultDashboard } from "@/components/result-dashboard";
 import { getDefectLabel } from "@/lib/defect-visuals";
 import { formatModelLabel } from "@/lib/model-labels";
 import {
+  enhanceResultImage,
   getOverlayDownloadUrl,
   getResult,
   getResultImageFile,
@@ -62,6 +63,7 @@ export function HistoryDetailShell({ imageId }: HistoryDetailShellProps) {
   const [minConfidence, setMinConfidence] = useState(0.0);
   const [selectedDetectionId, setSelectedDetectionId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"image" | "result" | "mask">("image");
+  const [enhancementPending, setEnhancementPending] = useState(false);
 
   const deferredCategoryFilter = useDeferredValue(categoryFilter);
   const deferredMinConfidence = useDeferredValue(minConfidence);
@@ -213,6 +215,34 @@ export function HistoryDetailShell({ imageId }: HistoryDetailShellProps) {
     });
   }
 
+  async function handleGenerateEnhancement() {
+    if (!result || enhancementPending) return;
+    setEnhancementPending(true);
+    setStatus({
+      phase: "running",
+      message: `正在为 ${result.image_id} 生成增强识别结果。`,
+    });
+    try {
+      const enhancedResult = await enhanceResultImage({
+        imageId: result.image_id,
+        requestedBy: "history-detail",
+        reason: "manual-enhancement",
+      });
+      setResult(enhancedResult);
+      setStatus({
+        phase: "success",
+        message: `已生成 ${result.image_id} 的增强识别结果。`,
+      });
+    } catch (error) {
+      setStatus({
+        phase: "error",
+        message: error instanceof Error ? error.message : "增强结果生成失败。",
+      });
+    } finally {
+      setEnhancementPending(false);
+    }
+  }
+
   if (!result && status.phase === "running") {
     return (
       <section className="flex-1 flex flex-col min-w-0 bg-transparent relative z-10">
@@ -333,6 +363,10 @@ export function HistoryDetailShell({ imageId }: HistoryDetailShellProps) {
               message: "已清除对比结果，你可以重新选择一个模型版本再次比较。",
             });
           }}
+          onGenerateEnhancement={() => {
+            void handleGenerateEnhancement();
+          }}
+          enhancementPending={enhancementPending}
           rerunDisabled
           compareDisabled={compareOptions.length === 0}
           status={status}

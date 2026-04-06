@@ -103,7 +103,7 @@ async def ingest_batch_items(
     source_device: Annotated[Optional[str], Form()] = None,
     captured_at: Annotated[Optional[datetime], Form()] = None,
     model_policy: Annotated[str, Form()] = "fusion-default",
-    enhancement_mode: Annotated[str, Form()] = "auto",
+    enhancement_mode: Annotated[str, Form()] = "always",
 ) -> BatchIngestResponse:
     return await request.app.state.batch_service.ingest_items(
         batch_id=batch_id,

@@ -165,6 +165,11 @@ class DiagnosisResponse(BaseModel):
     generated_at: Optional[datetime] = None
 
 
+class ResultEnhanceRequest(BaseModel):
+    requested_by: str = Field(min_length=1, max_length=128)
+    reason: Optional[str] = Field(default=None, max_length=512)
+
+
 class RawDetection(BaseModel):
     category: str
     confidence: float
@@ -244,7 +249,7 @@ class BatchCreateRequest(BaseModel):
     expected_item_count: int = Field(default=0, ge=0)
     created_by: Optional[str] = Field(default=None, max_length=64)
     inspection_label: Optional[str] = Field(default=None, max_length=128)
-    enhancement_mode: Literal["off", "auto", "always"] = "auto"
+    enhancement_mode: Literal["off", "auto", "always"] = "always"
 
 
 class BatchResponse(BaseModel):
@@ -267,7 +272,7 @@ class BatchResponse(BaseModel):
     failed_item_count: int
     created_by: Optional[str] = None
     inspection_label: Optional[str] = None
-    enhancement_mode: Literal["off", "auto", "always"] = "auto"
+    enhancement_mode: Literal["off", "auto", "always"] = "always"
     started_at: Optional[datetime] = None
     finished_at: Optional[datetime] = None
     created_at: datetime

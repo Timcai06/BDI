@@ -7,6 +7,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/predict-client", () => ({
+  enhanceResultImage: vi.fn(),
   createV1Review: vi.fn(async () => ({ id: "rev_1" })),
   getResultImageUrl: vi.fn(() => "/results/res_1/image"),
   getOverlayDownloadUrl: vi.fn(() => "/results/res_1/overlay"),
@@ -103,14 +104,13 @@ describe("OpsItemDetailShell", () => {
     expect(screen.getAllByText("原图识别").length).toBeGreaterThan(0);
     expect(screen.queryByText("corrosion")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "增强后识别" }));
+    fireEvent.click(screen.getByRole("button", { name: "查看增强" }));
 
     await waitFor(() => {
       expect(screen.getAllByText("增强后识别").length).toBeGreaterThan(0);
     });
 
     expect(screen.getByText("corrosion")).toBeInTheDocument();
-    expect(screen.getByText("Img_Enhance / dual_branch_fusion")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "SWITCH_TO_ORIGINAL_TO_REVIEW" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "请切回原图提交" })).toBeDisabled();
   });
 });

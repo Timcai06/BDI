@@ -53,6 +53,8 @@ interface ResultDashboardProps {
   onCompareModelVersionChange: (modelVersion: string) => void;
   onRunComparison: () => void;
   onClearComparison: () => void;
+  onGenerateEnhancement?: () => void | Promise<void>;
+  enhancementPending?: boolean;
   rerunDisabled: boolean;
   compareDisabled: boolean;
   // Status & Filter props from HomeShell
@@ -137,6 +139,8 @@ export function ResultDashboard({
   onCompareModelVersionChange,
   onRunComparison,
   onClearComparison,
+  onGenerateEnhancement,
+  enhancementPending = false,
   rerunDisabled,
   compareDisabled,
   status,
@@ -168,6 +172,11 @@ export function ResultDashboard({
 
   // Use the new comparison hook
   const [showEnhancementCompare, setShowEnhancementCompare] = useState<boolean>(false);
+  const hasEnhancedResult = Boolean(result.secondary_result);
+  const activeResult = useMemo(
+    () => (showEnhancementCompare && result.secondary_result ? result.secondary_result : result),
+    [result, showEnhancementCompare],
+  );
 
   // Use effective comparison result (either manual or automatic enhancement)
   const effectiveComparisonResult = useMemo(() => {
@@ -180,7 +189,7 @@ export function ResultDashboard({
   const mainMetrics = comp?.primaryMetrics ?? {
     totalLength: 0,
     totalArea: 0,
-    count: result.detections.length,
+    count: activeResult.detections.length,
     averageConfidence: 0,
   };
   const comparisonMetrics = comp?.comparisonMetrics ?? null;
@@ -280,7 +289,7 @@ export function ResultDashboard({
     }
   }, [comparisonResult]);
   const filteredDetections = filterDetections(
-    result.detections,
+    activeResult.detections,
     categoryFilter,
     minConfidence,
   );
@@ -452,6 +461,30 @@ export function ResultDashboard({
                     {primaryActionLabel}
                   </button>
                 )}
+
+                <button
+                  className="h-8 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 text-[11px] font-bold tracking-widest uppercase text-emerald-200 transition-colors hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-white/30"
+                  type="button"
+                  title={
+                    comparisonResult
+                      ? "请先清除模型对比结果"
+                      : !hasEnhancedResult && !onGenerateEnhancement
+                        ? "当前记录没有增强结果"
+                        : hasEnhancedResult
+                          ? "切换增强识别结果"
+                          : "生成增强识别结果"
+                  }
+                  disabled={enhancementPending || Boolean(comparisonResult) || (!hasEnhancedResult && !onGenerateEnhancement)}
+                  onClick={() => {
+                    if (hasEnhancedResult) {
+                      setShowEnhancementCompare((value) => !value);
+                      return;
+                    }
+                    void onGenerateEnhancement?.();
+                  }}
+                >
+                  {enhancementPending ? "增强中..." : hasEnhancedResult ? (showEnhancementCompare ? "查看原图" : "查看增强") : "增强"}
+                </button>
               </div>
             </div>
             {/* defect metrics HUD (High-level HUD style) */}
@@ -504,7 +537,7 @@ export function ResultDashboard({
                   CAMERA FEED
                 </span>
                 <span className="shrink-0 text-[10px] font-mono text-white/40">
-                  {formatResultTimestamp(result.created_at)} UTC
+                  {formatResultTimestamp(activeResult.created_at)} UTC
                 </span>
               </div>
 
@@ -585,9 +618,11 @@ export function ResultDashboard({
                                 <polygon
                                   key={item.id}
                                   points={polygonPoints}
-                                  fill="none"
+                                  fill={colorCode}
+                                  fillOpacity={isSelected ? "0.32" : "0.22"}
                                   stroke={colorCode}
-                                  strokeWidth={isSelected ? "0.8" : "0.45"}
+                                  strokeOpacity={isSelected ? "1" : "0.82"}
+                                  strokeWidth={isSelected ? "0.9" : "0.5"}
                                   className="cursor-crosshair"
                                   onClick={() => handleFocusDetection(item)}
                                 />
@@ -764,22 +799,6 @@ export function ResultDashboard({
                   </div>
                 ) : null}
               </div>
-
-              {result.secondary_result && !comparisonResult && (
-                <button
-                  onClick={() => setShowEnhancementCompare(!showEnhancementCompare)}
-                  className={`flex items-center gap-2 rounded-xl border px-5 py-2.5 text-xs font-bold tracking-widest uppercase transition-all ${
-                    showEnhancementCompare
-                      ? "bg-sky-500 border-sky-400 text-black shadow-[0_0_20px_rgba(56,189,248,0.4)]"
-                      : "border-white/10 bg-white/5 text-white/60 hover:text-white hover:bg-white/10"
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  {showEnhancementCompare ? "退出增强对比" : "查看增强对比结果"}
-                </button>
-              )}
 
               {comp && (
                 <div className="flex rounded-xl border border-white/8 bg-white/5 p-1.5 backdrop-blur-md">

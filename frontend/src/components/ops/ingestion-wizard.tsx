@@ -30,7 +30,7 @@ export function IngestionWizard({
   const [step, setStep] = useState(1);
   const [sourceType, setSourceType] = useState("drone-survey");
   const [inspectionLabel, setInspectionLabel] = useState("");
-  const [enhancementMode, setEnhancementMode] = useState<"off" | "auto" | "always">("auto");
+  const [enhancementMode, setEnhancementMode] = useState<"off" | "auto" | "always">("always");
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [uploadMode, setUploadMode] = useState<"files" | "folder">("files");
   const folderInputProps: Record<string, string> =

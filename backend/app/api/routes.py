@@ -16,6 +16,7 @@ from app.models.schemas import (
     ModelCatalogResponse,
     PredictOptions,
     PredictResponse,
+    ResultEnhanceRequest,
     ResultListResponse,
 )
 
@@ -167,6 +168,15 @@ async def get_enhanced_image(request: Request, image_id: str) -> FileResponse:
 async def get_enhanced_overlay(request: Request, image_id: str) -> FileResponse:
     overlay_path = request.app.state.result_service.get_enhanced_overlay_path(image_id=image_id)
     return FileResponse(overlay_path, media_type="image/webp", filename=overlay_path.name)
+
+
+@router.post("/results/{image_id}/enhance", response_model=PredictResponse)
+async def enhance_result(
+    request: Request,
+    image_id: str,
+    payload: ResultEnhanceRequest,
+) -> PredictResponse:
+    return request.app.state.task_service.enhance_result(image_id=image_id, payload=payload)
 
 
 @router.delete("/results/{image_id}", response_model=DeleteResultResponse)

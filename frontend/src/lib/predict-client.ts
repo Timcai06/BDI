@@ -768,7 +768,7 @@ export async function createV1Batch(payload: {
       expected_item_count: payload.expectedItemCount,
       created_by: payload.createdBy ?? null,
       inspection_label: payload.inspectionLabel ?? null,
-      enhancement_mode: payload.enhancementMode ?? "auto",
+      enhancement_mode: payload.enhancementMode ?? "always",
     })
   });
   if (!response.ok) {
@@ -808,7 +808,7 @@ export async function ingestV1BatchItems(payload: {
   payload.files.forEach((file) => formData.append("files", file));
   payload.relativePaths?.forEach((relativePath) => formData.append("relative_paths", relativePath));
   formData.append("model_policy", payload.modelPolicy ?? "fusion-default");
-  formData.append("enhancement_mode", payload.enhancementMode ?? "auto");
+  formData.append("enhancement_mode", payload.enhancementMode ?? "always");
   if (payload.sourceDevice) {
     formData.append("source_device", payload.sourceDevice);
   }
@@ -1026,6 +1026,30 @@ export async function getV1Task(taskId: string): Promise<TaskV1> {
     throw new Error(getErrorMessage(payload, "任务详情加载失败。"));
   }
   return (await response.json()) as TaskV1;
+}
+
+export async function enhanceResultImage(payload: {
+  imageId: string;
+  requestedBy: string;
+  reason?: string;
+}): Promise<PredictionResult> {
+  if (!API_BASE_URL) {
+    throw new Error("演示模式下无法生成增强结果。");
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}/results/${encodeURIComponent(payload.imageId)}/enhance`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      requested_by: payload.requestedBy,
+      reason: payload.reason ?? null
+    }),
+    timeoutMs: PREDICT_TIMEOUT_MS
+  });
+  if (!response.ok) {
+    const err = (await response.json()) as ApiError;
+    throw new Error(getErrorMessage(err, "增强结果生成失败。"));
+  }
+  return (await response.json()) as PredictionResult;
 }
 
 export async function retryV1Task(payload: {
