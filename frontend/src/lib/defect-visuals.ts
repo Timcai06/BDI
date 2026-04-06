@@ -30,61 +30,29 @@ export const DEFECT_DICTIONARY = {
 } as const;
 
 type DefectKey = keyof typeof DEFECT_DICTIONARY;
+const CANONICAL_DEFECT_KEYS = new Set<DefectKey>([
+  "crack",
+  "breakage",
+  "comb",
+  "hole",
+  "reinforcement",
+  "seepage",
+]);
+const LABEL_TO_KEY: Record<string, DefectKey> = Object.entries(DEFECT_DICTIONARY).reduce(
+  (accumulator, [key, value]) => {
+    accumulator[value.label] = key as DefectKey;
+    return accumulator;
+  },
+  {} as Record<string, DefectKey>,
+);
 
 export function normalizeCategory(category: string): DefectKey {
-  const value = category.trim().toLowerCase();
-  const standardCategories: DefectKey[] = [
-    "crack",
-    "breakage",
-    "comb",
-    "hole",
-    "reinforcement",
-    "seepage",
-    "default",
-  ];
-
-  // Prefer canonical backend categories first.
-  if (standardCategories.includes(value as DefectKey)) {
-    return value as DefectKey;
+  const raw = category.trim();
+  const value = raw.toLowerCase() as DefectKey;
+  if (CANONICAL_DEFECT_KEYS.has(value)) {
+    return value;
   }
-
-  if (value === "裂缝" || value.includes("crack")) {
-    return "crack";
-  }
-  if (
-    value === "破损" ||
-    value.includes("breakage") ||
-    value.includes("spalling") ||
-    value.includes("剥落")
-  ) {
-    return "breakage";
-  }
-  if (value === "梳齿缺陷" || value.includes("comb") || value.includes("梳齿")) {
-    return "comb";
-  }
-  if (value === "孔洞" || value.includes("hole") || value.includes("空洞")) {
-    return "hole";
-  }
-  if (
-    value === "钢筋外露" ||
-    value.includes("reinforcement") ||
-    value.includes("rebar") ||
-    value.includes("corrosion") ||
-    value.includes("锈蚀")
-  ) {
-    return "reinforcement";
-  }
-  if (
-    value === "渗水" ||
-    value.includes("seepage") ||
-    value.includes("efflorescence") ||
-    value.includes("白华") ||
-    value.includes("泛碱")
-  ) {
-    return "seepage";
-  }
-
-  return "default";
+  return LABEL_TO_KEY[raw] ?? "default";
 }
 
 export function getDefectColorHex(category: string): string {
