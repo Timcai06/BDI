@@ -104,23 +104,8 @@ async function cachedFetch<T>(
 // Helpers
 // ---------------------------------------------------------------------------
 
-function cloneDemoResult(file: File, options: PredictOptions): PredictionResult {
-  const modelVersion = options.modelVersion ?? demoResult.model_version;
-  const base = buildDemoResultForModelVersion(modelVersion);
-
-  return {
-    ...base,
-    image_id: file.name,
-    artifacts: {
-      ...base.artifacts,
-      upload_path: `uploads/${file.name}`,
-      overlay_path: options.exportOverlay ? base.artifacts.overlay_path : null
-    }
-  };
-}
-
-function getErrorMessage(payload: unknown, fallback: string): string {
-  if (
+function getErrorMessage(payload: unknown, fallback: string, requestId?: string | null): string {
+  const baseMessage =
     payload &&
     typeof payload === "object" &&
     "error" in payload &&
@@ -128,11 +113,30 @@ function getErrorMessage(payload: unknown, fallback: string): string {
     typeof payload.error === "object" &&
     "message" in payload.error &&
     typeof payload.error.message === "string"
-  ) {
-    return payload.error.message;
+      ? payload.error.message
+      : fallback;
+
+  return requestId ? `${baseMessage} [请求ID: ${requestId}]` : baseMessage;
+}
+
+async function readErrorMessage(response: Response, fallback: string): Promise<string> {
+  let payload: unknown = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
   }
 
-  return fallback;
+  return getErrorMessage(payload, fallback, response.headers.get("x-request-id"));
+}
+
+function getFilenameFromDisposition(header: string | null, fallback: string): string {
+  if (!header) {
+    return fallback;
+  }
+
+  const filenameMatch = header.match(/filename="?([^"]+)"?/i);
+  return filenameMatch?.[1] ?? fallback;
 }
 
 function invalidateResultListCaches() {
@@ -163,13 +167,19 @@ function buildQuery(params: Record<string, string | number | boolean | null | un
   return query ? `?${query}` : "";
 }
 
-function getFilenameFromDisposition(header: string | null, fallback: string): string {
-  if (!header) {
-    return fallback;
-  }
+function cloneDemoResult(file: File, options: PredictOptions): PredictionResult {
+  const modelVersion = options.modelVersion ?? demoResult.model_version;
+  const base = buildDemoResultForModelVersion(modelVersion);
 
-  const filenameMatch = header.match(/filename="?([^"]+)"?/i);
-  return filenameMatch?.[1] ?? fallback;
+  return {
+    ...base,
+    image_id: file.name,
+    artifacts: {
+      ...base.artifacts,
+      upload_path: `uploads/${file.name}`,
+      overlay_path: options.exportOverlay ? base.artifacts.overlay_path : null
+    }
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -206,11 +216,9 @@ export async function predictImage(
     });
 
     if (!response.ok) {
-      const payload = (await response.json()) as ApiError;
-      throw new Error(getErrorMessage(payload, "识别失败，请稍后重试。"));
+      throw new Error(await readErrorMessage(response, "识别失败，请稍后重试。"));
     }
 
-    // Invalidate all paginated history list caches on new prediction.
     invalidateResultListCaches();
 
     return (await response.json()) as PredictionResult;
@@ -232,8 +240,7 @@ export async function listModels(): Promise<ModelCatalogResponse> {
     const response = await fetchWithTimeout(`${API_BASE_URL}/models`);
 
     if (!response.ok) {
-      const payload = (await response.json()) as ApiError;
-      throw new Error(getErrorMessage(payload, "模型列表加载失败。"));
+      throw new Error(await readErrorMessage(response, "模型列表加载失败。"));
     }
 
     return (await response.json()) as ModelCatalogResponse;
@@ -272,8 +279,7 @@ export async function listResults(
     const response = await fetchWithTimeout(`${API_BASE_URL}/results?offset=${offset}&limit=${limit}`);
 
     if (!response.ok) {
-      const payload = (await response.json()) as ApiError;
-      throw new Error(getErrorMessage(payload, "历史结果加载失败。"));
+      throw new Error(await readErrorMessage(response, "历史结果加载失败。"));
     }
 
     return (await response.json()) as PredictionHistoryResponse;
@@ -325,8 +331,7 @@ export async function getResult(
     const response = await fetchWithTimeout(`${API_BASE_URL}/results/${encodedImageId}`);
 
     if (!response.ok) {
-      const payload = (await response.json()) as ApiError;
-      throw new Error(getErrorMessage(payload, "结果详情加载失败。"));
+      throw new Error(await readErrorMessage(response, "结果详情加载失败。"));
     }
 
     return (await response.json()) as PredictionResult;
@@ -353,8 +358,7 @@ export async function deleteResult(imageId: string): Promise<void> {
     });
 
     if (!response.ok) {
-      const payload = (await response.json()) as ApiError;
-      throw new Error(getErrorMessage(payload, "删除记录失败。"));
+      throw new Error(await readErrorMessage(response, "删除记录失败。"));
     }
 
     // Invalidate caches
@@ -403,8 +407,7 @@ export async function batchDeleteResults(imageIds: string[]): Promise<BatchDelet
     });
 
     if (!response.ok) {
-      const payload = (await response.json()) as ApiError;
-      throw new Error(getErrorMessage(payload, "批量删除记录失败。"));
+      throw new Error(await readErrorMessage(response, "批量删除记录失败。"));
     }
 
     for (const imageId of imageIds) {
@@ -682,8 +685,7 @@ export async function listV1Batches(params?: {
   });
   const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/batches${query}`);
   if (!response.ok) {
-    const payload = (await response.json()) as ApiError;
-    throw new Error(getErrorMessage(payload, "批次列表加载失败。"));
+    throw new Error(await readErrorMessage(response, "批次列表加载失败。"));
   }
   return (await response.json()) as BatchListV1Response;
 }
@@ -694,8 +696,7 @@ export async function listV1Bridges(limit: number = 50, offset: number = 0): Pro
   }
   const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/bridges?limit=${limit}&offset=${offset}`);
   if (!response.ok) {
-    const payload = (await response.json()) as ApiError;
-    throw new Error(getErrorMessage(payload, "桥梁列表加载失败。"));
+    throw new Error(await readErrorMessage(response, "桥梁列表加载失败。"));
   }
   return (await response.json()) as BridgeListV1Response;
 }
@@ -726,8 +727,7 @@ export async function createV1Bridge(payload: {
     })
   });
   if (!response.ok) {
-    const err = (await response.json()) as ApiError;
-    throw new Error(getErrorMessage(err, "桥梁创建失败。"));
+    throw new Error(await readErrorMessage(response, "桥梁创建失败。"));
   }
   return (await response.json()) as BridgeListV1Response["items"][number];
 }
@@ -740,8 +740,7 @@ export async function deleteV1Bridge(bridgeId: string): Promise<BridgeDeleteV1Re
     method: "DELETE",
   });
   if (!response.ok) {
-    const err = (await response.json()) as ApiError;
-    throw new Error(getErrorMessage(err, "桥梁删除失败。"));
+    throw new Error(await readErrorMessage(response, "桥梁删除失败。"));
   }
   return (await response.json()) as BridgeDeleteV1Response;
 }
@@ -772,8 +771,7 @@ export async function createV1Batch(payload: {
     })
   });
   if (!response.ok) {
-    const err = (await response.json()) as ApiError;
-    throw new Error(getErrorMessage(err, "批次创建失败。"));
+    throw new Error(await readErrorMessage(response, "批次创建失败。"));
   }
   return (await response.json()) as BatchListV1Response["items"][number];
 }
@@ -786,8 +784,7 @@ export async function deleteV1Batch(batchId: string): Promise<BatchDeleteV1Respo
     method: "DELETE"
   });
   if (!response.ok) {
-    const err = (await response.json()) as ApiError;
-    throw new Error(getErrorMessage(err, "批次删除失败。"));
+    throw new Error(await readErrorMessage(response, "批次删除失败。"));
   }
   return (await response.json()) as BatchDeleteV1Response;
 }
@@ -825,8 +822,7 @@ export async function ingestV1BatchItems(payload: {
     }
   );
   if (!response.ok) {
-    const err = (await response.json()) as ApiError;
-    throw new Error(getErrorMessage(err, "批次图片上传失败。"));
+    throw new Error(await readErrorMessage(response, "批次图片上传失败。"));
   }
   return (await response.json()) as BatchIngestV1Response;
 }
@@ -843,8 +839,7 @@ export async function getV1BatchStats(batchId: string): Promise<BatchStatsV1Resp
   }
   const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/batches/${encodeURIComponent(batchId)}/stats`);
   if (!response.ok) {
-    const payload = (await response.json()) as ApiError;
-    throw new Error(getErrorMessage(payload, "批次统计加载失败。"));
+    throw new Error(await readErrorMessage(response, "批次统计加载失败。"));
   }
   return (await response.json()) as BatchStatsV1Response;
 }
@@ -874,8 +869,7 @@ export async function getV1OpsMetrics(windowHours: number = 24): Promise<OpsMetr
     `${API_BASE_URL}/api/v1/ops/metrics?window_hours=${encodeURIComponent(String(normalizedWindow))}`
   );
   if (!response.ok) {
-    const payload = (await response.json()) as ApiError;
-    throw new Error(getErrorMessage(payload, "运营指标加载失败。"));
+    throw new Error(await readErrorMessage(response, "运营指标加载失败。"));
   }
   return (await response.json()) as OpsMetricsV1Response;
 }
@@ -897,8 +891,7 @@ export async function getV1AlertRules(): Promise<AlertRulesConfigV1Response> {
   }
   const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/ops/alert-rules`);
   if (!response.ok) {
-    const payload = (await response.json()) as ApiError;
-    throw new Error(getErrorMessage(payload, "告警规则加载失败。"));
+    throw new Error(await readErrorMessage(response, "告警规则加载失败。"));
   }
   return (await response.json()) as AlertRulesConfigV1Response;
 }
@@ -933,8 +926,7 @@ export async function updateV1AlertRules(payload: {
     })
   });
   if (!response.ok) {
-    const err = (await response.json()) as ApiError;
-    throw new Error(getErrorMessage(err, "告警规则更新失败。"));
+    throw new Error(await readErrorMessage(response, "告警规则更新失败。"));
   }
   return (await response.json()) as AlertRulesConfigV1Response;
 }
@@ -960,8 +952,7 @@ export async function listV1AlertRulesAudit(params?: {
   });
   const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/ops/alert-rules/audit${query}`);
   if (!response.ok) {
-    const payload = (await response.json()) as ApiError;
-    throw new Error(getErrorMessage(payload, "规则审计日志加载失败。"));
+    throw new Error(await readErrorMessage(response, "规则审计日志加载失败。"));
   }
   return (await response.json()) as OpsAuditLogListV1Response;
 }
@@ -984,8 +975,7 @@ export async function listV1BatchItems(
     `${API_BASE_URL}/api/v1/batches/${encodeURIComponent(batchId)}/items${query}`
   );
   if (!response.ok) {
-    const payload = (await response.json()) as ApiError;
-    throw new Error(getErrorMessage(payload, "批次图片列表加载失败。"));
+    throw new Error(await readErrorMessage(response, "批次图片列表加载失败。"));
   }
   return (await response.json()) as BatchItemListV1Response;
 }
@@ -996,8 +986,7 @@ export async function getV1BatchItemDetail(batchItemId: string): Promise<BatchIt
   }
   const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/batch-items/${encodeURIComponent(batchItemId)}`);
   if (!response.ok) {
-    const payload = (await response.json()) as ApiError;
-    throw new Error(getErrorMessage(payload, "图片详情加载失败。"));
+    throw new Error(await readErrorMessage(response, "图片详情加载失败。"));
   }
   return (await response.json()) as BatchItemDetailV1Response;
 }
@@ -1010,8 +999,7 @@ export async function getV1BatchItemResult(batchItemId: string): Promise<BatchIt
     `${API_BASE_URL}/api/v1/batch-items/${encodeURIComponent(batchItemId)}/result`
   );
   if (!response.ok) {
-    const payload = (await response.json()) as ApiError;
-    throw new Error(getErrorMessage(payload, "图片识别结果加载失败。"));
+    throw new Error(await readErrorMessage(response, "图片识别结果加载失败。"));
   }
   return (await response.json()) as BatchItemResultV1Response;
 }
@@ -1022,8 +1010,7 @@ export async function getV1Task(taskId: string): Promise<TaskV1> {
   }
   const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/tasks/${encodeURIComponent(taskId)}`);
   if (!response.ok) {
-    const payload = (await response.json()) as ApiError;
-    throw new Error(getErrorMessage(payload, "任务详情加载失败。"));
+    throw new Error(await readErrorMessage(response, "任务详情加载失败。"));
   }
   return (await response.json()) as TaskV1;
 }
@@ -1046,8 +1033,7 @@ export async function enhanceResultImage(payload: {
     timeoutMs: PREDICT_TIMEOUT_MS
   });
   if (!response.ok) {
-    const err = (await response.json()) as ApiError;
-    throw new Error(getErrorMessage(err, "增强结果生成失败。"));
+    throw new Error(await readErrorMessage(response, "增强结果生成失败。"));
   }
   return (await response.json()) as PredictionResult;
 }
@@ -1069,8 +1055,7 @@ export async function retryV1Task(payload: {
     })
   });
   if (!response.ok) {
-    const err = (await response.json()) as ApiError;
-    throw new Error(getErrorMessage(err, "任务重试失败。"));
+    throw new Error(await readErrorMessage(response, "任务重试失败。"));
   }
   return (await response.json()) as TaskRetryV1Response;
 }

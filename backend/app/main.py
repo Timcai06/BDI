@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import logging
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from uuid import uuid4
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -15,7 +17,13 @@ from app.adapters.registry import ModelRegistry
 from app.api.routes import router
 from app.api.v1_routes import router as v1_router
 from app.core.config import get_settings
-from app.core.errors import AppError, ErrorPayload, ErrorResponse, app_error_handler
+from app.core.errors import (
+    REQUEST_ID_HEADER,
+    AppError,
+    ErrorPayload,
+    ErrorResponse,
+    app_error_handler,
+)
 from app.core.runtime_state import RuntimeState
 from app.db.session import create_session_factory
 from app.models.schemas import HealthResponse
@@ -129,8 +137,27 @@ def create_app() -> FastAPI:
     )
     app.add_exception_handler(AppError, app_error_handler)
 
+    @app.middleware("http")
+    async def request_tracking_middleware(request: Request, call_next):
+        request_id = request.headers.get(REQUEST_ID_HEADER) or uuid4().hex[:12]
+        request.state.request_id = request_id
+        started_at = time.perf_counter()
+        response = await call_next(request)
+        elapsed_ms = (time.perf_counter() - started_at) * 1000
+        response.headers[REQUEST_ID_HEADER] = request_id
+        response.headers["X-Process-Time-Ms"] = f"{elapsed_ms:.2f}"
+        logger.info(
+            "request_id=%s method=%s path=%s status=%s duration_ms=%.2f",
+            request_id,
+            request.method,
+            request.url.path,
+            response.status_code,
+            elapsed_ms,
+        )
+        return response
+
     @app.exception_handler(RequestValidationError)
-    async def request_validation_error_handler(_, exc: RequestValidationError) -> JSONResponse:
+    async def request_validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
         payload = ErrorResponse(
             error=ErrorPayload(
                 code="INVALID_REQUEST",
@@ -138,7 +165,28 @@ def create_app() -> FastAPI:
                 details={"errors": exc.errors()},
             )
         )
-        return JSONResponse(status_code=422, content=payload.model_dump())
+        request_id = getattr(request.state, "request_id", None)
+        headers = {REQUEST_ID_HEADER: request_id} if request_id else None
+        return JSONResponse(status_code=422, content=payload.model_dump(), headers=headers)
+
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        request_id = getattr(request.state, "request_id", None)
+        logger.exception(
+            "Unhandled exception: request_id=%s method=%s path=%s",
+            request_id,
+            request.method,
+            request.url.path,
+            exc_info=exc,
+        )
+        payload = ErrorResponse(
+            error=ErrorPayload(
+                code="INTERNAL_ERROR",
+                message="Internal server error.",
+            )
+        )
+        headers = {REQUEST_ID_HEADER: request_id} if request_id else None
+        return JSONResponse(status_code=500, content=payload.model_dump(), headers=headers)
 
     app.state.predict_service = predict_service
     app.state.result_service = result_service
