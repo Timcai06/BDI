@@ -26,6 +26,22 @@ if [ ! -x "$BACKEND_ENV/bin/$BACKEND_PYTHON" ]; then
   exit 1
 fi
 
+require_path() {
+  local path="$1"
+  local message="$2"
+  if [ ! -e "$path" ]; then
+    echo "$message"
+    exit 1
+  fi
+}
+
+if [ "$MODE" = "real" ]; then
+  require_path "$ROOT_DIR/backend/models/best-latest-main.pt" "Missing model: backend/models/best-latest-main.pt"
+  require_path "$ROOT_DIR/backend/models/best-latest-water.pt" "Missing model: backend/models/best-latest-water.pt"
+  require_path "$ROOT_DIR/backend/external_runtimes/prnet_ultralytics" "Missing runtime: backend/external_runtimes/prnet_ultralytics"
+  require_path "$ROOT_DIR/backend/external_runtimes/water_ultralytics" "Missing runtime: backend/external_runtimes/water_ultralytics"
+fi
+
 open_backend_window() {
   local backend_dir_escaped backend_env_escaped backend_python_escaped
   backend_dir_escaped="${ROOT_DIR//\"/\\\"}/backend"
