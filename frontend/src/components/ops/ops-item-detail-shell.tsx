@@ -41,7 +41,7 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
   // UI States
   const [imageSource, setImageSource] = useState<"original" | "enhanced">("original");
   const [resultSource, setResultSource] = useState<"original" | "enhanced">("original");
-  const [viewMode, setViewMode] = useState<"image" | "result">("result");
+  const [overlayMode, setOverlayMode] = useState<"none" | "bbox" | "mask">("bbox");
   const [reviewAction, setReviewAction] = useState<"confirm" | "reject">("confirm");
   const [reviewNote, setReviewNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -145,7 +145,7 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
         setResult(resultData);
         setImageSource("original");
         setResultSource("original");
-        setViewMode(resultData.overlay_uri ? "result" : "image");
+        setOverlayMode(resultData.detections.length > 0 ? "bbox" : "none");
       } catch (err) {
         console.warn("No result found for this item yet", err);
         setImageSource("original");
@@ -275,17 +275,12 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
       ? summarizeDetections(enhancedResult.detections).averageConfidence - primarySummary.averageConfidence
       : 0;
   const originalUrl = result ? getResultImageUrl(result.id) : null;
-  const originalOverlayUrl = result ? getOverlayDownloadUrl(result.id) : null;
   const enhancedUrl = result?.enhanced_path ? getEnhancedImageUrl(result.id) : null;
-  const enhancedOverlayUrl = result?.enhanced_overlay_path ? getEnhancedOverlayUrl(result.id) : null;
-  const activeImageUrl = showEnhancedImage
-    ? (viewMode === "result" ? enhancedOverlayUrl ?? enhancedUrl : enhancedUrl ?? enhancedOverlayUrl)
-    : (viewMode === "result" ? originalOverlayUrl ?? originalUrl : originalUrl ?? originalOverlayUrl);
+  const activeImageUrl = showEnhancedImage ? enhancedUrl ?? originalUrl : originalUrl;
   const activeModeLabel = showEnhancedResult ? "增强后识别" : "原图识别";
   const activeModeDescription = showEnhancedResult
     ? "基于异步图像增强管线推理"
     : "基于原始图像直接推理";
-  const activeImageLabel = showEnhancedImage ? "增强后底图" : "原始底图";
   const enhancementInfo = enhancedResult?.enhancement_info ?? null;
   const reviewDisabled = isSubmitting || resultSource === "enhanced" || !result || result.detections.length === 0;
 
@@ -321,7 +316,7 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           <div className="xl:col-span-8 flex flex-col gap-6">
             <section className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] shadow-2xl backdrop-blur-3xl">
-              <div className="absolute top-6 left-6 z-20 flex gap-2">
+              <div className="absolute top-6 left-6 z-30 flex gap-2">
                 <button
                   onClick={() => {
                     void handleEnhancementAction();
@@ -335,20 +330,20 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
                       : "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
                   } disabled:opacity-40`}
                 >
-                  {enhancementPending ? "增强中..." : enhancedResult ? (resultSource === "enhanced" ? "查看原图" : "查看增强") : "增强"}
+                  {enhancementPending ? "增强中..." : enhancedResult ? (resultSource === "enhanced" ? "回看原图" : "查看增强") : "增强"}
                 </button>
               </div>
-              <div className="absolute left-6 top-16 z-20 flex gap-2">
+              <div className="absolute left-6 top-16 z-30 flex gap-2">
                 <button
                   onClick={() => setImageSource("enhanced")}
-                  disabled={!(enhancedUrl || enhancedOverlayUrl)}
+                  disabled={!enhancedUrl}
                   className={`rounded-xl border px-5 py-2 text-[10px] font-black tracking-widest transition-all ${
                     imageSource === "enhanced"
                       ? "border-amber-500/50 bg-amber-500/20 text-white shadow-[0_0_20px_rgba(245,158,11,0.2)]"
                       : "border-white/10 bg-white/5 text-white/40"
                   } disabled:opacity-20`}
                 >
-                  增强后原图
+                  增强底图
                 </button>
                 <button
                   onClick={() => setImageSource("original")}
@@ -361,65 +356,115 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
                   原始底图
                 </button>
               </div>
-              <div className="absolute top-6 right-6 z-20 flex gap-2">
+              <div className="absolute top-6 right-6 z-30 flex flex-wrap justify-end gap-2 max-w-[50%]">
                 <button
-                  onClick={() => setViewMode("result")}
-                  disabled={showEnhancedImage ? !(enhancedOverlayUrl || enhancedUrl) : !(originalOverlayUrl || originalUrl)}
+                  onClick={() => setOverlayMode("mask")}
                   className={`rounded-xl border px-4 py-2 text-[10px] font-black tracking-widest transition-all ${
-                    viewMode === "result"
-                      ? "border-emerald-500/50 bg-emerald-500/20 text-white shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+                    overlayMode === "mask"
+                      ? "border-rose-500/50 bg-rose-500/20 text-white shadow-[0_0_20px_rgba(16,185,129,0.2)]"
                       : "border-white/10 bg-white/5 text-white/40"
-                  } disabled:opacity-20`}
+                  }`}
                 >
-                  结果
+                  掩膜图
                 </button>
                 <button
-                  onClick={() => setViewMode("image")}
+                  onClick={() => setOverlayMode("bbox")}
                   className={`rounded-xl border px-4 py-2 text-[10px] font-black tracking-widest transition-all ${
-                    viewMode === "image"
+                    overlayMode === "bbox"
+                      ? "border-cyan-500/50 bg-cyan-500/20 text-white shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+                      : "border-white/10 bg-white/5 text-white/40"
+                  }`}
+                >
+                  识别框图
+                </button>
+                <button
+                  onClick={() => setOverlayMode("none")}
+                  className={`rounded-xl border px-4 py-2 text-[10px] font-black tracking-widest transition-all ${
+                    overlayMode === "none"
                       ? "border-white/50 bg-white/20 text-white shadow-xl"
                       : "border-white/10 bg-white/5 text-white/40"
                   }`}
                 >
-                  显示底图
+                  无识别
                 </button>
               </div>
 
                <div className="aspect-[4/3] w-full bg-black/60 overflow-hidden relative">
                 {activeImageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={activeImageUrl}
-                    alt="分析视图"
-                    className="h-full w-full object-contain transition-transform duration-1000 group-hover:scale-[1.03]"
-                  />
+                  <div className="relative h-full w-full">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={activeImageUrl}
+                      alt="分析视图"
+                      className="h-full w-full object-contain pointer-events-none"
+                    />
+                    
+                    {/* Client-side SVG Overlay */}
+                    {overlayMode !== "none" && (
+                      <svg 
+                        viewBox="0 0 100 100" 
+                        preserveAspectRatio="none"
+                        className="absolute inset-0 h-full w-full z-20 pointer-events-none"
+                      >
+                        {activeDetections.map((det) => (
+                          <g key={det.id}>
+                            {/* Bounding Box Rect */}
+                            {(overlayMode === "bbox" || overlayMode === "mask") && (
+                              <rect
+                                x={det.bbox.x}
+                                y={det.bbox.y}
+                                width={det.bbox.width}
+                                height={det.bbox.height}
+                                fill="none"
+                                stroke={det.category.includes("crack") ? "#f43f5e" : "#06b6d4"}
+                                strokeWidth="0.5"
+                                className="transition-all duration-300"
+                              />
+                            )}
+                            
+                            {/* Mask Polygon */}
+                            {overlayMode === "mask" && det.mask?.format === "polygon" && det.mask.points && (
+                              <polygon
+                                points={det.mask.points.map(p => p.join(",")).join(" ")}
+                                fill={det.category.includes("crack") ? "rgba(244,63,94,0.3)" : "rgba(6,182,212,0.3)"}
+                                stroke={det.category.includes("crack") ? "#f43f5e" : "#06b6d4"}
+                                strokeWidth="0.2"
+                              />
+                            )}
+                          </g>
+                        ))}
+                      </svg>
+                    )}
+                  </div>
                 ) : (
                   <div className="flex h-full w-full flex-col items-center justify-center gap-4 text-xs font-mono text-white/20">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                    图像轨迹暂不可用
+                    图像轨道暂不可用
                   </div>
                 )}
                 <div className="absolute inset-0 pointer-events-none border border-white/5 z-10" />
               </div>
               
               <div className="p-6 bg-white/[0.03] border-t border-white/5 flex items-center justify-between backdrop-blur-xl">
-                <div className="flex items-center gap-8">
-                   <div className="flex flex-col">
+                <div className="flex items-center gap-8 min-w-0">
+                   <div className="flex flex-col min-w-0">
                       <span className="text-[9px] font-black text-white/20 uppercase tracking-tighter">文件名</span>
-                      <span className="text-xs font-mono font-bold text-white/60">{item.original_filename}</span>
+                      <span className="text-xs font-mono font-bold text-white/60 truncate">{item.original_filename}</span>
                    </div>
-                   <div className="flex flex-col">
+                   <div className="flex flex-col shrink-0">
                       <span className="text-[9px] font-black text-white/20 uppercase tracking-tighter">序号</span>
                       <span className="text-xs font-mono font-bold text-white/60">BATCH_NO_{item.sequence_no}</span>
                    </div>
-                   <div className="flex flex-col">
-                      <span className="text-[9px] font-black text-white/20 uppercase tracking-tighter">方式</span>
+                   <div className="flex flex-col shrink-0">
+                      <span className="text-[9px] font-black text-white/20 uppercase tracking-tighter">模式</span>
                       <span className="text-xs font-black text-white/70">{activeModeLabel}</span>
                    </div>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/40 border border-white/10 ring-1 ring-white/5">
+                <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/40 border border-white/10 ring-1 ring-white/5 shrink-0">
                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                   <span className="text-[10px] font-black text-emerald-400 tabular-nums tracking-widest">{viewMode === "result" ? "结果叠加视图" : "原始轨迹视图"}</span>
+                   <span className="text-[10px] font-black text-emerald-400 tabular-nums tracking-widest">
+                     {overlayMode === "bbox" ? "识别框视图" : overlayMode === "mask" ? "掩膜视图" : "原始底图"}
+                   </span>
                 </div>
               </div>
             </section>
