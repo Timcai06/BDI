@@ -81,6 +81,9 @@ from app.storage.local import LocalArtifactStore
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 ALLOWED_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
+ALLOWED_ENHANCEMENT_MODES = {"off", "auto", "always"}
+DEFAULT_MODEL_POLICIES = {"active-default", "active", "fusion-default", "seepage-priority", "general-only"}
+MAX_BATCH_UPLOAD_FILES = 200
 ALERT_LEVEL_ORDER = ["low", "medium", "high", "critical"]
 ALERT_SLA_HOURS_BY_LEVEL = {
     "low": 72,
@@ -95,6 +98,8 @@ def _new_id(prefix: str) -> str:
 
 
 class BatchService:
+    MAX_BATCH_UPLOAD_FILES = MAX_BATCH_UPLOAD_FILES
+
     def __init__(
         self,
         *,
@@ -143,6 +148,39 @@ class BatchService:
         if policy in registry.specs:
             return policy
         return registry.active_version
+
+    def _validate_model_policy(self, model_policy: str) -> str:
+        policy = (model_policy or "").strip().lower()
+        if not policy:
+            raise AppError(
+                code="INVALID_MODEL_POLICY",
+                message="Model policy must not be empty.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if policy in DEFAULT_MODEL_POLICIES:
+            return policy
+
+        if self.runner_manager is not None and policy in self.runner_manager.registry.specs:
+            return policy
+
+        raise AppError(
+            code="INVALID_MODEL_POLICY",
+            message="Model policy is not supported.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            details={"model_policy": model_policy},
+        )
+
+    def _validate_enhancement_mode(self, enhancement_mode: str) -> str:
+        mode = (enhancement_mode or "").strip().lower()
+        if mode not in ALLOWED_ENHANCEMENT_MODES:
+            raise AppError(
+                code="INVALID_ENHANCEMENT_MODE",
+                message="Enhancement mode must be one of off, auto, or always.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                details={"enhancement_mode": enhancement_mode},
+            )
+        return mode
 
     def _build_bridge_response(self, *, session: Session, bridge: Bridge) -> BridgeResponse:
         latest_batch = session.scalar(
@@ -840,6 +878,28 @@ class BatchService:
         if not parts or any(part == ".." for part in parts):
             return None
         return "/".join(parts)[:1024]
+
+    def _validate_relative_paths(self, *, files: list[UploadFile], relative_paths: Optional[list[str]]) -> None:
+        if relative_paths is None:
+            return
+
+        if len(relative_paths) != len(files):
+            raise AppError(
+                code="RELATIVE_PATH_COUNT_MISMATCH",
+                message="relative_paths must match the number of uploaded files.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                details={"files": len(files), "relative_paths": len(relative_paths)},
+            )
+
+        for index, value in enumerate(relative_paths):
+            normalized = self._normalize_relative_path(value)
+            if normalized is None:
+                raise AppError(
+                    code="INVALID_RELATIVE_PATH",
+                    message="relative_paths contains an invalid or unsafe path.",
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    details={"index": index, "relative_path": value},
+                )
 
     def _refresh_batch_aggregates(self, *, session: Session, batch_id: str) -> None:
         refresh_batch_aggregates(self, session=session, batch_id=batch_id)

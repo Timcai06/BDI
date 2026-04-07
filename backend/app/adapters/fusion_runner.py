@@ -82,12 +82,12 @@ def _group_by_category(detections: Iterable[RawDetection]) -> Dict[str, List[Raw
 
 
 _CATEGORY_COLORS = {
-    "crack": "#00D2FF",
-    "breakage": "#FF8A00",
-    "comb": "#F97316",
-    "hole": "#8B5CF6",
-    "reinforcement": "#EF4444",
-    "seepage": "#22C55E",
+    "crack": "#FF4D4D",
+    "breakage": "#F97316",
+    "comb": "#EAB308",
+    "hole": "#22C55E",
+    "reinforcement": "#00D2FF",
+    "seepage": "#A78BFA",
 }
 
 

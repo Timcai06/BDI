@@ -28,6 +28,7 @@ export function IngestionWizard({
   isLoading
 }: IngestionWizardProps) {
   const [step, setStep] = useState(1);
+  const [error, setError] = useState<string | null>(null);
   const [sourceType, setSourceType] = useState("drone-survey");
   const [inspectionLabel, setInspectionLabel] = useState("");
   const [enhancementMode, setEnhancementMode] = useState<"off" | "auto" | "always">("always");
@@ -37,13 +38,19 @@ export function IngestionWizard({
     uploadMode === "folder" ? { webkitdirectory: "", directory: "" } : {};
 
   const handleNext = () => {
+    setError(null);
     if (step === 1) {
       setStep(2);
     }
   };
 
   const handleFinish = async () => {
+    setError(null);
     if (!selectedBridge) {
+      return;
+    }
+    if (uploadFiles.length === 0) {
+      setError("至少选择一张图片后才能启动批次。");
       return;
     }
     const payload: BatchWizardPayload = {
@@ -163,6 +170,12 @@ export function IngestionWizard({
                   <p className="mt-1 text-sm text-white/40">支持批量选择或文件夹扫描，入库后将自动进入云端推理引擎。</p>
                 </div>
 
+                {error ? (
+                  <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+                    {error}
+                  </div>
+                ) : null}
+
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -222,7 +235,7 @@ export function IngestionWizard({
 
           <button
             onClick={step === 2 ? handleFinish : handleNext}
-            disabled={isLoading || !selectedBridge}
+            disabled={isLoading || !selectedBridge || (step === 2 && uploadFiles.length === 0)}
             className="rounded-xl bg-gradient-to-r from-cyan-600 to-sky-600 px-8 py-3.5 text-sm font-bold uppercase tracking-widest text-black transition-all hover:shadow-[0_0_25px_rgba(6,182,212,0.4)] disabled:opacity-50"
           >
             {isLoading ? "执行中..." : step === 2 ? "立即启动云端扫描" : "下一步流程"}

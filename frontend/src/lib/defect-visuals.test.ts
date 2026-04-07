@@ -11,10 +11,15 @@ describe("defect-visuals contract", () => {
   it("maps known backend synonyms to stable display keys", () => {
     expect(normalizeCategory("spalling")).toBe("breakage");
     expect(normalizeCategory("剥落")).toBe("breakage");
+    expect(normalizeCategory("剥蚀")).toBe("breakage");
     expect(normalizeCategory("rebar")).toBe("reinforcement");
     expect(normalizeCategory("corrosion")).toBe("reinforcement");
+    expect(normalizeCategory("rust")).toBe("reinforcement");
+    expect(normalizeCategory("锈蚀")).toBe("reinforcement");
     expect(normalizeCategory("efflorescence")).toBe("seepage");
     expect(normalizeCategory("白华")).toBe("seepage");
+    expect(normalizeCategory("空洞")).toBe("hole");
+    expect(normalizeCategory("伸缩缝")).toBe("comb");
   });
 
   it("returns stable labels and colors for aliases", () => {
@@ -26,6 +31,7 @@ describe("defect-visuals contract", () => {
 
   it("falls back to default for unknown categories", () => {
     expect(normalizeCategory("weathering")).toBe("default");
+    expect(normalizeCategory("unknown")).toBe("default");
     expect(getDefectLabel("weathering")).toBe("未分类病害");
   });
 });

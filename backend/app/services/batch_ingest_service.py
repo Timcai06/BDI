@@ -29,6 +29,24 @@ async def ingest_batch_items(
     enhancement_mode: str,
 ) -> BatchIngestResponse:
     with service.session_factory() as session:
+        if not files:
+            raise AppError(
+                code="EMPTY_UPLOAD_BATCH",
+                message="At least one image file is required.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(files) > service.MAX_BATCH_UPLOAD_FILES if hasattr(service, "MAX_BATCH_UPLOAD_FILES") else len(files) > 200:
+            raise AppError(
+                code="TOO_MANY_FILES",
+                message="Uploaded file count exceeds the maximum allowed batch size.",
+                status_code=status.HTTP_400_BAD_REQUEST,
+                details={"max_files": getattr(service, "MAX_BATCH_UPLOAD_FILES", 200), "provided": len(files)},
+            )
+
+        service._validate_relative_paths(files=files, relative_paths=relative_paths)
+        model_policy_value = service._validate_model_policy(model_policy)
+        enhancement_mode_value = service._validate_enhancement_mode(enhancement_mode)
+
         batch = session.get(InspectionBatch, batch_id)
         if batch is None:
             raise AppError(
@@ -54,7 +72,6 @@ async def ingest_batch_items(
 
         accepted: list[BatchIngestItemSuccess] = []
         errors: list[BatchIngestItemError] = []
-        model_policy_value = model_policy.strip() or "fusion-default"
         requested_model_version = service._resolve_requested_model_version(model_policy_value)
 
         for index, file in enumerate(files):
@@ -72,7 +89,7 @@ async def ingest_batch_items(
                 content = await service._read_upload_content(file)
                 enhance_enabled = service._should_enable_enhancement(
                     content=content,
-                    enhancement_mode=enhancement_mode,
+                    enhancement_mode=enhancement_mode_value,
                 )
                 file_hash = hashlib.sha256(content).hexdigest()
                 duplicated = session.scalar(
@@ -130,7 +147,7 @@ async def ingest_batch_items(
                         queued_at=datetime.now(timezone.utc),
                         runtime_payload={
                             "enhance": enhance_enabled,
-                            "enhancement_mode": enhancement_mode,
+                            "enhancement_mode": enhancement_mode_value,
                         },
                     )
                     session.add(batch_item)

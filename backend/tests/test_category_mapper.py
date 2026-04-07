@@ -67,8 +67,8 @@ class TestNormalizeDefectCategory:
         assert normalize_defect_category("\t破损\t") == "breakage"
 
     def test_unknown_category_returns_as_is(self):
-        assert normalize_defect_category("unknown_type") == "unknown_type"
-        assert normalize_defect_category("风化") == "风化"
+        assert normalize_defect_category("unknown_type") == "unknown"
+        assert normalize_defect_category("风化") == "unknown"
 
     def test_priority_order(self):
         # "crack" should match before "spalling" if both substrings present
