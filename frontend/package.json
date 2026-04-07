@@ -9,6 +9,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
     "generate:types": "sh -c 'PY=../backend/.venv-yolo/bin/python; [ -x \"$PY\" ] || PY=../backend/.venv/bin/python; [ -x \"$PY\" ] || PY=python3; \"$PY\" ../scripts/generate_openapi_schema.py && openapi-typescript ../artifacts/openapi/frontend-openapi.json -o ./src/lib/api/generated.ts'"
   },
   "dependencies": {
@@ -20,6 +22,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/postcss": "^4.1.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",

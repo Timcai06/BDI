@@ -42,11 +42,42 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
   const [imageSource, setImageSource] = useState<"original" | "enhanced">("original");
   const [resultSource, setResultSource] = useState<"original" | "enhanced">("original");
   const [overlayMode, setOverlayMode] = useState<"none" | "bbox" | "mask">("bbox");
+  const [hoveredDetectionId, setHoveredDetectionId] = useState<string | null>(null);
   const [reviewAction, setReviewAction] = useState<"confirm" | "reject">("confirm");
   const [reviewNote, setReviewNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [enhancementPending, setEnhancementPending] = useState(false);
   const returnTo = searchParams.get("returnTo");
+
+  async function loadBatchItemResultWithRetry(
+    batchItemIdToLoad: string,
+    maxAttempts: number = 30,
+    retryDelayMs: number = 2_000,
+  ): Promise<BatchItemResultV1Response | null> {
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      try {
+        return await getV1BatchItemResult(batchItemIdToLoad);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "";
+        const missingResult =
+          message.includes("Result does not exist") ||
+          message.includes("图片识别结果加载失败") ||
+          message.includes("结果不存在");
+
+        if (!missingResult) {
+          throw err;
+        }
+
+        if (attempt === maxAttempts - 1) {
+          return null;
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, retryDelayMs));
+      }
+    }
+
+    return null;
+  }
 
   function toPrimaryResult(resultData: BatchItemResultV1Response): PredictResponse {
     const normalizeInferenceBreakdown = (
@@ -141,11 +172,18 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
       setItem(itemData);
       
       try {
-        const resultData = await getV1BatchItemResult(resolvedItemId);
-        setResult(resultData);
-        setImageSource("original");
-        setResultSource("original");
-        setOverlayMode(resultData.detections.length > 0 ? "bbox" : "none");
+        const resultData = await loadBatchItemResultWithRetry(resolvedItemId);
+        if (resultData) {
+          setResult(resultData);
+          setImageSource("original");
+          setResultSource("original");
+          setOverlayMode(resultData.detections.length > 0 ? "bbox" : "none");
+        } else {
+          setResult(null);
+          setImageSource("original");
+          setResultSource("original");
+          setOverlayMode("none");
+        }
       } catch (err) {
         console.warn("No result found for this item yet", err);
         setImageSource("original");
@@ -406,33 +444,95 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
                         preserveAspectRatio="none"
                         className="absolute inset-0 h-full w-full z-20 pointer-events-none"
                       >
-                        {activeDetections.map((det) => (
-                          <g key={det.id}>
-                            {/* Bounding Box Rect */}
-                            {(overlayMode === "bbox" || overlayMode === "mask") && (
-                              <rect
-                                x={det.bbox.x}
-                                y={det.bbox.y}
-                                width={det.bbox.width}
-                                height={det.bbox.height}
-                                fill="none"
-                                stroke={det.category.includes("crack") ? "#f43f5e" : "#06b6d4"}
-                                strokeWidth="0.5"
-                                className="transition-all duration-300"
-                              />
-                            )}
-                            
-                            {/* Mask Polygon */}
-                            {overlayMode === "mask" && det.mask?.format === "polygon" && det.mask.points && (
-                              <polygon
-                                points={det.mask.points.map(p => p.join(",")).join(" ")}
-                                fill={det.category.includes("crack") ? "rgba(244,63,94,0.3)" : "rgba(6,182,212,0.3)"}
-                                stroke={det.category.includes("crack") ? "#f43f5e" : "#06b6d4"}
-                                strokeWidth="0.2"
-                              />
-                            )}
-                          </g>
-                        ))}
+                        <defs>
+                          {/* Glow Filter for Cracks */}
+                          <filter id="glow-crack" x="-20%" y="-20%" width="140%" height="140%">
+                            <feGaussianBlur stdDeviation="1.5" result="blur" />
+                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                          </filter>
+                          {/* Glow Filter for Others */}
+                          <filter id="glow-cyan" x="-20%" y="-20%" width="140%" height="140%">
+                            <feGaussianBlur stdDeviation="1.2" result="blur" />
+                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                          </filter>
+                          {/* Mesh Pattern for Scanning Effect */}
+                          <pattern id="scan-pattern" x="0" y="0" width="2" height="2" patternUnits="userSpaceOnUse">
+                             <line x1="0" y1="0" x2="2" y2="2" stroke="white" strokeWidth="0.1" opacity="0.3" />
+                             <line x1="2" y1="0" x2="0" y2="2" stroke="white" strokeWidth="0.1" opacity="0.1" />
+                          </pattern>
+                        </defs>
+
+                        {activeDetections.map((det) => {
+                          const isHovered = hoveredDetectionId === det.id;
+                          const isCrack = det.category.includes("crack");
+                          const color = isCrack ? "#f43f5e" : "#06b6d4";
+                          const glowId = isCrack ? "glow-crack" : "glow-cyan";
+
+                          return (
+                            <motion.g 
+                              key={det.id}
+                              initial={{ opacity: 0 }}
+                              animate={{ 
+                                opacity: isHovered || !hoveredDetectionId ? 1 : 0.2,
+                                scale: isHovered ? 1.005 : 1
+                              }}
+                              transition={{ duration: 0.2 }}
+                            >
+                              {/* Bounding Box Rect */}
+                              {(overlayMode === "bbox" || overlayMode === "mask") && (
+                                <motion.rect
+                                  x={det.bbox.x}
+                                  y={det.bbox.y}
+                                  width={det.bbox.width}
+                                  height={det.bbox.height}
+                                  fill="none"
+                                  stroke={color}
+                                  strokeWidth={isHovered ? "0.8" : "0.5"}
+                                  filter={`url(#${glowId})`}
+                                  strokeDasharray={isHovered ? "none" : "2 1"}
+                                  className="transition-all duration-300"
+                                />
+                              )}
+                              
+                              {/* Mask Polygon */}
+                              {overlayMode === "mask" && det.mask?.format === "polygon" && det.mask.points && (
+                                <motion.g>
+                                  <polygon
+                                    points={det.mask.points.map(p => p.join(",")).join(" ")}
+                                    fill={`url(#scan-pattern)`}
+                                    style={{ fillOpacity: isHovered ? 0.6 : 0.3 }}
+                                    className="transition-opacity duration-300"
+                                  />
+                                  <polygon
+                                    points={det.mask.points.map(p => p.join(",")).join(" ")}
+                                    fill={color}
+                                    fillOpacity={isHovered ? 0.3 : 0.15}
+                                    stroke={color}
+                                    strokeWidth={isHovered ? "0.3" : "0.2"}
+                                    filter={`url(#${glowId})`}
+                                    className="transition-opacity duration-300"
+                                  />
+                                  {/* Interaction Dot: Display label on hover or high confidence */}
+                                  {(isHovered || det.confidence > 0.95) && (
+                                    <motion.foreignObject
+                                      x={det.bbox.x}
+                                      y={det.bbox.y - 4}
+                                      width={20}
+                                      height={6}
+                                      initial={{ y: det.bbox.y }}
+                                      animate={{ y: det.bbox.y - 4 }}
+                                    >
+                                      <div className={`flex items-center gap-1 rounded-[2px] px-1 py-0.5 text-[2px] font-black uppercase text-white shadow-lg backdrop-blur-sm ${isCrack ? 'bg-rose-500/80' : 'bg-cyan-500/80'}`}>
+                                        <span className="truncate">{det.category}</span>
+                                        <span className="opacity-60">{(det.confidence * 100).toFixed(0)}%</span>
+                                      </div>
+                                    </motion.foreignObject>
+                                  )}
+                                </motion.g>
+                              )}
+                            </motion.g>
+                          );
+                        })}
                       </svg>
                     )}
                   </div>
@@ -512,7 +612,14 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
               
               <div className="space-y-3 max-h-[440px] overflow-auto pr-2 custom-scrollbar">
                 {activeDetections.map((det) => (
-                  <div key={det.id} className="group/item flex items-center justify-between rounded-2xl border border-white/5 bg-black/40 p-4 transition-all hover:bg-white/[0.04]">
+                  <div 
+                    key={det.id} 
+                    onMouseEnter={() => setHoveredDetectionId(det.id)}
+                    onMouseLeave={() => setHoveredDetectionId(null)}
+                    className={`group/item flex items-center justify-between rounded-2xl border transition-all hover:bg-white/[0.04] p-4 ${
+                      hoveredDetectionId === det.id ? 'border-cyan-500/40 bg-white/[0.06]' : 'border-white/5 bg-black/40'
+                    }`}
+                  >
                     <div className="flex items-center gap-4">
                       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-[10px] font-black text-cyan-400 border border-cyan-500/20 tabular-nums">
                         {(det.confidence * 100).toFixed(0)}%

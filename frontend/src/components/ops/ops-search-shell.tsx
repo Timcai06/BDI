@@ -311,6 +311,8 @@ export function OpsSearchShell() {
 
                     <Link
                       href={`/dashboard/ops/items/${encodeURIComponent(det.batch_item_id)}?returnTo=${encodeURIComponent(currentHref)}`}
+                      aria-label="VIEW ITEM DETAIL"
+                      title="VIEW ITEM DETAIL"
                       className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-white/5 bg-white/5 text-white/40 transition-all hover:bg-white/10 hover:text-white"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>

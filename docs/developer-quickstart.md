@@ -69,3 +69,36 @@ rtk npm --prefix frontend run generate:types
 5. `backend/external_runtimes/water_ultralytics` 存在
 
 缺一项时，不应直接进入真实模式。
+
+## 真实链路 E2E
+
+第一版 E2E 只覆盖真实主链路冒烟：
+
+1. 创建桥梁
+2. 创建批次
+3. 上传图片
+4. 打开单图详情
+
+执行前先确认：
+
+1. `bdi run` 已启动真实环境
+2. `bdi status` 显示前后端都在线
+3. `http://127.0.0.1:8000/health` 返回 `ready=true`
+
+执行命令：
+
+```bash
+rtk npm --prefix frontend run test:e2e
+```
+
+有界面模式：
+
+```bash
+rtk npm --prefix frontend run test:e2e:headed
+```
+
+说明：
+
+- E2E 不会帮你启动 `bdi run`
+- 失败产物默认输出到 `artifacts/playwright-artifacts`
+- 第一版断言只校验链路成功和核心区域可见，不绑定固定病害类别与数量

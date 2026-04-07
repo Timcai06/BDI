@@ -57,6 +57,8 @@ artifacts/
 backend/artifacts/
 backend/data/models/
 frontend/.next/
+frontend/playwright-report/
+frontend/test-results/
 results/
 uploads/
 exports/
