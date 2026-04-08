@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { OpsPageHeader } from "@/components/ops/ops-page-header";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { OpsPageLayout } from "@/components/ops/ops-page-layout";
 import {
   getV1OpsMetrics,
@@ -306,14 +307,10 @@ export function OpsOverviewShell() {
         />
       }
     >
-      <AnimatePresence mode="wait">
-        <motion.div 
-          key={windowHours}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          className="space-y-12"
-        >
+      {loading ? (
+        <PageSkeleton variant="overview" />
+      ) : (
+        <div className="space-y-12 page-enter" key={windowHours}>
           {error && (
             <div className="flex items-center gap-3 rounded-[1.5rem] border border-rose-500/20 bg-rose-500/10 p-4 text-xs font-bold text-rose-300">
               <span className="h-2 w-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.6)]" />
@@ -496,8 +493,8 @@ export function OpsOverviewShell() {
               OPERATIONAL PERSPECTIVE DESIGNED: RISK-WEIGHTED SCORING ALGORITHM AUTOMATICALLY IDENTIFIES PENDING ITEMS.
             </p>
           </footer>
-        </motion.div>
-      </AnimatePresence>
+        </div>
+      )}
     </OpsPageLayout>
   );
 }

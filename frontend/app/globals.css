@@ -157,19 +157,13 @@ body {
   position: absolute;
   inset: 0;
   z-index: 0;
-  opacity: 0.25;
+  opacity: 0.12;
   background-size: 40px 40px;
   background-image:
     linear-gradient(to right, rgba(0, 217, 146, 0.08) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(0, 217, 146, 0.08) 1px, transparent 1px);
   mask-image: radial-gradient(circle at center, black 50%, transparent 100%);
   -webkit-mask-image: radial-gradient(circle at center, black 50%, transparent 100%);
-  animation: grid-pulse 10s ease-in-out infinite;
-}
-
-@keyframes grid-pulse {
-  0%, 100% { opacity: 0.15; transform: scale(1); }
-  50% { opacity: 0.25; transform: scale(1.02); }
 }
 
 a {
@@ -309,6 +303,64 @@ img {
 img[width][height] {
   aspect-ratio: attr(width) / attr(height);
 }
+
+/* ============================================
+   页面进入动画 (替代 Framer Motion initial)
+   ============================================ */
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: page-enter 0.25s ease-out both;
+}
+
+/* 列表项交错淡入 */
+@keyframes list-item-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.list-item-enter {
+  animation: list-item-enter 0.2s ease-out both;
+}
+
+/* 骨架屏脉冲光效 */
+@keyframes skeleton-pulse {
+  0%, 100% {
+    opacity: 0.04;
+  }
+  50% {
+    opacity: 0.08;
+  }
+}
+
+.skeleton-pulse {
+  background: rgba(255, 255, 255, 0.06);
+  animation: skeleton-pulse 1.8s ease-in-out infinite;
+  border-radius: 0.75rem;
+}
+
+.skeleton-bar {
+  background: rgba(255, 255, 255, 0.04);
+  animation: skeleton-pulse 1.8s ease-in-out infinite;
+  border-radius: 9999px;
+}
+
 @keyframes scan {
   from { transform: translateY(-100%); }
   to { transform: translateY(100%); }

@@ -13,7 +13,7 @@ export function OpsReviewsShell() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [batches, setBatches] = useState<BatchV1[]>([]);
   const [reviews, setReviews] = useState<ReviewRecordV1[]>([]);

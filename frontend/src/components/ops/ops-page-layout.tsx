@@ -20,8 +20,8 @@ export function OpsPageLayout({
   containerClassName
 }: OpsPageLayoutProps) {
   return (
-    <div className="relative z-10 flex flex-1 flex-col overflow-hidden bg-black/40 backdrop-blur-3xl">
-      <div className={joinClasses("relative flex-1 overflow-y-auto p-6 lg:p-8", contentClassName)}>
+    <div className="relative z-10 flex flex-1 flex-col overflow-hidden bg-black/40">
+      <div className={joinClasses("relative flex-1 overflow-y-auto p-6 lg:p-8 page-enter", contentClassName)}>
         <div className={joinClasses("mx-auto flex w-full max-w-7xl flex-col space-y-6", containerClassName)}>
           {header}
           {children}

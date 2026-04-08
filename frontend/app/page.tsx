@@ -86,7 +86,7 @@ export default function LandingPage() {
       <div className="pointer-events-none absolute bottom-[10%] right-[-10%] h-[50%] w-[50%] rounded-full bg-[radial-gradient(ellipse,rgba(99,230,255,0.04)_0%,rgba(0,0,0,0)_70%)] blur-[150px] mix-blend-screen" />
 
       {/* Full bleed Hero Section */}
-      <div className="relative z-10 w-full">
+      <div className="relative z-20 w-full">
         <LandingHero />
       </div>
 

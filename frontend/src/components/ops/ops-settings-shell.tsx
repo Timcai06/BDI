@@ -19,7 +19,7 @@ export function OpsSettingsShell() {
   const [activeTab, setActiveTab] = useState<"config" | "audit">(
     (searchParams.get("tab") as "config" | "audit") ?? "config",
   );
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 

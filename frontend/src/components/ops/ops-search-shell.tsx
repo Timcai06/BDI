@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 
 import { OpsPageHeader } from "@/components/ops/ops-page-header";
 import { OpsPageLayout } from "@/components/ops/ops-page-layout";
@@ -136,10 +135,8 @@ export function OpsSearchShell() {
         />
       }
     >
-        <motion.section 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] p-6 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] backdrop-blur-xl"
+        <section 
+          className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.03] p-6 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] page-enter"
         >
           <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-cyan-500/5 blur-[100px]" />
           
@@ -252,7 +249,7 @@ export function OpsSearchShell() {
               </div>
             </div>
           </div>
-        </motion.section>
+        </section>
 
         {error && (
           <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
@@ -274,15 +271,12 @@ export function OpsSearchShell() {
             </div>
           </div>
           
-          <div className="relative grid grid-cols-1 gap-4 max-h-[800px] overflow-auto scroll-smooth pr-4 custom-scrollbar lg:grid-cols-2">
-            <AnimatePresence mode="popLayout">
+            <div className="relative grid grid-cols-1 gap-4 max-h-[800px] overflow-auto scroll-smooth pr-4 custom-scrollbar lg:grid-cols-2">
               {detections.map((det, idx) => (
-                <motion.div 
+                <div 
                   key={det.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.03 }}
-                  className="group relative flex flex-col gap-4 rounded-2xl border border-white/5 bg-white/[0.02] p-5 transition-all duration-500 hover:border-white/20 hover:bg-white/[0.04] hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.5)]"
+                  className="list-item-enter group relative flex flex-col gap-4 rounded-2xl border border-white/5 bg-white/[0.02] p-5 transition-all duration-500 hover:border-white/20 hover:bg-white/[0.04] hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.5)]"
+                  style={{ animationDelay: `${idx * 30}ms` }}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-4">
@@ -329,9 +323,8 @@ export function OpsSearchShell() {
                       <p className={`text-[10px] font-bold uppercase ${det.is_valid ? "text-emerald-400" : "text-rose-400"}`}>{det.is_valid ? "Valid" : "Rejected"}</p>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
-            </AnimatePresence>
 
             {loading && (
               <div className="col-span-full flex flex-col items-center justify-center py-20 px-4">

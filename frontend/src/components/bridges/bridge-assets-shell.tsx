@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -92,14 +91,14 @@ export function BridgeAssetsShell() {
       }
     >
       {error && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300 backdrop-blur-md">
+        <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300 backdrop-blur-md page-enter">
           {error}
-        </motion.div>
+        </div>
       )}
       {notice && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-300 backdrop-blur-md">
+        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-300 backdrop-blur-md page-enter">
           {notice}
-        </motion.div>
+        </div>
       )}
 
       <section className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
@@ -123,18 +122,26 @@ export function BridgeAssetsShell() {
 
           <div className="relative space-y-4">
             {loading ? (
-              <div className="flex items-center gap-3 py-12 text-sm text-white/20">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/10 border-t-white/40" />
-                正在载入数字资产...
+              <div className="space-y-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="rounded-2xl border border-white/5 bg-black/40 p-5 space-y-3">
+                    <div className="flex items-center gap-4">
+                      <div className="skeleton-pulse h-12 w-12 !rounded-xl shrink-0" />
+                      <div className="space-y-2 flex-1">
+                        <div className="skeleton-bar h-4 w-32" />
+                        <div className="skeleton-bar h-2 w-24" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : null}
             
-            {bridges.map((bridge) => (
-              <motion.div 
+            {bridges.map((bridge, idx) => (
+              <div 
                 key={bridge.id} 
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="group/item relative overflow-hidden rounded-2xl border border-white/5 bg-black/40 p-5 ring-1 ring-white/5 transition-all hover:bg-white/[0.04] hover:ring-white/20"
+                className="list-item-enter group/item relative overflow-hidden rounded-2xl border border-white/5 bg-black/40 p-5 ring-1 ring-white/5 transition-all hover:bg-white/[0.04] hover:ring-white/20"
+                style={{ animationDelay: `${idx * 30}ms` }}
               >
                 <div className="flex items-start justify-between gap-6">
                   <div className="flex flex-1 gap-4">
@@ -187,7 +194,7 @@ export function BridgeAssetsShell() {
                     </button>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             ))}
             {!loading && bridges.length === 0 ? <div className="py-20 text-center text-sm text-white/20">系统内暂无已注册的桥梁资产实体</div> : null}
           </div>

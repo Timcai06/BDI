@@ -325,18 +325,30 @@ export function OpsAlertsShell() {
           </div>
           
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-40 gap-4">
-              <div className="relative">
-                <div className="h-12 w-12 animate-spin rounded-full border-t-2 border-rose-500 border-r-2 border-transparent" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="h-6 w-6 animate-pulse rounded-full bg-rose-500/20" />
+            <div className="space-y-4 page-enter">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="rounded-2xl border border-white/5 bg-white/[0.01] p-6">
+                  <div className="flex items-start gap-5">
+                    <div className="skeleton-pulse h-4 w-4 !rounded shrink-0" />
+                    <div className="flex-1 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-2">
+                          <div className="skeleton-bar h-2 w-16" />
+                          <div className="skeleton-bar h-5 w-48" />
+                        </div>
+                        <div className="flex gap-2">
+                          <div className="skeleton-pulse h-10 w-16 !rounded-xl" />
+                          <div className="skeleton-pulse h-10 w-16 !rounded-xl" />
+                        </div>
+                      </div>
+                      <div className="skeleton-bar h-1 w-full" />
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/20 animate-pulse">正在同步...</p>
+              ))}
             </div>
           ) : (
             <div className="relative space-y-4 max-h-[1200px] overflow-auto scroll-smooth pr-6 custom-scrollbar">
-              <AnimatePresence mode="popLayout">
                 {displayedAlerts.map((item, idx) => {
                   const alert = item.alert;
                   const isSelected = selectedAlertIds.includes(alert.id);
@@ -346,18 +358,16 @@ export function OpsAlertsShell() {
                   const progress = remainingMs ? Math.max(0, Math.min(100, (remainingMs / (4 * 3600 * 1000)) * 100)) : 100;
 
                   return (
-                    <motion.div 
+                    <div 
                       key={alert.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.02 }}
-                      className={`group relative overflow-hidden rounded-2xl border transition-all duration-500 ${
+                      className={`list-item-enter group relative overflow-hidden rounded-2xl border transition-all duration-500 ${
                         isSelected 
                           ? "border-cyan-500/40 bg-cyan-500/10 shadow-[0_0_32px_rgba(6,182,212,0.1)]" 
                           : isCritical 
                             ? "border-rose-500/30 bg-rose-500/5 shadow-[0_4px_24px_rgba(244,63,94,0.05)]"
                             : "border-white/5 bg-white/[0.01] hover:bg-white/[0.04] hover:border-white/20"
                       }`}
+                      style={{ animationDelay: `${idx * 20}ms` }}
                     >
                       {isCritical && !isSelected && (
                         <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-rose-500/5 to-transparent transition-transform duration-[3s] group-hover:translate-x-full" />
@@ -445,10 +455,9 @@ export function OpsAlertsShell() {
                           </div>
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   );
                 })}
-              </AnimatePresence>
               {!loading && displayedAlerts.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-40 gap-4 text-center">
                    <div className="relative rounded-3xl bg-emerald-500/5 p-12 border border-emerald-500/10 mb-2">

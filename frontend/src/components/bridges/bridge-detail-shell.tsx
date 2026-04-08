@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -129,16 +128,27 @@ export function BridgeDetailShell({ bridgeId }: Props) {
     >
       {error ? <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300 backdrop-blur-md">{error}</div> : null}
 
-      {bridge ? (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="space-y-8"
-        >
+      {loading ? (
+        <div className="space-y-8 page-enter">
+          <div className="grid gap-4 md:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="rounded-[2rem] border border-white/5 bg-white/[0.02] p-6 space-y-4">
+                <div className="skeleton-pulse h-10 w-10 !rounded-xl" />
+                <div className="skeleton-bar h-2 w-16" />
+                <div className="skeleton-bar h-6 w-12" />
+              </div>
+            ))}
+          </div>
+          <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+            <div className="skeleton-pulse min-h-[400px]" />
+            <div className="skeleton-pulse min-h-[400px]" />
+          </div>
+        </div>
+      ) : bridge ? (
+        <div className="space-y-8 page-enter">
           {/* Top Bento Stats */}
           <section className="grid gap-4 md:grid-cols-4">
-            <article className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 backdrop-blur-3xl transition-all hover:border-white/20">
+            <article className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 transition-all hover:border-white/20">
               <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
               </div>
@@ -147,7 +157,7 @@ export function BridgeDetailShell({ bridgeId }: Props) {
               <p className="mt-1 text-[10px] font-bold text-white/30 uppercase tracking-widest">{bridge.bridge_code}</p>
             </article>
 
-            <article className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 backdrop-blur-3xl transition-all hover:border-white/20">
+            <article className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 transition-all hover:border-white/20">
               <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
               </div>
@@ -155,7 +165,7 @@ export function BridgeDetailShell({ bridgeId }: Props) {
               <p className="mt-2 text-3xl font-black text-white tabular-nums">{bridge.active_batch_count}</p>
             </article>
 
-            <article className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 backdrop-blur-3xl transition-all hover:border-white/20">
+            <article className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 transition-all hover:border-white/20">
               <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3ZM12 9v4M12 17h.01"/></svg>
               </div>
@@ -163,7 +173,7 @@ export function BridgeDetailShell({ bridgeId }: Props) {
               <p className={`mt-2 text-3xl font-black tabular-nums ${bridge.abnormal_batch_count > 0 ? "text-rose-400" : "text-white"}`}>{bridge.abnormal_batch_count}</p>
             </article>
 
-            <article className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 backdrop-blur-3xl transition-all hover:border-white/20">
+            <article className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 transition-all hover:border-white/20">
               <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
               </div>
@@ -175,7 +185,7 @@ export function BridgeDetailShell({ bridgeId }: Props) {
           {/* Detailed Bento Grid */}
           <section className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
             {/* Recent Batches Card */}
-            <div className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] p-8 backdrop-blur-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] transition-all hover:border-white/20">
+            <div className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] p-8 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] transition-all hover:border-white/20">
               <div className="absolute -right-24 -top-24 h-96 w-96 rounded-full bg-cyan-500/5 blur-[120px]" />
               
               <div className="relative mb-8 flex items-center justify-between">
@@ -232,7 +242,7 @@ export function BridgeDetailShell({ bridgeId }: Props) {
             </div>
 
             {/* Risk Summary Card */}
-            <div className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] p-8 backdrop-blur-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] transition-all hover:border-white/20">
+            <div className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] p-8 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)] transition-all hover:border-white/20">
               <div className="absolute -left-24 -bottom-24 h-96 w-96 rounded-full bg-amber-500/5 blur-[120px]" />
               
               <div className="relative mb-8">
@@ -266,9 +276,9 @@ export function BridgeDetailShell({ bridgeId }: Props) {
               </div>
             </div>
           </section>
-        </motion.div>
+        </div>
       ) : (
-        !loading && <div className="py-20 text-center text-white/20 font-black">未找到指定的桥梁资产实体</div>
+        <div className="py-20 text-center text-white/20 font-black">未找到指定的桥梁资产实体</div>
       )}
     </OpsPageLayout>
   );

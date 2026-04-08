@@ -344,10 +344,8 @@ export function HistoryRouteShell() {
       }
     >
       <div className="space-y-8">
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }} 
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-wrap items-center justify-between gap-3 rounded-[2rem] border border-white/5 bg-white/[0.02] px-6 py-4 text-sm text-white/40 backdrop-blur-xl"
+        <div 
+          className="flex flex-wrap items-center justify-between gap-3 rounded-[2rem] border border-white/5 bg-white/[0.02] px-6 py-4 text-sm text-white/40 page-enter"
         >
           <div className="flex items-center gap-3">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
@@ -356,7 +354,7 @@ export function HistoryRouteShell() {
           <div className="rounded-full border border-white/5 bg-white/5 px-4 py-1 text-[10px] font-black uppercase tracking-widest">
             {batches.length} 个批次
           </div>
-        </motion.div>
+        </div>
 
         {batchError && <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300">{batchError}</div>}
 

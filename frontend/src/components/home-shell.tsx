@@ -287,7 +287,7 @@ export function HomeShell() {
 
   return (
     <>
-      <section className="flex-1 flex flex-col min-w-0 bg-black/40 backdrop-blur-3xl relative z-10 transition-all duration-700">
+      <section className="flex-1 flex flex-col min-w-0 bg-black/40 relative z-10 page-enter">
         <div className="px-6 pt-6">
           <OpsPageHeader
             eyebrow="LAB"

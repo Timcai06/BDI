@@ -62,7 +62,7 @@ const floatAnimation3 = {
 
 export function LandingHero() {
   return (
-    <section className="relative flex min-h-[84vh] w-full flex-col items-center justify-center overflow-hidden py-16">
+    <section className="relative flex min-h-[84vh] w-full flex-col items-center justify-center py-16">
       <motion.div
         className="absolute inset-0 -z-10 overflow-hidden pointer-events-none"
         initial={{ opacity: 0 }}
