@@ -24,28 +24,28 @@ const diseaseTypes = [
     name: "裂缝",
     nameEn: "Crack",
     color: "#63E6FF",
-    desc: "细长裂纹延展，优先关注主梁与边缘连续破损。",
+    desc: "主梁与边缘高发",
     pattern: "linear"
   },
   {
     name: "剥落",
     nameEn: "Spalling",
     color: "#FFB54D",
-    desc: "块状缺失与边缘破碎，常伴随表层结构脱落。",
+    desc: "表层结构脱落",
     pattern: "fragment"
   },
   {
     name: "锈蚀",
     nameEn: "Corrosion",
     color: "#FF7A59",
-    desc: "颗粒扩散与斑点渗透，提示钢筋或金属构件腐蚀。",
+    desc: "金属构件衰变",
     pattern: "particle"
   },
   {
     name: "渗水",
     nameEn: "Efflorescence",
     color: "#4D8DFF",
-    desc: "下渗流痕与潮湿纹理，容易出现在接缝与立面区域。",
+    desc: "形态破裂特征",
     pattern: "flow"
   }
 ];
@@ -122,18 +122,14 @@ export default function LandingPage() {
             <div className="mb-6 flex items-center justify-between">
               <div>
                 <span className="section-title inline-block">System Preview</span>
-                <h2 className="mt-4 text-3xl font-light text-white md:text-4xl">
-                  像 AI 工作台，而不是普通官网
+                <h2 className="mt-2 text-2xl font-light text-white tracking-wide">
+                  Unified Diagnosis Console.
                 </h2>
               </div>
-              <span className="rounded-full border border-[#63e6ff]/20 bg-[#0b1723] px-3 py-1 text-[11px] uppercase tracking-[0.26em] text-[#c9f8ff]/70">
+              <span className="rounded-full border border-[#63e6ff]/20 bg-[#0b1723] px-3 py-1 text-[10px] uppercase tracking-[0.3em] text-[#c9f8ff]/70">
                 Model Active
               </span>
             </div>
-
-            <p className="max-w-2xl text-white/52">
-              结果预览、风险摘要与结构化输出在同一视图里展开，让用户一眼看到这套系统到底如何把图片变成判断。
-            </p>
 
             <div className="mt-8 overflow-hidden rounded-[28px] border border-white/10 bg-[#050912]">
               <div className="border-b border-white/10 px-5 py-5">
@@ -300,14 +296,11 @@ export default function LandingPage() {
         placeholder={<div className="h-96 bg-white/5 rounded-3xl animate-pulse" />}
       >
         <section id="disease-types">
-          <ScrollReveal className="text-center mb-16">
-            <span className="section-title inline-block mb-4">Disease Gallery</span>
-            <h2 className="text-3xl md:text-4xl font-light text-white mb-4">
-              病害类型识别
+          <ScrollReveal className="text-center mb-12">
+            <span className="inline-block mb-3 text-[10px] uppercase tracking-[0.3em] text-white/40">Pathology Models</span>
+            <h2 className="text-2xl font-light text-white tracking-wide">
+              精准定位
             </h2>
-            <p className="text-white/50 max-w-2xl mx-auto">
-              支持多种常见桥梁病害类型的智能识别与分类
-            </p>
           </ScrollReveal>
 
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
@@ -369,15 +362,15 @@ export default function LandingPage() {
                       ) : null}
                     </div>
                   </div>
-                  <h3 className="mb-1 text-xl font-medium text-white">
+                  <h3 className="mb-1 text-lg font-light text-white">
                     {disease.name}
                   </h3>
-                  <p className="text-xs uppercase tracking-wider text-white/40">
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/30">
                     {disease.nameEn}
                   </p>
-                  <p className="mt-4 text-sm leading-7 text-white/46">
+                  <div className="mt-3 inline-block rounded-full border border-white/5 bg-white/[0.015] px-2.5 py-1 text-[10px] text-white/40">
                     {disease.desc}
-                  </p>
+                  </div>
                 </div>
               </ScrollReveal>
             ))}
@@ -391,14 +384,11 @@ export default function LandingPage() {
         placeholder={<div className="h-96 bg-white/5 rounded-3xl animate-pulse" />}
       >
         <section id="workflow">
-          <ScrollReveal className="text-center mb-16">
-            <span className="section-title inline-block mb-4">Workflow</span>
-            <h2 className="text-3xl md:text-4xl font-light text-white mb-4">
-              智能判读工作流
+          <ScrollReveal className="text-center mb-12">
+            <span className="inline-block mb-3 text-[10px] uppercase tracking-[0.3em] text-white/40">Workflow Stream</span>
+            <h2 className="text-2xl font-light text-white tracking-wide">
+              极简回路
             </h2>
-            <p className="text-white/50 max-w-2xl mx-auto">
-              从图像上传到报告导出，一站式完成桥梁病害检测
-            </p>
           </ScrollReveal>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -436,12 +426,9 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-accent/5 to-transparent" />
         <div className="max-w-4xl mx-auto px-6 text-center relative">
           <ScrollReveal>
-            <h2 className="text-4xl md:text-5xl font-light text-white mb-6">
-              进入未来感巡检控制台
+            <h2 className="text-3xl md:text-4xl font-light text-white mb-8 tracking-wide">
+              部署你的未来感巡检控制台。
             </h2>
-            <p className="text-lg text-white/50 mb-10 max-w-2xl mx-auto">
-              用更明确的任务流、更强的结果表达和更完整的结构化输出，把桥梁判读做成真正可交付的 AI 工作流。
-            </p>
             <a
               href="/dashboard"
               className="inline-flex h-14 items-center justify-center gap-3 rounded-full border border-[#7bb8ff]/30 bg-[linear-gradient(135deg,rgba(77,141,255,0.22),rgba(99,230,255,0.16))] px-12 text-sm font-semibold uppercase tracking-[0.18em] text-white transition-all duration-300 hover:border-[#9dd6ff]/50 hover:shadow-[0_0_50px_rgba(77,141,255,0.18)]"

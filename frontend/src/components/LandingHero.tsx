@@ -141,11 +141,11 @@ export function LandingHero() {
               <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Structured Export</span>
             </div>
 
-            <h2 className="mx-auto max-w-4xl text-4xl font-medium leading-tight text-white sm:text-5xl md:text-[3.5rem] flex flex-col items-center">
-              把巡检图像直接变成
-              <div className="h-[1.2em] relative overflow-hidden flex items-center justify-center">
+            <h2 className="mx-auto max-w-4xl text-4xl font-medium leading-tight text-white sm:text-5xl md:text-[3.2rem] flex flex-col items-center">
+              智能判读，从图像到结论
+              <div className="h-[1.2em] relative overflow-hidden flex items-center justify-center mt-2">
                 <GenerativeText 
-                    text="可复核、可导出的病害判断" 
+                    text="瞬息生成的基建巡检报告" 
                     delay={1.5} 
                     gradient={true}
                     className="block font-medium"
@@ -159,10 +159,9 @@ export function LandingHero() {
           Infrastructure Scan Intelligence
         </motion.p>
 
-        <motion.div className="mb-8" variants={itemVariants}>
-          <p className="mb-3 text-xl font-light text-white/85 sm:text-2xl md:text-3xl">桥梁病害智能判读系统</p>
-          <p className="mx-auto max-w-2xl text-sm leading-7 text-white/48 sm:text-base">
-            支持裂缝、破损、梳齿缺陷、孔洞、钢筋外露与渗水识别，默认输出结果图、结构化数据与可追溯的系统记录。
+        <motion.div className="mb-10 text-center" variants={itemVariants}>
+          <p className="mx-auto max-w-lg text-[13px] leading-relaxed text-white/40 sm:text-sm">
+            搭载自研视觉大模型引擎，彻底抛弃传统的繁杂操作，<br className="hidden sm:block" />只需上传，即刻输出结构化识别结果。
           </p>
         </motion.div>
 
@@ -190,22 +189,21 @@ export function LandingHero() {
           </Link>
         </motion.div>
 
-        <motion.div className="mt-8 grid w-full max-w-4xl grid-cols-1 gap-3 text-left sm:grid-cols-3" variants={itemVariants}>
+        <motion.div className="mt-12 grid w-full max-w-3xl grid-cols-1 gap-4 text-center sm:grid-cols-3" variants={itemVariants}>
           {[
-            { label: "Inference", value: "< 30s", desc: "单张图像完成识别与结构化输出" },
-            { label: "Review", value: "Human Loop", desc: "支持人工复核与历史追踪" },
-            { label: "Output", value: "Result + JSON", desc: "默认沉淀为可交付结果" },
+            { label: "Inference", value: "Sub-second" },
+            { label: "Review", value: "Human In Loop" },
+            { label: "Output", value: "JSON Ready" },
           ].map((item, index) => (
             <div
               key={item.label}
-              className="group relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-4 backdrop-blur-3xl transition-all hover:bg-white/[0.04]"
+              className="group relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.015] px-4 py-5 backdrop-blur-3xl transition-all hover:bg-white/[0.03]"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-[#63e6ff]/0 via-[#63e6ff]/0 to-[#63e6ff]/[0.05] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-              <p className="text-[11px] uppercase tracking-[0.24em] text-white/32">{item.label}</p>
-              <p className="mt-2 text-lg font-semibold text-white">
+              <p className="mb-2 text-[10px] uppercase tracking-[0.3em] text-white/30">{item.label}</p>
+              <p className="text-lg font-light text-white">
                 <GenerativeText text={item.value} delay={index * 0.2 + 2} />
               </p>
-              <p className="mt-2 text-sm leading-6 text-white/44">{item.desc}</p>
             </div>
           ))}
         </motion.div>
