@@ -22,6 +22,8 @@ import type {
   PredictResponse,
   ResultDetectionV1,
 } from "@/lib/types";
+import { OpsItemDetailSidebar } from "./ops-item-detail-sidebar";
+import { OpsItemDetailStage } from "./ops-item-detail-stage";
 
 interface Props {
   batchItemId?: string;
@@ -185,7 +187,8 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
           setOverlayMode("none");
         }
       } catch (err) {
-        console.warn("No result found for this item yet", err);
+        void err;
+        setResult(null);
         setImageSource("original");
         setResultSource("original");
       }
@@ -353,360 +356,46 @@ export function OpsItemDetailShell({ batchItemId, itemId }: Props) {
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           <div className="xl:col-span-8 flex flex-col gap-6">
-            <section className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.02] shadow-2xl backdrop-blur-3xl">
-              <div className="absolute top-6 left-6 z-30 flex gap-2">
-                <button
-                  onClick={() => {
-                    void handleEnhancementAction();
-                  }}
-                  disabled={enhancementPending}
-                  className={`rounded-xl border px-5 py-2 text-[10px] font-black tracking-widest transition-all ${
-                    enhancedResult
-                      ? resultSource === "enhanced"
-                        ? "border-cyan-500/50 bg-cyan-500/20 text-white shadow-[0_0_20px_rgba(6,182,212,0.2)]"
-                        : "border-white/10 bg-white/5 text-white/70"
-                      : "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
-                  } disabled:opacity-40`}
-                >
-                  {enhancementPending ? "增强中..." : enhancedResult ? (resultSource === "enhanced" ? "回看原图" : "查看增强") : "增强"}
-                </button>
-              </div>
-              <div className="absolute left-6 top-16 z-30 flex gap-2">
-                <button
-                  onClick={() => setImageSource("enhanced")}
-                  disabled={!enhancedUrl}
-                  className={`rounded-xl border px-5 py-2 text-[10px] font-black tracking-widest transition-all ${
-                    imageSource === "enhanced"
-                      ? "border-amber-500/50 bg-amber-500/20 text-white shadow-[0_0_20px_rgba(245,158,11,0.2)]"
-                      : "border-white/10 bg-white/5 text-white/40"
-                  } disabled:opacity-20`}
-                >
-                  增强底图
-                </button>
-                <button
-                  onClick={() => setImageSource("original")}
-                  className={`rounded-xl border px-5 py-2 text-[10px] font-black tracking-widest transition-all ${
-                    imageSource === "original"
-                      ? "border-white/50 bg-white/20 text-white shadow-xl"
-                      : "border-white/10 bg-white/5 text-white/40"
-                  }`}
-                >
-                  原始底图
-                </button>
-              </div>
-              <div className="absolute top-6 right-6 z-30 flex flex-wrap justify-end gap-2 max-w-[50%]">
-                <button
-                  onClick={() => setOverlayMode("mask")}
-                  className={`rounded-xl border px-4 py-2 text-[10px] font-black tracking-widest transition-all ${
-                    overlayMode === "mask"
-                      ? "border-rose-500/50 bg-rose-500/20 text-white shadow-[0_0_20px_rgba(16,185,129,0.2)]"
-                      : "border-white/10 bg-white/5 text-white/40"
-                  }`}
-                >
-                  掩膜图
-                </button>
-                <button
-                  onClick={() => setOverlayMode("bbox")}
-                  className={`rounded-xl border px-4 py-2 text-[10px] font-black tracking-widest transition-all ${
-                    overlayMode === "bbox"
-                      ? "border-cyan-500/50 bg-cyan-500/20 text-white shadow-[0_0_20px_rgba(16,185,129,0.2)]"
-                      : "border-white/10 bg-white/5 text-white/40"
-                  }`}
-                >
-                  识别框图
-                </button>
-                <button
-                  onClick={() => setOverlayMode("none")}
-                  className={`rounded-xl border px-4 py-2 text-[10px] font-black tracking-widest transition-all ${
-                    overlayMode === "none"
-                      ? "border-white/50 bg-white/20 text-white shadow-xl"
-                      : "border-white/10 bg-white/5 text-white/40"
-                  }`}
-                >
-                  无识别
-                </button>
-              </div>
-
-               <div className="aspect-[4/3] w-full bg-black/60 overflow-hidden relative">
-                {activeImageUrl ? (
-                  <div className="relative h-full w-full">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={activeImageUrl}
-                      alt="分析视图"
-                      className="h-full w-full object-contain pointer-events-none"
-                    />
-                    
-                    {/* Client-side SVG Overlay */}
-                    {overlayMode !== "none" && (
-                      <svg 
-                        viewBox="0 0 100 100" 
-                        preserveAspectRatio="none"
-                        className="absolute inset-0 h-full w-full z-20 pointer-events-none"
-                      >
-                        <defs>
-                          {/* Glow Filter for Cracks */}
-                          <filter id="glow-crack" x="-20%" y="-20%" width="140%" height="140%">
-                            <feGaussianBlur stdDeviation="1.5" result="blur" />
-                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                          </filter>
-                          {/* Glow Filter for Others */}
-                          <filter id="glow-cyan" x="-20%" y="-20%" width="140%" height="140%">
-                            <feGaussianBlur stdDeviation="1.2" result="blur" />
-                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                          </filter>
-                          {/* Mesh Pattern for Scanning Effect */}
-                          <pattern id="scan-pattern" x="0" y="0" width="2" height="2" patternUnits="userSpaceOnUse">
-                             <line x1="0" y1="0" x2="2" y2="2" stroke="white" strokeWidth="0.1" opacity="0.3" />
-                             <line x1="2" y1="0" x2="0" y2="2" stroke="white" strokeWidth="0.1" opacity="0.1" />
-                          </pattern>
-                        </defs>
-
-                        {activeDetections.map((det) => {
-                          const isHovered = hoveredDetectionId === det.id;
-                          const isCrack = det.category.includes("crack");
-                          const color = isCrack ? "#f43f5e" : "#06b6d4";
-                          const glowId = isCrack ? "glow-crack" : "glow-cyan";
-
-                          return (
-                            <motion.g 
-                              key={det.id}
-                              initial={{ opacity: 0 }}
-                              animate={{ 
-                                opacity: isHovered || !hoveredDetectionId ? 1 : 0.2,
-                                scale: isHovered ? 1.005 : 1
-                              }}
-                              transition={{ duration: 0.2 }}
-                            >
-                              {/* Bounding Box Rect */}
-                              {(overlayMode === "bbox" || overlayMode === "mask") && (
-                                <motion.rect
-                                  x={det.bbox.x}
-                                  y={det.bbox.y}
-                                  width={det.bbox.width}
-                                  height={det.bbox.height}
-                                  fill="none"
-                                  stroke={color}
-                                  strokeWidth={isHovered ? "0.8" : "0.5"}
-                                  filter={`url(#${glowId})`}
-                                  strokeDasharray={isHovered ? "none" : "2 1"}
-                                  className="transition-all duration-300"
-                                />
-                              )}
-                              
-                              {/* Mask Polygon */}
-                              {overlayMode === "mask" && det.mask?.format === "polygon" && det.mask.points && (
-                                <motion.g>
-                                  <polygon
-                                    points={det.mask.points.map(p => p.join(",")).join(" ")}
-                                    fill={`url(#scan-pattern)`}
-                                    style={{ fillOpacity: isHovered ? 0.6 : 0.3 }}
-                                    className="transition-opacity duration-300"
-                                  />
-                                  <polygon
-                                    points={det.mask.points.map(p => p.join(",")).join(" ")}
-                                    fill={color}
-                                    fillOpacity={isHovered ? 0.3 : 0.15}
-                                    stroke={color}
-                                    strokeWidth={isHovered ? "0.3" : "0.2"}
-                                    filter={`url(#${glowId})`}
-                                    className="transition-opacity duration-300"
-                                  />
-                                  {/* Interaction Dot: Display label on hover or high confidence */}
-                                  {(isHovered || det.confidence > 0.95) && (
-                                    <motion.foreignObject
-                                      x={det.bbox.x}
-                                      y={det.bbox.y - 4}
-                                      width={20}
-                                      height={6}
-                                      initial={{ y: det.bbox.y }}
-                                      animate={{ y: det.bbox.y - 4 }}
-                                    >
-                                      <div className={`flex items-center gap-1 rounded-[2px] px-1 py-0.5 text-[2px] font-black uppercase text-white shadow-lg backdrop-blur-sm ${isCrack ? 'bg-rose-500/80' : 'bg-cyan-500/80'}`}>
-                                        <span className="truncate">{det.category}</span>
-                                        <span className="opacity-60">{(det.confidence * 100).toFixed(0)}%</span>
-                                      </div>
-                                    </motion.foreignObject>
-                                  )}
-                                </motion.g>
-                              )}
-                            </motion.g>
-                          );
-                        })}
-                      </svg>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex h-full w-full flex-col items-center justify-center gap-4 text-xs font-mono text-white/20">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                    图像轨道暂不可用
-                  </div>
-                )}
-                <div className="absolute inset-0 pointer-events-none border border-white/5 z-10" />
-              </div>
-              
-              <div className="p-6 bg-white/[0.03] border-t border-white/5 flex items-center justify-between backdrop-blur-xl">
-                <div className="flex items-center gap-8 min-w-0">
-                   <div className="flex flex-col min-w-0">
-                      <span className="text-[9px] font-black text-white/20 uppercase tracking-tighter">文件名</span>
-                      <span className="text-xs font-mono font-bold text-white/60 truncate">{item.original_filename}</span>
-                   </div>
-                   <div className="flex flex-col shrink-0">
-                      <span className="text-[9px] font-black text-white/20 uppercase tracking-tighter">序号</span>
-                      <span className="text-xs font-mono font-bold text-white/60">BATCH_NO_{item.sequence_no}</span>
-                   </div>
-                   <div className="flex flex-col shrink-0">
-                      <span className="text-[9px] font-black text-white/20 uppercase tracking-tighter">模式</span>
-                      <span className="text-xs font-black text-white/70">{activeModeLabel}</span>
-                   </div>
-                </div>
-                <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/40 border border-white/10 ring-1 ring-white/5 shrink-0">
-                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                   <span className="text-[10px] font-black text-emerald-400 tabular-nums tracking-widest">
-                     {overlayMode === "bbox" ? "识别框视图" : overlayMode === "mask" ? "掩膜视图" : "原始底图"}
-                   </span>
-                </div>
-              </div>
-            </section>
-
-            <section className="grid gap-4 md:grid-cols-4">
-              <div className="group rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 backdrop-blur-3xl transition-all hover:border-white/20">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20">推理模式</p>
-                <p className="mt-2 text-base font-black text-white">{activeModeLabel}</p>
-                <p className="mt-1 text-[10px] font-medium text-white/40">{activeModeDescription}</p>
-              </div>
-              <div className="group rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 backdrop-blur-3xl transition-all hover:border-white/20">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20">检出病害</p>
-                <p className="mt-2 text-2xl font-black text-white tabular-nums">{activeSummary?.count ?? 0}</p>
-                {resultSource === "enhanced" && enhancedResult ? (
-                  <p className={`mt-1 text-[10px] font-bold ${deltaCount >= 0 ? "text-emerald-400/70" : "text-rose-400/70"}`}>
-                    {deltaCount >= 0 ? "增量 +" : "减量 "}{deltaCount} (相比原图)
-                  </p>
-                ) : null}
-              </div>
-              <div className="group rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 backdrop-blur-3xl transition-all hover:border-white/20">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20">算法覆盖</p>
-                <p className="mt-2 text-2xl font-black text-white tabular-nums">{activeSummary?.categories ?? 0}</p>
-                <p className="mt-1 text-[10px] font-medium text-white/40">独立病害标签数</p>
-              </div>
-              <div className="group rounded-[2rem] border border-white/10 bg-white/[0.02] p-6 backdrop-blur-3xl transition-all hover:border-white/20">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20">平均置信度</p>
-                <p className="mt-2 text-2xl font-black text-white tabular-nums">
-                  {((activeSummary?.averageConfidence ?? 0) * 100).toFixed(1)}%
-                </p>
-                {resultSource === "enhanced" && enhancedResult ? (
-                  <p className={`mt-1 text-[10px] font-bold ${deltaConfidence >= 0 ? "text-emerald-400/70" : "text-rose-400/70"}`}>
-                    {deltaConfidence >= 0 ? "提升 +" : "下降 "}{(deltaConfidence * 100).toFixed(1)}%
-                  </p>
-                ) : null}
-              </div>
-            </section>
+            <OpsItemDetailStage
+              activeDetections={activeDetections}
+              activeImageUrl={activeImageUrl}
+              activeModeDescription={activeModeDescription}
+              activeModeLabel={activeModeLabel}
+              activeSummary={activeSummary}
+              deltaConfidence={deltaConfidence}
+              deltaCount={deltaCount}
+              enhancedResultAvailable={Boolean(enhancedResult)}
+              enhancedUrlAvailable={Boolean(enhancedUrl)}
+              enhancementPending={enhancementPending}
+              hoveredDetectionId={hoveredDetectionId}
+              imageSource={imageSource}
+              itemOriginalFilename={item.original_filename ?? item.id}
+              onEnhancementAction={() => {
+                void handleEnhancementAction();
+              }}
+              onHoveredDetectionIdChange={setHoveredDetectionId}
+              onImageSourceChange={setImageSource}
+              onOverlayModeChange={setOverlayMode}
+              overlayMode={overlayMode}
+              resultSource={resultSource}
+              sequenceNo={item.sequence_no}
+            />
           </div>
 
           <div className="xl:col-span-4 flex flex-col gap-6">
-            <section className="rounded-[2.5rem] border border-white/10 bg-white/[0.02] p-8 space-y-6 shadow-2xl backdrop-blur-3xl">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-white/20 m-0 text-left">检出列表</h3>
-                <span className="rounded-full bg-white/5 border border-white/10 px-3 py-1 text-[9px] font-black text-white/30">{activeDetections.length} 项</span>
-              </div>
-              
-              <div className="space-y-3 max-h-[440px] overflow-auto pr-2 custom-scrollbar">
-                {activeDetections.map((det) => (
-                  <div 
-                    key={det.id} 
-                    onMouseEnter={() => setHoveredDetectionId(det.id)}
-                    onMouseLeave={() => setHoveredDetectionId(null)}
-                    className={`group/item flex items-center justify-between rounded-2xl border transition-all hover:bg-white/[0.04] p-4 ${
-                      hoveredDetectionId === det.id ? 'border-cyan-500/40 bg-white/[0.06]' : 'border-white/5 bg-black/40'
-                    }`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-[10px] font-black text-cyan-400 border border-cyan-500/20 tabular-nums">
-                        {(det.confidence * 100).toFixed(0)}%
-                      </div>
-                      <div className="space-y-0.5">
-                        <p className="text-sm font-black text-white uppercase tracking-tight">{det.category}</p>
-                        <p className="text-[9px] font-black text-white/20 uppercase tracking-widest">
-                          {resultSource === "enhanced" ? "ASSET: ENH_LAYER" : "ASSET: RAW_LAYER"}
-                        </p>
-                      </div>
-                    </div>
-                    {det.metrics.area_mm2 && (
-                       <span className="text-[10px] font-mono font-bold text-white/30 tabular-nums">{det.metrics.area_mm2.toFixed(1)} mm²</span>
-                    )}
-                  </div>
-                ))}
-                {activeDetections.length === 0 && (
-                  <div className="py-20 text-center opacity-10">
-                    <p className="text-[10px] font-black uppercase tracking-[0.4em]">暂无检出数据</p>
-                  </div>
-                )}
-              </div>
-            </section>
-
-            <section className="rounded-[2.5rem] border border-cyan-500/20 bg-cyan-500/[0.02] p-8 space-y-6 shadow-2xl relative overflow-hidden backdrop-blur-3xl">
-               <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none text-cyan-400">
-                 <svg width="64" height="64" viewBox="0 0 24 24" fill="currentColor">
-                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-                 </svg>
-               </div>
-               
-              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400 m-0 text-left">复核结论</h3>
-              
-              <div className="space-y-6">
-                <div className="flex gap-2 p-1.5 rounded-2xl bg-black/60 border border-white/5 ring-1 ring-white/5">
-                  <button
-                    onClick={() => setReviewAction("confirm")}
-                    className={`flex-1 rounded-xl py-4 text-[11px] font-black tracking-[0.2em] transition-all ${
-                      reviewAction === "confirm" 
-                      ? "bg-emerald-500 text-black shadow-[0_8px_20px_rgba(16,185,129,0.3)]" 
-                      : "text-white/20 hover:text-white/40"
-                    }`}
-                  >
-                    确认病害 (CONFIRM)
-                  </button>
-                  <button
-                    onClick={() => setReviewAction("reject")}
-                    className={`flex-1 rounded-xl py-4 text-[11px] font-black tracking-[0.2em] transition-all ${
-                      reviewAction === "reject" 
-                      ? "bg-rose-500 text-white shadow-[0_8px_20px_rgba(244,63,94,0.3)]" 
-                      : "text-white/20 hover:text-white/40"
-                    }`}
-                  >
-                    误报
-                  </button>
-                </div>
-
-                <div className="space-y-2 text-left">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-white/20 px-2">复核意见</label>
-                  <textarea
-                    value={reviewNote}
-                    onChange={(e) => setReviewNote(e.target.value)}
-                    rows={4}
-                    placeholder="输入复核意见与备注..."
-                    className="w-full rounded-2xl border border-white/10 bg-black/60 p-4 text-xs font-bold text-white/80 focus:border-cyan-500/50 outline-none transition-shadow placeholder:text-white/10 ring-1 ring-white/5"
-                  />
-                </div>
-
-                <button
-                  onClick={handleSubmitReview}
-                  disabled={reviewDisabled}
-                  className={`w-full rounded-2xl py-5 text-xs font-black tracking-[0.3em] uppercase transition-all active:scale-[0.98] ${
-                    reviewDisabled
-                      ? "bg-white/5 text-white/10"
-                      : "bg-cyan-500 text-black hover:bg-cyan-400 shadow-[0_12px_24px_rgba(6,182,212,0.3)]"
-                  }`}
-                >
-                  {resultSource === "enhanced" ? "请切回原图提交" : isSubmitting ? "正在同步..." : "提交复核"}
-                </button>
-
-                <div className="flex items-center justify-center gap-4 text-[9px] font-black text-white/10 uppercase tracking-[0.2em] py-2">
-                   <span>AUTHENTICITY_VERIFIED</span>
-                   <span className="h-1 w-1 rounded-full bg-white/20" />
-                   <span>SECURE_PIPE_ENABLED</span>
-                </div>
-              </div>
-            </section>
+            <OpsItemDetailSidebar
+              activeDetections={activeDetections}
+              hoveredDetectionId={hoveredDetectionId}
+              isSubmitting={isSubmitting}
+              onHoveredDetectionIdChange={setHoveredDetectionId}
+              onReviewActionChange={setReviewAction}
+              onReviewNoteChange={setReviewNote}
+              onSubmitReview={handleSubmitReview}
+              resultSource={resultSource}
+              reviewAction={reviewAction}
+              reviewDisabled={reviewDisabled}
+              reviewNote={reviewNote}
+            />
           </div>
         </div>
       </div>

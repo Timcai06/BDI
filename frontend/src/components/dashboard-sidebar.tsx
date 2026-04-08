@@ -38,24 +38,6 @@ export function DashboardSidebar() {
         </Link>
       </div>
 
-      <div className="px-3 pt-6">
-        <Link
-          href="/dashboard/lab-single"
-          className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-white transition-colors hover:bg-white/10 lg:justify-start"
-          onClick={(e) => {
-            if (pathname === "/dashboard/lab-single") {
-              e.preventDefault();
-              window.location.reload();
-            }
-          }}
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-sm font-bold text-white">
-            +
-          </span>
-          <span className="hidden text-sm uppercase tracking-widest font-medium lg:block">单图实验台</span>
-        </Link>
-      </div>
-
       <nav className="flex-1 py-6 px-3 flex flex-col gap-1">
         <Link href="/dashboard/ops/overview" className={navButtonClass(isOverview)}>
           <svg
@@ -153,7 +135,7 @@ export function DashboardSidebar() {
           <span className="hidden lg:block text-[11px] uppercase tracking-widest">系统设置</span>
         </Link>
 
-        <Link href="/dashboard/lab-single" className={navButtonClass(isLabSingle)}>
+        <Link href="/dashboard/lab-single" className={`${navButtonClass(isLabSingle)} mt-4 border-t border-white/5 pt-4 text-white/35`}>
           <svg
             className={`shrink-0 w-5 h-5 transition-colors ${isLabSingle ? "text-white" : "text-white/40"}`}
             fill="none"
@@ -162,7 +144,7 @@ export function DashboardSidebar() {
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 3v3.75L5.5 14.5a3 3 0 002.76 4.25h7.48a3 3 0 002.76-4.25L14.25 6.75V3m-4.5 0h4.5" />
           </svg>
-          <span className="hidden lg:block text-[11px] uppercase tracking-widest">单图实验台</span>
+          <span className="hidden lg:block text-[11px] uppercase tracking-widest">单图实验</span>
         </Link>
       </nav>
     </aside>

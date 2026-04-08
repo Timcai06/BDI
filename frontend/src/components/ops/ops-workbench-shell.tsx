@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 import {
   createV1Batch,
@@ -17,14 +17,11 @@ import {
   retryV1Task
 } from "@/lib/predict-client";
 import { BatchHeader } from "./batch-header";
-import { ItemGrid } from "./item-grid";
 import { IngestionWizard } from "./ingestion-wizard";
 import { OpsPageLayout } from "./ops-page-layout";
+import { OpsWorkbenchMain } from "./ops-workbench-main";
 import { OpsWorkbenchNavigation } from "./ops-workbench-navigation";
-import { OpsWorkbenchSkeleton } from "./ops-workbench-skeleton";
-import { OpsWorkbenchSummaryPanel } from "./ops-workbench-summary-panel";
 import type { BatchWizardPayload } from "./ingestion-wizard";
-import { BatchEmptyState } from "./batch-empty-state";
 import type {
   BatchItemV1,
   BatchStatsV1Response,
@@ -626,97 +623,44 @@ export function OpsWorkbenchShell() {
 
 
 
-        {error && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300">
-            {error}
-          </motion.div>
-        )}
-        {notice && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-300">
-            {notice}
-          </motion.div>
-        )}
-
-        <AnimatePresence mode="wait">
-          {loading && !lastRefreshedAt ? (
-            <motion.div
-              key="skeleton"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <OpsWorkbenchSkeleton />
-            </motion.div>
-          ) : !selectedBatchId ? (
-            <motion.div
-              key="empty"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
-            >
-              <BatchEmptyState
-                onCreateClick={() => setIsWizardOpen(true)}
-                hasSelectedBridge={Boolean(selectedBridgeId)}
-                onOpenBridgeAssets={() => router.push("/dashboard/bridges")}
-              />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="content"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.4 }}
-              className="space-y-8"
-            >
-            <OpsWorkbenchSummaryPanel
-              batchItemTotal={batchItemTotal}
-              createdBy={createdBy}
-              detectionsLength={detections.length}
-              minConfidence={minConfidence}
-              modelPolicy={modelPolicy}
-              onMinConfidenceChange={setMinConfidence}
-              selectedBatch={selectedBatch}
-              selectedBridge={selectedBridge}
-              selectedItemIdsCount={selectedItemIds.length}
-              showFailedItemsOnly={showFailedItemsOnly}
-              sourceDevice={sourceDevice}
-              stats={stats}
-              summaryExpanded={summaryExpanded}
-              onToggleSummaryExpanded={() => setSummaryExpanded(!summaryExpanded)}
-            />
-
-
-            <ItemGrid 
-              items={visibleItems}
-              pathFilter={relativePathPrefix}
-              onPathFilterChange={setRelativePathPrefix}
-              showFailedOnly={showFailedItemsOnly}
-              onShowFailedOnlyToggle={() => setShowFailedItemsOnly(!showFailedItemsOnly)}
-              onRetryTask={handleRetryBatchItemTask}
-              retryingTaskId={retryingTaskId}
-              selectedItemIds={selectedItemIds}
-              onToggleSelectItem={handleToggleSelectItem}
-              onSelectVisibleItems={handleSelectVisibleItems}
-              onClearSelection={() => setSelectedItemIds([])}
-              onRetrySelectedFailed={handleRetrySelectedFailed}
-              batchItemOffset={batchItemOffset}
-              batchItemLimit={batchItemLimit}
-              batchItemTotal={batchItemTotal}
-              onBatchItemPageChange={setBatchItemOffset}
-            />
-            </motion.div>
-          )}
-        </AnimatePresence>
-        <footer className="border-t border-white/5 bg-white/[0.01] px-4 py-4 rounded-2xl">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="text-[10px] font-black uppercase tracking-[0.3em] text-cyan-500/40">
-              系统存证批次总览 / Count: {batchTotal}
-            </div>
-          </div>
-        </footer>
+        <OpsWorkbenchMain
+          batchItemLimit={batchItemLimit}
+          batchItemOffset={batchItemOffset}
+          batchItemTotal={batchItemTotal}
+          batchTotal={batchTotal}
+          createdBy={createdBy}
+          detections={detections}
+          error={error}
+          items={visibleItems}
+          lastRefreshedAt={lastRefreshedAt}
+          loading={loading}
+          minConfidence={minConfidence}
+          modelPolicy={modelPolicy}
+          notice={notice}
+          onBatchItemPageChange={setBatchItemOffset}
+          onClearSelection={() => setSelectedItemIds([])}
+          onCreateClick={() => setIsWizardOpen(true)}
+          onMinConfidenceChange={setMinConfidence}
+          onOpenBridgeAssets={() => router.push("/dashboard/bridges")}
+          onPathFilterChange={setRelativePathPrefix}
+          onRetrySelectedFailed={handleRetrySelectedFailed}
+          onRetryTask={handleRetryBatchItemTask}
+          onSelectVisibleItems={handleSelectVisibleItems}
+          onShowFailedOnlyToggle={() => setShowFailedItemsOnly(!showFailedItemsOnly)}
+          onToggleSelectItem={handleToggleSelectItem}
+          onToggleSummaryExpanded={() => setSummaryExpanded(!summaryExpanded)}
+          pathFilter={relativePathPrefix}
+          retryingTaskId={retryingTaskId}
+          selectedBatch={selectedBatch}
+          selectedBatchId={selectedBatchId}
+          selectedBridge={selectedBridge}
+          selectedBridgeId={selectedBridgeId}
+          selectedItemIds={selectedItemIds}
+          showFailedItemsOnly={showFailedItemsOnly}
+          sourceDevice={sourceDevice}
+          stats={stats}
+          summaryExpanded={summaryExpanded}
+        />
       </OpsPageLayout>
 
       {isWizardOpen ? (

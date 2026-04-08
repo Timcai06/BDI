@@ -3,14 +3,13 @@ from __future__ import annotations
 import io
 import math
 from datetime import datetime, timedelta, timezone
-from pathlib import Path, PurePosixPath
 from typing import Any, Optional
 from uuid import uuid4
 
 from fastapi import UploadFile, status
 from PIL import Image as PILImage
 from PIL import ImageStat
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapters.manager import RunnerManager
@@ -20,10 +19,8 @@ from app.db.models import (
     BatchItem,
     Bridge,
     Detection,
-    InferenceResult,
     InferenceTask,
     InspectionBatch,
-    MediaAsset,
     ReviewRecord,
 )
 from app.models.schemas import (
@@ -77,12 +74,21 @@ from app.services.batch_read_service import (
 from app.services.batch_read_service import (
     list_reviews as list_reviews_via_service,
 )
+from app.services.batch_validation_service import (
+    normalize_relative_path,
+    resolve_requested_model_version,
+    validate_enhancement_mode,
+    validate_model_policy,
+    validate_relative_paths,
+)
+from app.services.batch_write_service import create_batch as create_batch_via_service
+from app.services.batch_write_service import create_bridge as create_bridge_via_service
+from app.services.batch_write_service import delete_batch as delete_batch_via_service
+from app.services.batch_write_service import delete_bridge as delete_bridge_via_service
 from app.storage.local import LocalArtifactStore
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 ALLOWED_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
-ALLOWED_ENHANCEMENT_MODES = {"off", "auto", "always"}
-DEFAULT_MODEL_POLICIES = {"active-default", "active", "fusion-default", "seepage-priority", "general-only"}
 MAX_BATCH_UPLOAD_FILES = 200
 ALERT_LEVEL_ORDER = ["low", "medium", "high", "critical"]
 ALERT_SLA_HOURS_BY_LEVEL = {
@@ -99,6 +105,10 @@ def _new_id(prefix: str) -> str:
 
 class BatchService:
     MAX_BATCH_UPLOAD_FILES = MAX_BATCH_UPLOAD_FILES
+
+    @staticmethod
+    def _new_id(prefix: str) -> str:
+        return _new_id(prefix)
 
     def __init__(
         self,
@@ -122,65 +132,13 @@ class BatchService:
         self.alert_sla_hours_by_level = merged
 
     def _resolve_requested_model_version(self, model_policy: str) -> Optional[str]:
-        if self.runner_manager is None:
-            return None
-
-        registry = self.runner_manager.registry
-        policy = (model_policy or "").strip().lower()
-        if not policy or policy in {"active-default", "active"}:
-            return registry.active_version
-        if policy in {"fusion-default", "seepage-priority"}:
-            active_spec = registry.get_active()
-            if active_spec.runner_kind == "fusion":
-                return active_spec.model_version
-            for spec in registry.list_specs():
-                if spec.runner_kind == "fusion":
-                    return spec.model_version
-            return registry.active_version
-        if policy == "general-only":
-            active_spec = registry.get_active()
-            if active_spec.runner_kind == "fusion" and active_spec.primary_model_version:
-                return active_spec.primary_model_version
-            for spec in registry.list_specs():
-                if spec.runner_kind in {"ultralytics", "external_ultralytics"}:
-                    return spec.model_version
-            return registry.active_version
-        if policy in registry.specs:
-            return policy
-        return registry.active_version
+        return resolve_requested_model_version(self, model_policy)
 
     def _validate_model_policy(self, model_policy: str) -> str:
-        policy = (model_policy or "").strip().lower()
-        if not policy:
-            raise AppError(
-                code="INVALID_MODEL_POLICY",
-                message="Model policy must not be empty.",
-                status_code=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if policy in DEFAULT_MODEL_POLICIES:
-            return policy
-
-        if self.runner_manager is not None and policy in self.runner_manager.registry.specs:
-            return policy
-
-        raise AppError(
-            code="INVALID_MODEL_POLICY",
-            message="Model policy is not supported.",
-            status_code=status.HTTP_400_BAD_REQUEST,
-            details={"model_policy": model_policy},
-        )
+        return validate_model_policy(self, model_policy)
 
     def _validate_enhancement_mode(self, enhancement_mode: str) -> str:
-        mode = (enhancement_mode or "").strip().lower()
-        if mode not in ALLOWED_ENHANCEMENT_MODES:
-            raise AppError(
-                code="INVALID_ENHANCEMENT_MODE",
-                message="Enhancement mode must be one of off, auto, or always.",
-                status_code=status.HTTP_400_BAD_REQUEST,
-                details={"enhancement_mode": enhancement_mode},
-            )
-        return mode
+        return validate_enhancement_mode(enhancement_mode)
 
     def _build_bridge_response(self, *, session: Session, bridge: Bridge) -> BridgeResponse:
         latest_batch = session.scalar(
@@ -292,31 +250,7 @@ class BatchService:
         return mean_luma < 92
 
     def create_bridge(self, payload: BridgeCreateRequest) -> BridgeResponse:
-        with self.session_factory() as session:
-            existing = session.scalar(select(Bridge).where(Bridge.bridge_code == payload.bridge_code))
-            if existing is not None:
-                raise AppError(
-                    code="BRIDGE_CODE_CONFLICT",
-                    message="Bridge code already exists.",
-                    status_code=status.HTTP_409_CONFLICT,
-                    details={"bridge_code": payload.bridge_code},
-                )
-
-            bridge = Bridge(
-                id=_new_id("br"),
-                bridge_code=payload.bridge_code,
-                bridge_name=payload.bridge_name,
-                bridge_type=payload.bridge_type,
-                region=payload.region,
-                manager_org=payload.manager_org,
-                longitude=payload.longitude,
-                latitude=payload.latitude,
-                status="active",
-            )
-            session.add(bridge)
-            session.commit()
-            session.refresh(bridge)
-            return self._build_bridge_response(session=session, bridge=bridge)
+        return create_bridge_via_service(self, payload)
 
     def list_bridges(self, *, limit: int, offset: int) -> BridgeListResponse:
         with self.session_factory() as session:
@@ -339,71 +273,10 @@ class BatchService:
             return self._build_bridge_response(session=session, bridge=bridge)
 
     def delete_bridge(self, bridge_id: str):
-        with self.session_factory() as session:
-            bridge = session.get(Bridge, bridge_id)
-            if bridge is None:
-                raise AppError(
-                    code="BRIDGE_NOT_FOUND",
-                    message="Bridge does not exist.",
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    details={"bridge_id": bridge_id},
-                )
-            batch_ids = session.scalars(select(InspectionBatch.id).where(InspectionBatch.bridge_id == bridge_id)).all()
-
-        for batch_id in batch_ids:
-            self.delete_batch(batch_id)
-
-        with self.session_factory() as session:
-            bridge = session.get(Bridge, bridge_id)
-            if bridge is None:
-                return {"bridge_id": bridge_id, "deleted": True}
-            session.delete(bridge)
-            session.commit()
-        return {"bridge_id": bridge_id, "deleted": True}
+        return delete_bridge_via_service(self, bridge_id)
 
     def create_batch(self, payload: BatchCreateRequest) -> BatchCreateResponse:
-        with self.session_factory() as session:
-            bridge = session.get(Bridge, payload.bridge_id)
-            if bridge is None:
-                raise AppError(
-                    code="BRIDGE_NOT_FOUND",
-                    message="Bridge does not exist.",
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    details={"bridge_id": payload.bridge_id},
-                )
-
-            batch_code = self._generate_batch_code(session=session, bridge=bridge)
-            if payload.batch_code:
-                normalized = payload.batch_code.strip()
-                if normalized:
-                    batch_code = normalized
-            existing = session.scalar(select(InspectionBatch).where(InspectionBatch.batch_code == batch_code))
-            if existing is not None:
-                if payload.batch_code:
-                    raise AppError(
-                        code="BATCH_CODE_CONFLICT",
-                        message="Batch code already exists.",
-                        status_code=status.HTTP_409_CONFLICT,
-                        details={"batch_code": batch_code},
-                    )
-                batch_code = self._generate_batch_code(session=session, bridge=bridge, attempt_offset=1)
-
-            batch = InspectionBatch(
-                id=_new_id("bat"),
-                bridge_id=payload.bridge_id,
-                batch_code=batch_code,
-                source_type=payload.source_type,
-                status="ingesting",
-                expected_item_count=payload.expected_item_count,
-                created_by=payload.created_by,
-                sealed=False,
-            )
-            session.add(batch)
-            session.commit()
-            session.refresh(batch)
-            return BatchCreateResponse.model_validate(
-                self._build_batch_payload(session=session, batch=batch, bridge=bridge, payload=payload)
-            )
+        return create_batch_via_service(self, payload)
 
     def list_batches(
         self,
@@ -458,89 +331,7 @@ class BatchService:
             return BatchResponse.model_validate(self._build_batch_payload(session=session, batch=batch, bridge=bridge))
 
     def delete_batch(self, batch_id: str) -> BatchDeleteResponse:
-        with self.session_factory() as session:
-            batch = session.get(InspectionBatch, batch_id)
-            if batch is None:
-                raise AppError(
-                    code="BATCH_NOT_FOUND",
-                    message="Batch does not exist.",
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    details={"batch_id": batch_id},
-                )
-
-            item_rows = session.execute(
-                select(BatchItem.id, BatchItem.media_asset_id).where(BatchItem.batch_id == batch_id)
-            ).all()
-            batch_item_ids = [row[0] for row in item_rows]
-            media_asset_ids = [row[1] for row in item_rows]
-
-            result_rows = (
-                session.execute(
-                    select(
-                        InferenceResult.id,
-                        InferenceResult.json_uri,
-                        InferenceResult.overlay_uri,
-                        InferenceResult.diagnosis_uri,
-                    ).where(InferenceResult.batch_item_id.in_(batch_item_ids))
-                ).all()
-                if batch_item_ids
-                else []
-            )
-            result_ids = [row[0] for row in result_rows]
-
-            media_rows = (
-                session.execute(
-                    select(MediaAsset.id, MediaAsset.storage_uri).where(MediaAsset.id.in_(media_asset_ids))
-                ).all()
-                if media_asset_ids
-                else []
-            )
-
-            if batch_item_ids:
-                session.execute(
-                    update(BatchItem)
-                    .where(BatchItem.id.in_(batch_item_ids))
-                    .values(latest_task_id=None, latest_result_id=None)
-                )
-                session.execute(delete(ReviewRecord).where(ReviewRecord.batch_item_id.in_(batch_item_ids)))
-            session.execute(delete(AlertEvent).where(AlertEvent.batch_id == batch_id))
-            if batch_item_ids:
-                session.execute(delete(Detection).where(Detection.batch_item_id.in_(batch_item_ids)))
-            if result_ids:
-                session.execute(delete(InferenceResult).where(InferenceResult.id.in_(result_ids)))
-            if batch_item_ids:
-                session.execute(delete(InferenceTask).where(InferenceTask.batch_item_id.in_(batch_item_ids)))
-                session.execute(delete(BatchItem).where(BatchItem.id.in_(batch_item_ids)))
-            session.execute(delete(InspectionBatch).where(InspectionBatch.id == batch_id))
-
-            for media_asset_id, _ in media_rows:
-                ref_count = (
-                    session.scalar(
-                        select(func.count()).select_from(BatchItem).where(BatchItem.media_asset_id == media_asset_id)
-                    )
-                    or 0
-                )
-                if ref_count == 0:
-                    session.execute(delete(MediaAsset).where(MediaAsset.id == media_asset_id))
-
-            session.commit()
-
-            for _, storage_uri in media_rows:
-                if not storage_uri:
-                    continue
-                upload_path = Path(storage_uri)
-                if upload_path.exists():
-                    upload_path.unlink(missing_ok=True)
-
-            for _, json_uri, overlay_uri, diagnosis_uri in result_rows:
-                for candidate in (json_uri, overlay_uri, diagnosis_uri):
-                    if not candidate:
-                        continue
-                    artifact_path = Path(candidate)
-                    if artifact_path.exists():
-                        artifact_path.unlink(missing_ok=True)
-
-            return BatchDeleteResponse(batch_id=batch_id)
+        return delete_batch_via_service(self, batch_id)
 
     def list_batch_items(
         self,
@@ -869,37 +660,10 @@ class BatchService:
         return content
 
     def _normalize_relative_path(self, value: Optional[str]) -> Optional[str]:
-        if not value:
-            return None
-        normalized = value.strip().replace("\\", "/")
-        if not normalized:
-            return None
-        parts = [part for part in PurePosixPath(normalized).parts if part not in ("", ".")]
-        if not parts or any(part == ".." for part in parts):
-            return None
-        return "/".join(parts)[:1024]
+        return normalize_relative_path(value)
 
     def _validate_relative_paths(self, *, files: list[UploadFile], relative_paths: Optional[list[str]]) -> None:
-        if relative_paths is None:
-            return
-
-        if len(relative_paths) != len(files):
-            raise AppError(
-                code="RELATIVE_PATH_COUNT_MISMATCH",
-                message="relative_paths must match the number of uploaded files.",
-                status_code=status.HTTP_400_BAD_REQUEST,
-                details={"files": len(files), "relative_paths": len(relative_paths)},
-            )
-
-        for index, value in enumerate(relative_paths):
-            normalized = self._normalize_relative_path(value)
-            if normalized is None:
-                raise AppError(
-                    code="INVALID_RELATIVE_PATH",
-                    message="relative_paths contains an invalid or unsafe path.",
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    details={"index": index, "relative_path": value},
-                )
+        validate_relative_paths(files=files, relative_paths=relative_paths)
 
     def _refresh_batch_aggregates(self, *, session: Session, batch_id: str) -> None:
         refresh_batch_aggregates(self, session=session, batch_id=batch_id)

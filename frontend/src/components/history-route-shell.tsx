@@ -570,7 +570,7 @@ export function HistoryRouteShell() {
                     onSearchQueryChange={setHistorySearchQuery}
                     onCategoryFilterChange={setHistoryCategoryFilter}
                     onSortModeChange={setHistorySortMode}
-                    onOpenUploader={() => router.push("/dashboard/lab-single")}
+                    onOpenUploader={() => router.push("/dashboard/ops")}
                     onRefresh={() => void loadHistory()}
                     onSelect={(imageId) => {
                       router.push(`/dashboard/history/${encodeURIComponent(imageId)}?returnTo=${encodeURIComponent(currentHistoryHref)}`);

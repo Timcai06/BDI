@@ -68,6 +68,21 @@ export async function waitForBatchItemResult(batchItemId: string, request: APIRe
   throw new Error(`等待单图结果超时：status=${lastStatus} body=${lastBody}`);
 }
 
+export async function getBatchItemResult(batchItemId: string, request: APIRequestContext) {
+  const response = await request.get(
+    `${API_BASE_URL}/api/v1/batch-items/${encodeURIComponent(batchItemId)}/result`,
+  );
+  const body = await response.text();
+  if (!response.ok()) {
+    throw new Error(`读取单图结果失败：${response.status()} ${body}`);
+  }
+  return JSON.parse(body) as {
+    id: string;
+    batch_item_id: string;
+    detections: Array<{ id: string; category: string; confidence: number }>;
+  };
+}
+
 export async function findBridgeIdByCode(bridgeCode: string, request: APIRequestContext) {
   const response = await request.get(`${API_BASE_URL}/api/v1/bridges?limit=200&offset=0`);
   const body = await response.text();
@@ -121,4 +136,84 @@ export async function createBridgeViaUi(page: Page, request: APIRequestContext, 
 
   const bridgeId = await findBridgeIdByCode(bridgeCode, request);
   return { bridgeId, bridgeCode, bridgeName };
+}
+
+export async function createProcessedBatchItemViaUi(page: Page, request: APIRequestContext, suffix: string) {
+  const bridge = await createBridgeViaUi(page, request, suffix);
+  await page.goto(`/dashboard/ops?bridgeId=${encodeURIComponent(bridge.bridgeId)}`);
+  await page.getByTitle("新建批次").click();
+  await page.getByPlaceholder("例如：主桥上行 4 月无人机巡检").fill(`E2E 巡检 ${suffix}`);
+  await page.getByRole("button", { name: "下一步流程" }).click();
+  await page.locator("input[type='file']").setInputFiles(FIXTURE_IMAGE_PATH);
+  await page.getByRole("button", { name: "立即启动云端扫描" }).click();
+  await page.getByText(/上传完成：accepted=/).waitFor({ timeout: 120_000 });
+
+  const batchId = await waitForBatchIdByBridge(bridge.bridgeId, request);
+  const batchItemId = await waitForBatchItemId(batchId, request);
+  await waitForBatchItemResult(batchItemId, request);
+  const result = await getBatchItemResult(batchItemId, request);
+
+  return {
+    ...bridge,
+    batchId,
+    batchItemId,
+    resultId: result.id,
+    detectionId: result.detections[0]?.id ?? null,
+  };
+}
+
+export async function createReviewViaApi(
+  request: APIRequestContext,
+  payload: {
+    detectionId: string;
+    reviewer: string;
+    reviewNote: string;
+  },
+) {
+  const response = await request.post(`${API_BASE_URL}/api/v1/reviews`, {
+    data: {
+      detection_id: payload.detectionId,
+      review_action: "confirm",
+      reviewer: payload.reviewer,
+      review_note: payload.reviewNote,
+      after_payload: {},
+    },
+  });
+  const body = await response.text();
+  if (!response.ok()) {
+    throw new Error(`创建复核记录失败：${response.status()} ${body}`);
+  }
+  return JSON.parse(body) as { id: string; reviewer: string; batch_item_id: string };
+}
+
+export async function createAlertViaApi(
+  request: APIRequestContext,
+  payload: {
+    bridgeId: string;
+    batchId: string;
+    batchItemId: string;
+    resultId: string;
+    detectionId: string;
+    title: string;
+  },
+) {
+  const response = await request.post(`${API_BASE_URL}/api/v1/alerts`, {
+    data: {
+      bridge_id: payload.bridgeId,
+      batch_id: payload.batchId,
+      batch_item_id: payload.batchItemId,
+      result_id: payload.resultId,
+      detection_id: payload.detectionId,
+      event_type: "count_exceeded",
+      alert_level: "high",
+      title: payload.title,
+      trigger_payload: { source: "playwright-e2e" },
+      note: "seeded by playwright",
+    },
+  });
+  const body = await response.text();
+  if (!response.ok()) {
+    throw new Error(`创建告警失败：${response.status()} ${body}`);
+  }
+  return JSON.parse(body) as { id: string; title: string; status: string };
 }
