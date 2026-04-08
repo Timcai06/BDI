@@ -16,6 +16,14 @@ BACKEND_ROOT = Path(__file__).resolve().parents[2]
 WORKSPACE_ROOT = BACKEND_ROOT.parent
 
 
+class SpecialistOverrideConfig(BaseModel):
+    model_version: str
+    categories: list[str] = Field(default_factory=list)
+
+    def model_post_init(self, __context) -> None:
+        self.categories = [normalize_defect_category(category) for category in self.categories]
+
+
 class ConfiguredModel(BaseModel):
     model_name: Optional[str] = None
     model_version: str
@@ -31,9 +39,17 @@ class ConfiguredModel(BaseModel):
     primary_model_version: Optional[str] = None
     specialist_model_version: Optional[str] = None
     specialist_categories: list[str] = Field(default_factory=list)
+    specialist_overrides: list[SpecialistOverrideConfig] = Field(default_factory=list)
 
     def model_post_init(self, __context) -> None:
         self.specialist_categories = [normalize_defect_category(category) for category in self.specialist_categories]
+        if not self.specialist_overrides and self.specialist_model_version and self.specialist_categories:
+            self.specialist_overrides = [
+                SpecialistOverrideConfig(
+                    model_version=self.specialist_model_version,
+                    categories=self.specialist_categories,
+                )
+            ]
 
 
 class Settings(BaseModel):

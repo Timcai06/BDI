@@ -1,5 +1,5 @@
-from pathlib import Path
 from io import BytesIO
+from pathlib import Path
 
 from PIL import Image
 
@@ -240,3 +240,94 @@ def test_fusion_runner_generates_overlay_when_requested(tmp_path: Path, monkeypa
     )
 
     assert result.overlay_png is not None
+
+
+def test_fusion_runner_supports_multiple_specialists(tmp_path: Path, monkeypatch) -> None:
+    general_weights = tmp_path / "general.pt"
+    seepage_weights = tmp_path / "seepage.pt"
+    crack_weights = tmp_path / "crack.pt"
+    general_weights.write_bytes(b"general")
+    seepage_weights.write_bytes(b"seepage")
+    crack_weights.write_bytes(b"crack")
+
+    registry = ModelRegistry(active_version="fusion-v2")
+    registry.register(
+        ModelSpec(
+            model_name="general",
+            model_version="v1-general",
+            backend="pytorch",
+            runner_kind="ultralytics",
+            weights_path=general_weights,
+        )
+    )
+    registry.register(
+        ModelSpec(
+            model_name="seepage",
+            model_version="v2-seepage-specialist",
+            backend="pytorch",
+            runner_kind="ultralytics",
+            weights_path=seepage_weights,
+        )
+    )
+    registry.register(
+        ModelSpec(
+            model_name="crack",
+            model_version="v3-crack-specialist",
+            backend="pytorch",
+            runner_kind="ultralytics",
+            weights_path=crack_weights,
+        )
+    )
+    fusion_spec = ModelSpec(
+        model_name="triple-model-fusion",
+        model_version="fusion-v2",
+        backend="fusion",
+        runner_kind="fusion",
+        primary_model_version="v1-general",
+        specialist_overrides=[
+            {"model_version": "v2-seepage-specialist", "categories": ["seepage"]},
+            {"model_version": "v3-crack-specialist", "categories": ["crack"]},
+        ],
+        supports_masks=False,
+    )
+
+    primary_result = _build_prediction(
+        "v1-general",
+        [
+            _build_detection("crack", 0.41, 10, 10),
+            _build_detection("seepage", 0.38, 50, 50),
+            _build_detection("breakage", 0.92, 80, 80),
+        ],
+    )
+    seepage_result = _build_prediction(
+        "v2-seepage-specialist",
+        [_build_detection("seepage", 0.88, 50, 50)],
+    )
+    crack_result = _build_prediction(
+        "v3-crack-specialist",
+        [_build_detection("crack", 0.95, 10, 10)],
+    )
+
+    def fake_load_runner_for_spec(spec, pixels_per_mm=10.0):
+        if spec.model_version == "v1-general":
+            return FakeRunner(primary_result)
+        if spec.model_version == "v2-seepage-specialist":
+            return FakeRunner(seepage_result)
+        return FakeRunner(crack_result)
+
+    monkeypatch.setattr("app.adapters.fusion_runner.load_runner_for_spec", fake_load_runner_for_spec)
+
+    runner = FusionRunner(spec=fusion_spec, registry=registry)
+    result = runner.predict(
+        image_bytes=b"fake",
+        image_name="bridge.jpg",
+        options=PredictOptions(model_version="fusion-v2"),
+    )
+
+    by_category = {item.category: item for item in result.detections}
+    assert set(by_category) == {"crack", "seepage", "breakage"}
+    assert by_category["crack"].confidence == 0.95
+    assert by_category["crack"].source_model_version == "v3-crack-specialist"
+    assert by_category["seepage"].confidence == 0.88
+    assert by_category["seepage"].source_model_version == "v2-seepage-specialist"
+    assert by_category["breakage"].source_model_version == "v1-general"

@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw
 
 from app.adapters.base import ModelRunner
 from app.adapters.factory import load_runner_for_spec
-from app.adapters.registry import ModelRegistry, ModelSpec
+from app.adapters.registry import ModelRegistry, ModelSpec, SpecialistOverrideSpec
 from app.models.schemas import BoundingBox, PredictOptions, RawDetection, RawPrediction
 
 
@@ -79,6 +79,13 @@ def _group_by_category(detections: Iterable[RawDetection]) -> Dict[str, List[Raw
     for detection in detections:
         grouped.setdefault(detection.category, []).append(detection)
     return grouped
+
+
+def _flatten_specialist_categories(overrides: Iterable[SpecialistOverrideSpec]) -> set[str]:
+    categories: set[str] = set()
+    for item in overrides:
+        categories.update(item.categories)
+    return categories
 
 
 _CATEGORY_COLORS = {
@@ -153,14 +160,12 @@ class FusionRunner:
             self._component_runners[version] = runner
         return component_spec, runner
 
-    def _validate_fusion_spec(self) -> set[str]:
-        if self.spec.primary_model_version is None or self.spec.specialist_model_version is None:
-            raise RuntimeError("Fusion runner requires primary and specialist model versions.")
-
-        specialist_categories = set(self.spec.specialist_categories)
-        if not specialist_categories:
-            raise RuntimeError("Fusion runner requires at least one specialist category.")
-        return specialist_categories
+    def _validate_fusion_spec(self) -> list[SpecialistOverrideSpec]:
+        if self.spec.primary_model_version is None:
+            raise RuntimeError("Fusion runner requires a primary model version.")
+        if not self.spec.specialist_overrides:
+            raise RuntimeError("Fusion runner requires at least one specialist override.")
+        return self.spec.specialist_overrides
 
     def _run_component_prediction(
         self,
@@ -183,19 +188,18 @@ class FusionRunner:
         self,
         *,
         primary_detections: List[RawDetection],
-        specialist_detections: List[RawDetection],
+        specialist_results_by_category: Dict[str, List[RawDetection]],
         specialist_categories: set[str],
     ) -> List[RawDetection]:
         selected: List[RawDetection] = []
         primary_by_category = _group_by_category(primary_detections)
-        specialist_by_category = _group_by_category(specialist_detections)
 
         for category, detections in primary_by_category.items():
             if category not in specialist_categories:
                 selected.extend(detections)
 
         for category in specialist_categories:
-            specialist_hits = specialist_by_category.get(category, [])
+            specialist_hits = specialist_results_by_category.get(category, [])
             if specialist_hits:
                 selected.extend(specialist_hits)
             else:
@@ -208,15 +212,19 @@ class FusionRunner:
         *,
         image_name: str,
         primary_spec: ModelSpec,
-        specialist_spec: ModelSpec,
-        specialist_categories: set[str],
+        specialist_overrides: list[SpecialistOverrideSpec],
     ) -> dict:
         return {
             "source_image": image_name,
             "fusion": {
                 "primary_model_version": primary_spec.model_version,
-                "specialist_model_version": specialist_spec.model_version,
-                "specialist_categories": sorted(specialist_categories),
+                "specialist_overrides": [
+                    {
+                        "model_version": item.model_version,
+                        "categories": sorted(item.categories),
+                    }
+                    for item in specialist_overrides
+                ],
             },
         }
 
@@ -227,7 +235,8 @@ class FusionRunner:
         image_name: str,
         options: PredictOptions,
     ) -> RawPrediction:
-        specialist_categories = self._validate_fusion_spec()
+        specialist_overrides = self._validate_fusion_spec()
+        specialist_categories = _flatten_specialist_categories(specialist_overrides)
 
         primary_spec, primary_result = self._run_component_prediction(
             image_bytes=image_bytes,
@@ -235,35 +244,41 @@ class FusionRunner:
             options=options,
             model_version=self.spec.primary_model_version,
         )
-        specialist_spec, specialist_result = self._run_component_prediction(
-            image_bytes=image_bytes,
-            image_name=image_name,
-            options=options,
-            model_version=self.spec.specialist_model_version,
-        )
-
         primary_detections = _with_source(
             primary_result.detections,
             role="general",
             model_name=primary_spec.model_name,
             model_version=primary_spec.model_version,
         )
-        specialist_detections = _with_source(
-            specialist_result.detections,
-            role="specialist",
-            model_name=specialist_spec.model_name,
-            model_version=specialist_spec.model_version,
-        )
-        merged_detections = self._select_detections(
-            primary_detections=primary_detections,
-            specialist_detections=specialist_detections,
-            specialist_categories=specialist_categories,
-        )
+        specialist_results_by_category: Dict[str, List[RawDetection]] = {}
         breakdown = {
             "primary_model": primary_result.inference_ms,
-            "specialist_model": specialist_result.inference_ms,
             "fusion_post": 1,
         }
+
+        for override in specialist_overrides:
+            specialist_spec, specialist_result = self._run_component_prediction(
+                image_bytes=image_bytes,
+                image_name=image_name,
+                options=options,
+                model_version=override.model_version,
+            )
+            breakdown[f"specialist:{specialist_spec.model_version}"] = specialist_result.inference_ms
+            tagged = _with_source(
+                specialist_result.detections,
+                role="specialist",
+                model_name=specialist_spec.model_name,
+                model_version=specialist_spec.model_version,
+            )
+            grouped = _group_by_category(tagged)
+            for category in override.categories:
+                specialist_results_by_category[category] = grouped.get(category, [])
+
+        merged_detections = self._select_detections(
+            primary_detections=primary_detections,
+            specialist_results_by_category=specialist_results_by_category,
+            specialist_categories=specialist_categories,
+        )
         overlay_bytes = _render_overlay(image_bytes, merged_detections) if options.return_overlay else None
 
         return RawPrediction(
@@ -277,8 +292,7 @@ class FusionRunner:
             metadata=self._build_metadata(
                 image_name=image_name,
                 primary_spec=primary_spec,
-                specialist_spec=specialist_spec,
-                specialist_categories=specialist_categories,
+                specialist_overrides=specialist_overrides,
             ),
             overlay_png=overlay_bytes,
         )
@@ -293,6 +307,10 @@ class FusionRunner:
             "primary_model_version": self.spec.primary_model_version,
             "specialist_model_version": self.spec.specialist_model_version,
             "specialist_categories": self.spec.specialist_categories,
+            "specialist_overrides": [
+                {"model_version": item.model_version, "categories": item.categories}
+                for item in self.spec.specialist_overrides
+            ],
         }
 
     def close(self) -> None:

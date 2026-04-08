@@ -5,7 +5,12 @@ from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
-from app.core.config import ConfiguredModel, Settings
+from app.core.config import ConfiguredModel, Settings, SpecialistOverrideConfig
+
+
+class SpecialistOverrideSpec(BaseModel):
+    model_version: str
+    categories: List[str] = Field(default_factory=list)
 
 
 class ModelSpec(BaseModel):
@@ -23,17 +28,23 @@ class ModelSpec(BaseModel):
     primary_model_version: Optional[str] = None
     specialist_model_version: Optional[str] = None
     specialist_categories: List[str] = Field(default_factory=list)
+    specialist_overrides: List[SpecialistOverrideSpec] = Field(default_factory=list)
+
+    def model_post_init(self, __context) -> None:
+        if not self.specialist_overrides and self.specialist_model_version and self.specialist_categories:
+            self.specialist_overrides = [
+                SpecialistOverrideSpec(
+                    model_version=self.specialist_model_version,
+                    categories=self.specialist_categories,
+                )
+            ]
 
     @property
     def is_available(self) -> bool:
         if self.runner_kind == "mock":
             return True
         if self.runner_kind == "fusion":
-            return (
-                self.primary_model_version is not None
-                and self.specialist_model_version is not None
-                and bool(self.specialist_categories)
-            )
+            return self.primary_model_version is not None and bool(self.specialist_overrides)
         if self.runner_kind == "external_ultralytics":
             return (
                 self.weights_path is not None
@@ -152,6 +163,7 @@ class ModelRegistry(BaseModel):
             primary_model_version=configured_model.primary_model_version,
             specialist_model_version=configured_model.specialist_model_version,
             specialist_categories=configured_model.specialist_categories,
+            specialist_overrides=configured_model.specialist_overrides,
         )
 
     @staticmethod
@@ -171,7 +183,19 @@ class ModelRegistry(BaseModel):
         primary_model_version: Optional[str] = None,
         specialist_model_version: Optional[str] = None,
         specialist_categories: Optional[List[str]] = None,
+        specialist_overrides: Optional[List[SpecialistOverrideConfig]] = None,
     ) -> ModelSpec:
+        normalized_overrides = [
+            SpecialistOverrideSpec(model_version=item.model_version, categories=item.categories)
+            for item in (specialist_overrides or [])
+        ]
+        if not normalized_overrides and specialist_model_version and specialist_categories:
+            normalized_overrides = [
+                SpecialistOverrideSpec(
+                    model_version=specialist_model_version,
+                    categories=specialist_categories,
+                )
+            ]
         return ModelSpec(
             model_name=model_name,
             model_version=model_version,
@@ -187,4 +211,5 @@ class ModelRegistry(BaseModel):
             primary_model_version=primary_model_version,
             specialist_model_version=specialist_model_version,
             specialist_categories=specialist_categories or [],
+            specialist_overrides=normalized_overrides,
         )

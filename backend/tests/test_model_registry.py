@@ -141,6 +141,37 @@ def test_model_registry_registers_fusion_model() -> None:
     assert fusion_spec.primary_model_version == "v1"
     assert fusion_spec.specialist_model_version == "v2-seepage-specialist"
     assert fusion_spec.specialist_categories == ["seepage"]
+    assert len(fusion_spec.specialist_overrides) == 1
+    assert fusion_spec.specialist_overrides[0].model_version == "v2-seepage-specialist"
+    assert fusion_spec.specialist_overrides[0].categories == ["seepage"]
+
+
+def test_model_registry_registers_multi_specialist_fusion_model() -> None:
+    settings = Settings(
+        extra_models=[
+            ConfiguredModel(
+                model_version="fusion-v2",
+                model_name="triple-model-fusion",
+                backend="fusion",
+                runner_kind="fusion",
+                primary_model_version="v1",
+                specialist_overrides=[
+                    {"model_version": "v2-seepage-specialist", "categories": ["渗水"]},
+                    {"model_version": "v3-crack-specialist", "categories": ["裂缝"]},
+                ],
+            )
+        ]
+    )
+
+    registry = ModelRegistry.from_settings(settings)
+    fusion_spec = registry.get("fusion-v2")
+
+    assert [item.model_version for item in fusion_spec.specialist_overrides] == [
+        "v2-seepage-specialist",
+        "v3-crack-specialist",
+    ]
+    assert fusion_spec.specialist_overrides[0].categories == ["seepage"]
+    assert fusion_spec.specialist_overrides[1].categories == ["crack"]
 
 
 def test_model_registry_uses_active_model_version_when_pointing_to_extra_model() -> None:
