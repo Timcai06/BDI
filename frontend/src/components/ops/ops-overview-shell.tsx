@@ -22,6 +22,12 @@ import type {
   ReviewRecordV1
 } from "@/lib/types";
 
+const RECENT_BATCH_LIMIT = 40;
+const RECENT_BRIDGE_LIMIT = 60;
+const RECENT_ALERT_LIMIT = 40;
+const RECENT_REVIEW_LIMIT = 40;
+const RECENT_DETECTION_LIMIT = 80;
+
 // --- UI Components & Helpers ---
 
 function Sparkline({ data, color = "currentColor" }: { data: number[]; color?: string }) {
@@ -165,6 +171,11 @@ export function OpsOverviewShell() {
   const [alerts, setAlerts] = useState<AlertV1[]>([]);
   const [reviews, setReviews] = useState<ReviewRecordV1[]>([]);
   const [detections, setDetections] = useState<DetectionRecordV1[]>([]);
+  const [batchTotal, setBatchTotal] = useState(0);
+  const [bridgeTotal, setBridgeTotal] = useState(0);
+  const [alertTotal, setAlertTotal] = useState(0);
+  const [reviewTotal, setReviewTotal] = useState(0);
+  const [detectionTotal, setDetectionTotal] = useState(0);
   const [opsMetrics, setOpsMetrics] = useState<OpsMetricsV1Response | null>(null);
   const [windowHours, setWindowHours] = useState(24);
   const [refreshTick, setRefreshTick] = useState(0);
@@ -176,11 +187,17 @@ export function OpsOverviewShell() {
       setError(null);
       try {
         const [batchResp, bridgeResp, alertResp, reviewResp, detectionResp, metricsResp] = await Promise.all([
-          listV1Batches({ limit: 500, offset: 0 }),
-          listV1Bridges(500, 0),
-          listV1Alerts({ limit: 500, offset: 0, sortBy: "triggered_at", sortOrder: "desc" }),
-          listV1Reviews({ limit: 500, offset: 0, sortBy: "reviewed_at", sortOrder: "desc" }),
-          listV1Detections({ limit: 800, offset: 0, sortBy: "created_at", sortOrder: "desc" }),
+          listV1Batches({ limit: RECENT_BATCH_LIMIT, offset: 0 }),
+          listV1Bridges(RECENT_BRIDGE_LIMIT, 0),
+          listV1Alerts({
+            statusFilter: "open",
+            limit: RECENT_ALERT_LIMIT,
+            offset: 0,
+            sortBy: "triggered_at",
+            sortOrder: "desc"
+          }),
+          listV1Reviews({ limit: RECENT_REVIEW_LIMIT, offset: 0, sortBy: "reviewed_at", sortOrder: "desc" }),
+          listV1Detections({ limit: RECENT_DETECTION_LIMIT, offset: 0, sortBy: "created_at", sortOrder: "desc" }),
           getV1OpsMetrics(windowHours)
         ]);
         if (cancelled) return;
@@ -189,6 +206,11 @@ export function OpsOverviewShell() {
         setAlerts(alertResp.items);
         setReviews(reviewResp.items);
         setDetections(detectionResp.items);
+        setBatchTotal(batchResp.total);
+        setBridgeTotal(bridgeResp.total);
+        setAlertTotal(alertResp.total);
+        setReviewTotal(reviewResp.total);
+        setDetectionTotal(detectionResp.total);
         setOpsMetrics(metricsResp);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "数据加载失败");
@@ -206,7 +228,7 @@ export function OpsOverviewShell() {
     return map;
   }, [bridges]);
 
-  const openAlerts = useMemo(() => alerts.filter(i => i.status === "open"), [alerts]);
+  const openAlerts = alerts;
   const highPriorityOpenAlertsCount = useMemo(() => openAlerts.filter(i => i.alert_level === "critical" || i.alert_level === "high").length, [openAlerts]);
   const overdueOpenAlertsCount = useMemo(() => openAlerts.filter(i => ageHours(i.triggered_at) > 24).length, [openAlerts]);
 
@@ -310,9 +332,9 @@ export function OpsOverviewShell() {
             />
             <MetricCard 
               label="活跃 Open 告警" 
-              value={String(openAlerts.length)} 
+              value={String(alertTotal)} 
               hint="各级别待处理告警总数。"
-              status={openAlerts.length > 50 ? "risk" : openAlerts.length > 20 ? "warning" : "healthy"}
+              status={alertTotal > 50 ? "risk" : alertTotal > 20 ? "warning" : "healthy"}
             />
             <MetricCard 
               label="AI 数据通过率" 
@@ -412,10 +434,10 @@ export function OpsOverviewShell() {
             {/* System Readiness (Compact Tags) */}
             <div className="grid grid-cols-2 gap-4 rounded-[2rem] border border-white/5 bg-white/[0.01] p-6">
               {[
-                { label: "巡检批次", val: batches.length },
-                { label: "桥梁资产", val: bridges.length },
-                { label: "检测记录", val: detections.length },
-                { label: "复核记录", val: reviews.length }
+                { label: "巡检批次", val: batchTotal },
+                { label: "桥梁资产", val: bridgeTotal },
+                { label: "检测记录", val: detectionTotal },
+                { label: "复核记录", val: reviewTotal }
               ].map(tag => (
                 <div key={tag.label} className="p-4 rounded-2xl bg-black/20 border border-white/5">
                   <p className="text-[9px] font-bold uppercase tracking-widest text-white/20 mb-1">{tag.label}</p>

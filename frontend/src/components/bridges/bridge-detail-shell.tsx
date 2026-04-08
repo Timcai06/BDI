@@ -37,13 +37,16 @@ export function BridgeDetailShell({ bridgeId }: Props) {
         const currentBridge = bridgeResp.items.find((item) => item.id === bridgeId) ?? null;
         setBridge(currentBridge);
         setBatches(batchResp.items);
-        const alertPayloads = await Promise.all(
-          batchResp.items.slice(0, 20).map((batch) =>
-            listV1Alerts({ batchId: batch.id, limit: 20, offset: 0, sortBy: "triggered_at", sortOrder: "desc" }),
-          ),
-        );
+        const batchIds = new Set(batchResp.items.map((batch) => batch.id));
+        const alertPayload = await listV1Alerts({
+          statusFilter: "open",
+          limit: 100,
+          offset: 0,
+          sortBy: "triggered_at",
+          sortOrder: "desc",
+        });
         if (cancelled) return;
-        setAlerts(alertPayloads.flatMap((item) => item.items).slice(0, 20));
+        setAlerts(alertPayload.items.filter((item) => batchIds.has(item.batch_id)).slice(0, 20));
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "桥梁视图加载失败");

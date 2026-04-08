@@ -112,6 +112,7 @@ export function useOpsWorkbenchState() {
     refreshTick,
     relativePathPrefix,
     selectedBatchId,
+    selectedBatchStatus: selectedBatch?.status ?? null,
     selectedBridgeId,
     setBatchItemOffset,
     setBatchItemTotal,

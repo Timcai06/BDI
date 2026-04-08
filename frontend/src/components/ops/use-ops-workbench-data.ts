@@ -32,6 +32,7 @@ interface UseOpsWorkbenchDataParams {
   refreshTick: number;
   relativePathPrefix: string;
   selectedBatchId: string;
+  selectedBatchStatus: string | null;
   selectedBridgeId: string;
   setBatchItemOffset: (value: number) => void;
   setBatchItemTotal: (value: number) => void;
@@ -68,6 +69,7 @@ export function useOpsWorkbenchData(params: UseOpsWorkbenchDataParams) {
     refreshTick,
     relativePathPrefix,
     selectedBatchId,
+    selectedBatchStatus,
     selectedBridgeId,
     setBatchItemOffset,
     setBatchItemTotal,
@@ -88,6 +90,14 @@ export function useOpsWorkbenchData(params: UseOpsWorkbenchDataParams) {
     setStats,
     showFailedItemsOnly
   } = params;
+
+  const shouldPollBatch =
+    !!selectedBatchId &&
+    !isWizardOpen &&
+    selectedBatchStatus !== "completed" &&
+    selectedBatchStatus !== "failed" &&
+    selectedBatchStatus !== "partial_failed" &&
+    selectedBatchStatus !== "cancelled";
 
   useEffect(() => {
     if (!ready) {
@@ -135,14 +145,14 @@ export function useOpsWorkbenchData(params: UseOpsWorkbenchDataParams) {
   }, [ready, batchOffset, refreshTick, selectedBridgeId, batchLimit, setBatches, setBatchTotal, setBridges, setError, setLoading, setSelectedBatchId, setSelectedBridgeId]);
 
   useEffect(() => {
-    if (!selectedBatchId || isWizardOpen) {
+    if (!shouldPollBatch) {
       return;
     }
     const timer = window.setInterval(() => {
       setRefreshTick((value) => value + 1);
     }, 5000);
     return () => window.clearInterval(timer);
-  }, [selectedBatchId, isWizardOpen, setRefreshTick]);
+  }, [setRefreshTick, shouldPollBatch]);
 
   useEffect(() => {
     let cancelled = false;

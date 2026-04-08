@@ -6,6 +6,7 @@ import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 
 export function FeatureMasonry() {
+  const features = [
     {
       title: "Console",
       icon: (
