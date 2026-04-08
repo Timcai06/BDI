@@ -102,11 +102,10 @@ export function FeatureMasonry() {
               <GlowingCard className="h-full">
                 <div className="flex flex-col h-full justify-between">
                   <motion.div
-                    className={`mb-6 flex h-12 w-12 items-center justify-center rounded-2xl border ${
-                      feature.tone === "primary"
+                    className={`mb-6 flex h-12 w-12 items-center justify-center rounded-2xl border ${feature.tone === "primary"
                         ? "border-[#7bb8ff]/25 bg-[linear-gradient(180deg,rgba(77,141,255,0.16),rgba(99,230,255,0.08))]"
                         : "border-white/10 bg-white/5"
-                    }`}
+                      }`}
                   >
                     {feature.icon}
                   </motion.div>

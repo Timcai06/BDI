@@ -8,21 +8,21 @@ export function SiteHeader() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-  
+
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      
+
       // 检测是否滚动超过阈值
       setIsScrolled(currentScrollY > 50);
-      
+
       // 向下滚动超过 100px 时隐藏 header，向上滚动时显示
       if (currentScrollY > lastScrollY && currentScrollY > 100) {
         setIsVisible(false);
       } else {
         setIsVisible(true);
       }
-      
+
       setLastScrollY(currentScrollY);
     };
 
@@ -41,18 +41,18 @@ export function SiteHeader() {
     <motion.header
       className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4"
       initial={{ y: 0, opacity: 1 }}
-      animate={{ 
+      animate={{
         y: isVisible ? 0 : -100,
         opacity: isVisible ? 1 : 0
       }}
-      transition={{ 
+      transition={{
         duration: 0.35,
         ease: [0.25, 0.1, 0.25, 1]
       }}
       style={{ willChange: "transform, opacity" }}
     >
       {/* 动态背景 */}
-      <motion.div 
+      <motion.div
         className="absolute inset-0 -z-10"
         style={{
           backgroundColor: `rgba(0, 0, 0, ${isScrolled ? 0.8 : 0})`,
@@ -68,14 +68,14 @@ export function SiteHeader() {
       />
 
       {/* Logo */}
-      <motion.div 
+      <motion.div
         className="flex items-center gap-6 pointer-events-auto"
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
       >
         <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-80 group">
-          <motion.div 
+          <motion.div
             className="h-8 w-8 rounded-lg bg-black border border-white/20 flex items-center justify-center"
             whileHover={{ scale: 1.05, borderColor: "rgba(255,255,255,0.4)" }}
             transition={{ duration: 0.2 }}
@@ -89,7 +89,7 @@ export function SiteHeader() {
       </motion.div>
 
       {/* Navigation */}
-      <motion.nav 
+      <motion.nav
         className="hidden md:flex items-center gap-8 pointer-events-auto"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -102,8 +102,8 @@ export function SiteHeader() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.3 + index * 0.1 }}
           >
-            <Link 
-              href={item.href} 
+            <Link
+              href={item.href}
               className="relative text-xs font-semibold tracking-widest uppercase text-white/60 transition-colors hover:text-white group py-2"
             >
               {item.label}
@@ -119,13 +119,13 @@ export function SiteHeader() {
         ))}
       </motion.nav>
 
-      <motion.div 
+      <motion.div
         className="pointer-events-auto"
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.5, delay: 0.4 }}
       >
-        <Link 
+        <Link
           href="/dashboard"
           className="inline-flex h-9 items-center justify-center rounded-full border border-white/30 bg-white/10 px-5 text-[10px] font-bold tracking-widest uppercase text-white backdrop-blur-md transition-all duration-300 hover:bg-white hover:text-black hover:border-white"
         >

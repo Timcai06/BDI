@@ -8,12 +8,12 @@ import { useRef, ReactNode, useEffect, useState } from "react";
 // ============================================
 
 export const fadeInUp: Variants = {
-  hidden: { 
-    opacity: 0, 
-    y: 40 
+  hidden: {
+    opacity: 0,
+    y: 40
   },
-  visible: { 
-    opacity: 1, 
+  visible: {
+    opacity: 1,
     y: 0,
     transition: {
       duration: 0.6,
@@ -23,10 +23,10 @@ export const fadeInUp: Variants = {
 };
 
 export const fadeIn: Variants = {
-  hidden: { 
-    opacity: 0 
+  hidden: {
+    opacity: 0
   },
-  visible: { 
+  visible: {
     opacity: 1,
     transition: {
       duration: 0.5,
@@ -36,12 +36,12 @@ export const fadeIn: Variants = {
 };
 
 export const scaleIn: Variants = {
-  hidden: { 
-    opacity: 0, 
-    scale: 0.95 
+  hidden: {
+    opacity: 0,
+    scale: 0.95
   },
-  visible: { 
-    opacity: 1, 
+  visible: {
+    opacity: 1,
     scale: 1,
     transition: {
       duration: 0.5,
@@ -51,12 +51,12 @@ export const scaleIn: Variants = {
 };
 
 export const slideInLeft: Variants = {
-  hidden: { 
-    opacity: 0, 
-    x: -60 
+  hidden: {
+    opacity: 0,
+    x: -60
   },
-  visible: { 
-    opacity: 1, 
+  visible: {
+    opacity: 1,
     x: 0,
     transition: {
       duration: 0.6,
@@ -66,12 +66,12 @@ export const slideInLeft: Variants = {
 };
 
 export const slideInRight: Variants = {
-  hidden: { 
-    opacity: 0, 
-    x: 60 
+  hidden: {
+    opacity: 0,
+    x: 60
   },
-  visible: { 
-    opacity: 1, 
+  visible: {
+    opacity: 1,
     x: 0,
     transition: {
       duration: 0.6,
@@ -94,13 +94,13 @@ export const staggerContainer: Variants = {
 
 // 卡片进入动画（带弹性）
 export const cardEnter: Variants = {
-  hidden: { 
-    opacity: 0, 
+  hidden: {
+    opacity: 0,
     y: 30,
     scale: 0.98
   },
-  visible: { 
-    opacity: 1, 
+  visible: {
+    opacity: 1,
     y: 0,
     scale: 1,
     transition: {
@@ -134,8 +134,8 @@ export function ScrollReveal({
   as = "div"
 }: ScrollRevealProps) {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { 
-    once, 
+  const isInView = useInView(ref, {
+    once,
     amount // 元素进入视口 20% 时触发
   });
 
@@ -228,7 +228,7 @@ interface ParallaxProps {
 
 export function Parallax({ children, className = "", speed = 0.5 }: ParallaxProps) {
   const ref = useRef<HTMLDivElement>(null);
-  
+
   // 使用简单的 transform 实现视差
   // 注意：实际项目中可以使用 useScroll + useTransform 实现更复杂的效果
 
@@ -297,12 +297,12 @@ interface CountUpProps {
   className?: string;
 }
 
-export function CountUp({ 
-  end, 
-  duration = 2, 
-  suffix = "", 
+export function CountUp({
+  end,
+  duration = 2,
+  suffix = "",
   prefix = "",
-  className = "" 
+  className = ""
 }: CountUpProps) {
   const ref = useRef<HTMLSpanElement>(null);
   const isInView = useInView(ref, { once: true, amount: 0.5 });
@@ -317,7 +317,7 @@ export function CountUp({
     const animate = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
       const progress = Math.min((timestamp - startTime) / (duration * 1000), 1);
-      
+
       // easeOutExpo 缓动函数
       const easeOutExpo = 1 - Math.pow(2, -10 * progress);
       setCount(Math.floor(easeOutExpo * end));

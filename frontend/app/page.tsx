@@ -73,14 +73,14 @@ export default function LandingPage() {
     <main className="min-h-screen w-full relative overflow-x-hidden selection:bg-accent/30 selection:text-white">
       {/* 全局鼠标跟随聚光灯效果 */}
       <SpotlightEffect />
-      
+
       <SiteHeader />
       <ScrollCue />
-      
+
       {/* Background glow effects */}
       <div className="pointer-events-none absolute left-[-10%] top-[-20%] h-[50%] w-[50%] rounded-full bg-[#4285F4] opacity-[0.08] blur-[150px] animate-pulse-slow" />
       <div className="pointer-events-none absolute bottom-[20%] right-[-10%] h-[40%] w-[40%] rounded-full bg-[#63E6FF] opacity-[0.06] blur-[150px] animate-pulse-slow" />
-      
+
       {/* Full bleed Hero Section */}
       <div className="relative z-10 w-full">
         <LandingHero />
@@ -91,14 +91,14 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 sm:px-12 lg:px-24">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat, index) => (
-              <ScrollReveal 
-                key={stat.label} 
+              <ScrollReveal
+                key={stat.label}
                 delay={index * 0.1}
                 className="text-center"
               >
                 <div className="text-4xl md:text-5xl font-bold text-white mb-2">
-                  <CountUp 
-                    end={stat.value} 
+                  <CountUp
+                    end={stat.value}
                     suffix={stat.suffix}
                     duration={2}
                   />
@@ -291,7 +291,7 @@ export default function LandingPage() {
       </div>
 
       {/* Disease Types Section - 懒加载 */}
-      <LazyLoad 
+      <LazyLoad
         className="relative z-10 max-w-7xl mx-auto px-6 sm:px-12 lg:px-24 py-24"
         placeholder={<div className="h-96 bg-white/5 rounded-3xl animate-pulse" />}
       >
@@ -382,7 +382,7 @@ export default function LandingPage() {
       </LazyLoad>
 
       {/* Workflow Section - 懒加载 */}
-      <LazyLoad 
+      <LazyLoad
         className="relative z-10 max-w-7xl mx-auto px-6 sm:px-12 lg:px-24 py-24"
         placeholder={<div className="h-96 bg-white/5 rounded-3xl animate-pulse" />}
       >
@@ -413,7 +413,7 @@ export default function LandingPage() {
                   <p className="text-sm text-white/40">
                     {item.desc}
                   </p>
-                  
+
                   {/* 连接线 */}
                   {index < 3 && (
                     <div className="hidden md:block absolute top-10 left-[60%] w-[80%] h-px bg-gradient-to-r from-white/20 to-transparent" />
@@ -450,7 +450,7 @@ export default function LandingPage() {
           </ScrollReveal>
         </div>
       </section>
-      
+
       <SiteFooter />
     </main>
   );
