@@ -7,6 +7,7 @@ import { SpotlightEffect } from "@/lib/animations";
 import { ScrollReveal, CountUp } from "@/lib/animations";
 import { LazyLoad } from "@/components/ui/LazyLoad";
 import { GlowingCard } from "@/components/ui/GlowingCard";
+import { ParticleWave } from "@/components/animations/ParticleWave";
 import { UploadIcon, AiIcon, VerifyIcon, ReportIcon } from "@/components/icons/WorkflowIcons";
 
 // 统计数据
@@ -77,9 +78,12 @@ export default function LandingPage() {
       <SiteHeader />
       <ScrollCue />
 
-      {/* Background glow effects */}
-      <div className="pointer-events-none absolute left-[-10%] top-[-20%] h-[50%] w-[50%] rounded-full bg-[#4285F4] opacity-[0.08] blur-[150px] animate-pulse-slow" />
-      <div className="pointer-events-none absolute bottom-[20%] right-[-10%] h-[40%] w-[40%] rounded-full bg-[#63E6FF] opacity-[0.06] blur-[150px] animate-pulse-slow" />
+      {/* 全局大视差粒子引擎背景 */}
+      <ParticleWave />
+      
+      {/* 极简发光叠加层 */}
+      <div className="pointer-events-none absolute left-[10%] top-[-10%] h-[60%] w-[60%] rounded-full bg-[radial-gradient(ellipse,rgba(77,141,255,0.06)_0%,rgba(0,0,0,0)_70%)] blur-[150px] mix-blend-screen" />
+      <div className="pointer-events-none absolute bottom-[10%] right-[-10%] h-[50%] w-[50%] rounded-full bg-[radial-gradient(ellipse,rgba(99,230,255,0.04)_0%,rgba(0,0,0,0)_70%)] blur-[150px] mix-blend-screen" />
 
       {/* Full bleed Hero Section */}
       <div className="relative z-10 w-full">
@@ -114,7 +118,7 @@ export default function LandingPage() {
 
       <section id="technology" className="relative z-10 py-24">
         <div className="mx-auto max-w-7xl px-6 sm:px-12 lg:px-24">
-          <ScrollReveal className="rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,14,24,0.94),rgba(4,8,16,0.8))] p-6 shadow-[0_30px_100px_rgba(5,10,18,0.45)] backdrop-blur-2xl md:p-8">
+          <ScrollReveal className="rounded-[32px] border border-white/5 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] p-6 shadow-[0_30px_100px_rgba(0,0,0,0.6)] backdrop-blur-3xl md:p-8">
             <div className="mb-6 flex items-center justify-between">
               <div>
                 <span className="section-title inline-block">System Preview</span>
@@ -309,13 +313,13 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
             {diseaseTypes.map((disease, index) => (
               <ScrollReveal key={disease.name} delay={index * 0.1}>
-                <div className="group relative overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(9,14,24,0.9),rgba(4,8,16,0.78))] p-5 transition-all duration-300 hover:border-white/20 hover:bg-[linear-gradient(180deg,rgba(11,17,28,0.95),rgba(5,10,18,0.84))]">
-                  <div className="mb-5 overflow-hidden rounded-[22px] border border-white/10 bg-[linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-4">
+                <div className="group relative overflow-hidden rounded-[28px] border border-white/5 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] p-5 backdrop-blur-2xl transition-all duration-300 hover:border-white/10 hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02))]">
+                  <div className="mb-5 overflow-hidden rounded-[22px] border border-white/5 bg-[linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-4">
                     <div className="mb-3 flex items-center justify-between text-[10px] uppercase tracking-[0.22em] text-white/30">
                       <span>{disease.nameEn}</span>
                       <span style={{ color: disease.color }}>Detected</span>
                     </div>
-                    <div className="relative h-36 rounded-[18px] border border-white/10 bg-[linear-gradient(145deg,rgba(13,20,31,0.95),rgba(24,35,47,0.92))]">
+                    <div className="relative h-36 rounded-[18px] border border-white/5 bg-[linear-gradient(145deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))]">
                       {disease.pattern === "linear" ? (
                         <>
                           <div className="absolute left-[14%] top-[34%] h-[2px] w-[58%] rotate-[13deg] rounded-full" style={{ backgroundColor: disease.color, boxShadow: `0 0 18px ${disease.color}55` }} />

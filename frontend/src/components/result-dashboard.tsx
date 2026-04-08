@@ -11,9 +11,10 @@ import { ResultDashboardToolbar } from "@/components/result-dashboard-parts/resu
 import { getDefectLabel } from "@/lib/defect-visuals";
 import { formatModelLabel } from "@/lib/model-labels";
 import { filterDetections } from "@/lib/result-utils";
-import { getDiagnosisRecord, getDiagnosisText, getEnhancedImageUrl, getEnhancedOverlayUrl } from "@/lib/predict-client";
+import { getEnhancedImageUrl, getEnhancedOverlayUrl } from "@/lib/predict-client";
 import type { Detection, PredictionResult, PredictState } from "@/lib/types";
 import { useComparison } from "@/hooks/use-comparison";
+import { useResultDiagnosis } from "./use-result-diagnosis";
 
 interface ResultDashboardProps {
   result: PredictionResult;
@@ -129,22 +130,13 @@ export function ResultDashboard({
   showHistoryButton = true,
   showPrimaryActionButton = true
 }: ResultDashboardProps) {
-  const thinkingSteps = [
-    "正在解析病害分布与严重程度…",
-    "正在交叉核对模型结果与历史经验…",
-    "正在生成结构化诊断建议…",
-  ];
   const frameRef = useRef<HTMLDivElement>(null);
   const detectionItemRefs = useRef<Record<string, HTMLElement | null>>({});
   const [frameSize, setFrameSize] = useState({ width: 0, height: 0 });
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
-  const [diagnosis, setDiagnosis] = useState<string>("");
-  const [isDiagnosisLoading, setIsDiagnosisLoading] = useState(false);
-  const [hasStoredDiagnosis, setHasStoredDiagnosis] = useState<boolean | null>(null);
   const [showComparisonDetails, setShowComparisonDetails] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [comparisonViewMode, setComparisonViewMode] = useState<"master" | "comparison" | "diff">("master");
-  const [thinkingIndex, setThinkingIndex] = useState(0);
 
   // Use the new comparison hook
   const [showEnhancementCompare, setShowEnhancementCompare] = useState<boolean>(false);
@@ -179,84 +171,17 @@ export function ResultDashboard({
         Math.max(1, Math.max(result.detections.length, comparisonResult?.detections.length ?? 0))) *
       100
     : 0;
-
-  useEffect(() => {
-    if (!isDiagnosisLoading) {
-      setThinkingIndex(0);
-      return;
-    }
-
-    const timer = window.setInterval(() => {
-      setThinkingIndex((current) => (current + 1) % thinkingSteps.length);
-    }, 1600);
-
-    return () => window.clearInterval(timer);
-  }, [isDiagnosisLoading, thinkingSteps.length]);
-
-  useEffect(() => {
-    let cancelled = false;
-    
-    async function fetchDiagnosis() {
-      if (!result.image_id) return;
-      
-      setDiagnosis("");
-      setHasStoredDiagnosis(null);
-      setIsDiagnosisLoading(true);
-      
-      try {
-        if (diagnosisMode === "cached") {
-          const record = await getDiagnosisRecord(result.image_id);
-          if (!cancelled) {
-            setDiagnosis(record.content ?? "");
-            setHasStoredDiagnosis(record.exists);
-          }
-        } else {
-          const content = await getDiagnosisText(result.image_id);
-          if (!cancelled) {
-            setDiagnosis(content);
-            setHasStoredDiagnosis(true);
-          }
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setDiagnosis("无法加载 AI 专家评估建议。");
-          setHasStoredDiagnosis(true);
-          console.error(error);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsDiagnosisLoading(false);
-        }
-      }
-    }
-    
-    void fetchDiagnosis();
-    
-    return () => {
-      cancelled = true;
-    };
-  }, [diagnosisMode, result.image_id]);
-
-  async function handleGenerateDiagnosis() {
-    if (!result.image_id || isDiagnosisLoading) {
-      return;
-    }
-
-    setIsDiagnosisLoading(true);
-    setDiagnosis("");
-
-    try {
-      const content = await getDiagnosisText(result.image_id);
-      setDiagnosis(content);
-      setHasStoredDiagnosis(true);
-    } catch (error) {
-      setDiagnosis("无法生成 AI 专家评估建议。");
-      setHasStoredDiagnosis(true);
-      console.error(error);
-    } finally {
-      setIsDiagnosisLoading(false);
-    }
-  }
+  const {
+    diagnosis,
+    generateDiagnosis,
+    hasStoredDiagnosis,
+    isDiagnosisLoading,
+    thinkingIndex,
+    thinkingSteps
+  } = useResultDiagnosis({
+    diagnosisMode,
+    imageId: result.image_id
+  });
 
   useEffect(() => {
     if (!comparisonResult) {
@@ -586,7 +511,7 @@ export function ResultDashboard({
         hasStoredDiagnosis={hasStoredDiagnosis}
         isDiagnosisLoading={isDiagnosisLoading}
         onGenerateDiagnosis={() => {
-          void handleGenerateDiagnosis();
+          void generateDiagnosis();
         }}
         thinkingIndex={thinkingIndex}
         thinkingSteps={thinkingSteps}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { GenerativeText } from "@/components/ui/GenerativeText";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -68,7 +69,7 @@ export function LandingHero() {
         transition={{ duration: 1.5 }}
       >
         <motion.div
-          className="absolute top-[5%] left-[-10%] h-[45%] w-[50vw] max-w-[700px] rotate-[-8deg] overflow-hidden rounded-[80px] opacity-70 mix-blend-screen blur-[10px]"
+          className="absolute top-[5%] left-[-10%] h-[45%] w-[50vw] max-w-[700px] rotate-[-8deg] overflow-hidden rounded-[80px] opacity-[0.15] mix-blend-screen blur-[20px]"
           style={{ willChange: "transform" }}
           animate={floatAnimation}
         >
@@ -77,7 +78,7 @@ export function LandingHero() {
         </motion.div>
 
         <motion.div
-          className="absolute top-[14%] right-[-10%] h-[40%] w-[55vw] max-w-[800px] rotate-[12deg] overflow-hidden rounded-[100px] opacity-60 mix-blend-screen blur-[14px]"
+          className="absolute top-[14%] right-[-10%] h-[40%] w-[55vw] max-w-[800px] rotate-[12deg] overflow-hidden rounded-[100px] opacity-[0.12] mix-blend-screen blur-[24px]"
           style={{ willChange: "transform" }}
           animate={floatAnimation2}
         >
@@ -86,7 +87,7 @@ export function LandingHero() {
         </motion.div>
 
         <motion.div
-          className="absolute bottom-[10%] left-[5%] h-[35%] w-[60vw] max-w-[900px] rotate-[-4deg] overflow-hidden rounded-[120px] opacity-50 mix-blend-screen blur-[18px]"
+          className="absolute bottom-[10%] left-[5%] h-[35%] w-[60vw] max-w-[900px] rotate-[-4deg] overflow-hidden rounded-[120px] opacity-10 mix-blend-screen blur-[30px]"
           style={{ willChange: "transform" }}
           animate={floatAnimation3}
         >
@@ -133,18 +134,23 @@ export function LandingHero() {
             </h1>
           </div>
 
-          <div className="relative mx-auto max-w-4xl rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,17,27,0.92),rgba(5,10,18,0.72))] px-6 py-7 shadow-[0_40px_120px_rgba(5,10,18,0.65)] backdrop-blur-2xl sm:px-10">
+          <div className="relative mx-auto max-w-4xl rounded-[32px] border border-white/5 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] px-6 py-7 shadow-[0_40px_120px_rgba(0,0,0,0.8)] backdrop-blur-3xl sm:px-10">
             <div className="mb-5 flex flex-wrap items-center justify-center gap-3 text-[11px] uppercase tracking-[0.24em] text-white/45">
               <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Vision AI</span>
               <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Bridge Diagnostics</span>
               <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Structured Export</span>
             </div>
 
-            <h2 className="mx-auto max-w-4xl text-4xl font-medium leading-tight text-white sm:text-5xl md:text-[3.5rem]">
+            <h2 className="mx-auto max-w-4xl text-4xl font-medium leading-tight text-white sm:text-5xl md:text-[3.5rem] flex flex-col items-center">
               把巡检图像直接变成
-              <span className="block bg-[linear-gradient(120deg,#ffffff_0%,#8fc5ff_45%,#63e6ff_100%)] bg-clip-text text-transparent">
-                可复核、可导出的病害判断
-              </span>
+              <div className="h-[1.2em] relative overflow-hidden flex items-center justify-center">
+                <GenerativeText 
+                    text="可复核、可导出的病害判断" 
+                    delay={1.5} 
+                    gradient={true}
+                    className="block font-medium"
+                />
+              </div>
             </h2>
           </div>
         </motion.div>
@@ -189,13 +195,16 @@ export function LandingHero() {
             { label: "Inference", value: "< 30s", desc: "单张图像完成识别与结构化输出" },
             { label: "Review", value: "Human Loop", desc: "支持人工复核与历史追踪" },
             { label: "Output", value: "Result + JSON", desc: "默认沉淀为可交付结果" },
-          ].map((item) => (
+          ].map((item, index) => (
             <div
               key={item.label}
-              className="rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] px-4 py-4 backdrop-blur-xl"
+              className="group relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-4 backdrop-blur-3xl transition-all hover:bg-white/[0.04]"
             >
+              <div className="absolute inset-0 bg-gradient-to-br from-[#63e6ff]/0 via-[#63e6ff]/0 to-[#63e6ff]/[0.05] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
               <p className="text-[11px] uppercase tracking-[0.24em] text-white/32">{item.label}</p>
-              <p className="mt-2 text-lg font-semibold text-white">{item.value}</p>
+              <p className="mt-2 text-lg font-semibold text-white">
+                <GenerativeText text={item.value} delay={index * 0.2 + 2} />
+              </p>
               <p className="mt-2 text-sm leading-6 text-white/44">{item.desc}</p>
             </div>
           ))}
