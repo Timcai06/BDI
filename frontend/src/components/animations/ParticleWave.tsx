@@ -15,7 +15,7 @@ interface Particle {
   color: string;
 }
 
-const colors = ['rgba(99, 230, 255,', 'rgba(77, 141, 255,', 'rgba(255, 181, 77,'];
+const colors = ['rgba(0, 217, 146,', 'rgba(16, 185, 129,', 'rgba(61, 58, 57,'];
 
 export const ParticleWave: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -38,8 +38,8 @@ export const ParticleWave: React.FC = () => {
 
     const initParticles = () => {
       particles = [];
-      // Calculate amount based on screen size, ensuring performance
-      const particleCount = Math.min(Math.floor((window.innerWidth * window.innerHeight) / 12000), 200);
+      const density = window.innerWidth < 768 ? 15000 : 10000;
+      const particleCount = Math.min(Math.floor((window.innerWidth * window.innerHeight) / density), 300);
 
       for (let i = 0; i < particleCount; i++) {
         const x = Math.random() * canvas.width;
@@ -49,10 +49,10 @@ export const ParticleWave: React.FC = () => {
           y,
           baseX: x,
           baseY: y,
-          vx: (Math.random() - 0.5) * 0.5,
-          vy: (Math.random() - 0.5) * 0.5,
-          size: Math.random() * 1.5 + 0.5,
-          alpha: Math.random() * 0.5 + 0.1,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: (Math.random() - 0.5) * 0.3,
+          size: Math.random() * 1.2 + 0.4,
+          alpha: Math.random() * 0.4 + 0.05,
           color: colors[Math.floor(Math.random() * colors.length)],
         });
       }
@@ -60,41 +60,37 @@ export const ParticleWave: React.FC = () => {
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Aurora glow effects blending via screen/lighter
       ctx.globalCompositeOperation = 'lighter';
       
-      // Update & Draw Particles
+      const time = performance.now() * 0.0005;
+
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i];
 
-        // Move
-        p.x += p.vx;
-        p.y += p.vy;
+        // Atmospheric drifting
+        p.x += Math.sin(time + p.baseY * 0.01) * 0.2 + p.vx;
+        p.y += Math.cos(time + p.baseX * 0.01) * 0.2 + p.vy;
 
-        // Wave motion (perlin noise-like simple drift)
-        p.y += Math.sin(p.x * 0.005 + performance.now() * 0.001) * 0.5;
-        p.x += Math.cos(p.y * 0.005 + performance.now() * 0.001) * 0.5;
-
-        // Mouse interaction
+        // Data Gravity (Mouse Interaction)
         if (mouse.active) {
           const dx = mouse.x - p.x;
           const dy = mouse.y - p.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          const maxDist = 200;
+          const maxDist = 350;
 
           if (dist < maxDist) {
-            const force = (maxDist - dist) / maxDist;
-            p.x -= (dx / dist) * force * 2;
-            p.y -= (dy / dist) * force * 2;
+            const pullForce = (maxDist - dist) / maxDist;
+            // Pull towards mouse - "Magnetic Attraction"
+            p.x += (dx / dist) * pullForce * 1.2;
+            p.y += (dy / dist) * pullForce * 1.2;
           }
         }
 
-        // Return to base slowly
-        p.x += (p.baseX - p.x) * 0.01;
-        p.y += (p.baseY - p.y) * 0.01;
+        // Elastic return to base (Flow stabilization)
+        p.x += (p.baseX - p.x) * 0.02;
+        p.y += (p.baseY - p.y) * 0.02;
 
-        // Wrap around smoothly or bounce
+        // Bound check
         if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
         if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
 
@@ -104,18 +100,20 @@ export const ParticleWave: React.FC = () => {
         ctx.fillStyle = `${p.color} ${p.alpha})`;
         ctx.fill();
 
-        // Connect nearby particles
+        // Connect nearby particles with refined logic
         for (let j = i + 1; j < particles.length; j++) {
           const p2 = particles[j];
           const dx = p.x - p2.x;
           const dy = p.y - p2.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
+          const connectDist = mouse.active ? 150 : 100;
 
-          if (dist < 120) {
+          if (dist < connectDist) {
             ctx.beginPath();
-            const opacity = (1 - dist / 120) * 0.15;
-            ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
-            ctx.lineWidth = 0.5;
+            const opacity = (1 - dist / connectDist) * 0.12;
+            const mouseBoost = mouse.active ? 0.05 : 0;
+            ctx.strokeStyle = `rgba(0, 217, 146, ${opacity + mouseBoost})`;
+            ctx.lineWidth = 0.4;
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p2.x, p2.y);
             ctx.stroke();
@@ -128,20 +126,20 @@ export const ParticleWave: React.FC = () => {
     };
 
     window.addEventListener('resize', resize);
-    window.addEventListener('mousemove', (e) => {
+    const handleMouseMove = (e: MouseEvent) => {
       mouse.x = e.clientX;
       mouse.y = e.clientY;
       mouse.active = true;
-    });
-    window.addEventListener('mouseout', () => {
-      mouse.active = false;
-    });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseout', () => { mouse.active = false; });
 
     resize();
     draw();
 
     return () => {
       window.removeEventListener('resize', resize);
+      window.removeEventListener('mousemove', handleMouseMove);
       cancelAnimationFrame(animationFrameId);
     };
   }, []);
@@ -150,15 +148,16 @@ export const ParticleWave: React.FC = () => {
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      transition={{ duration: 2 }}
-      className="fixed inset-0 z-0 pointer-events-none opacity-60"
+      transition={{ duration: 3 }}
+      className="fixed inset-0 z-0 pointer-events-none"
     >
       <canvas
         ref={canvasRef}
-        className="w-full h-full block"
+        className="w-full h-full block opacity-40"
       />
-      {/* Global deep dark overlay to ensure high contrast */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(10,20,35,0)_0%,rgba(2,4,8,0.8)_100%)] w-full h-full" />
+      {/* Dynamic Grid Vignette Overlay */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(5,5,7,0.8)_100%)] pointer-events-none" />
+      <div className="bg-grid absolute inset-0 opacity-[0.05] pointer-events-none" />
     </motion.div>
   );
 };

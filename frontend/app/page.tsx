@@ -1,3 +1,8 @@
+'use client';
+
+import React from 'react';
+import Link from "next/link";
+import { motion } from "framer-motion";
 import { LandingHero } from "@/components/LandingHero";
 import { FeatureMasonry } from "@/components/FeatureMasonry";
 import { ScrollCue } from "@/components/ScrollCue";
@@ -9,6 +14,7 @@ import { LazyLoad } from "@/components/ui/LazyLoad";
 import { GlowingCard } from "@/components/ui/GlowingCard";
 import { ParticleWave } from "@/components/animations/ParticleWave";
 import { UploadIcon, AiIcon, VerifyIcon, ReportIcon } from "@/components/icons/WorkflowIcons";
+import { PathologyDetail } from "@/components/ui/PathologyDetail";
 
 // 统计数据
 const stats = [
@@ -19,10 +25,38 @@ const stats = [
 ];
 
 const diseaseTypes = [
-  { name: "Crack", color: "#00d992", pattern: "linear" },
-  { name: "Spalling", color: "#FFB54D", pattern: "fragment" },
-  { name: "Corrosion", color: "#FF7A59", pattern: "particle" },
-  { name: "Seepage", color: "#4D8DFF", pattern: "flow" }
+  { 
+    name: "Crack", 
+    color: "#00d992", 
+    pattern: "linear",
+    image: "/assets/pathology-crack.png",
+    specs: { orientation: "VERTICAL", confidence: "99%", risk: "GUARDED" },
+    details: "Structural separation detected via yolov9-tensor. Expansion rate: 0.02mm/yr."
+  },
+  { 
+    name: "Spalling", 
+    color: "#FFB54D", 
+    pattern: "fragment",
+    image: "/assets/pathology-spalling.png",
+    specs: { area: "45cm²", severity: "MODERATE", risk: "STABLE" },
+    details: "Concrete loss identified. Surface exposure at 12mm depth. Rebar not visible."
+  },
+  { 
+    name: "Corrosion", 
+    color: "#FF7A59", 
+    pattern: "particle",
+    image: "/assets/pathology-corrosion.png",
+    specs: { depth: "12mm", risk_score: "HIGH", state: "ACTIVE" },
+    details: "Corrosive oxidation detected on rebar [C-01]. High polarization detected."
+  },
+  { 
+    name: "Seepage", 
+    color: "#4D8DFF", 
+    pattern: "flow",
+    image: "/assets/pathology-seepage.png",
+    specs: { moisture: "82%", state: "DRIP", risk: "NOMINAL" },
+    details: "Moisture gradient tracing active. Localized permeation in secondary soffit."
+  }
 ];
 
 // 工作流程步骤
@@ -33,18 +67,9 @@ const workflowSteps = [
   { step: "04", title: "Export", Icon: ReportIcon }
 ];
 
-export const metadata = {
-  title: "BDI Nexus | 桥梁病害智能判读系统",
-  description: "AI驱动的桥梁基础设施巡检解决方案，从图像上传到报告导出的一站式智能判读工作台",
-  keywords: ["桥梁检测", "AI识别", "基础设施", "智能巡检", "病害判读"],
-  openGraph: {
-    title: "BDI Nexus | 桥梁病害智能判读系统",
-    description: "AI驱动的桥梁基础设施巡检解决方案",
-    type: "website"
-  }
-};
-
 export default function LandingPage() {
+  const [selectedDisease, setSelectedDisease] = React.useState<null | typeof diseaseTypes[0]>(null);
+
   return (
     <main className="min-h-screen w-full relative overflow-x-hidden selection:bg-accent/30 selection:text-white">
       {/* 全局鼠标跟随聚光灯效果 */}
@@ -96,142 +121,162 @@ export default function LandingPage() {
         className="relative z-10 max-w-7xl mx-auto px-6 sm:px-12 lg:px-24 py-24"
         placeholder={<div className="h-96 bg-white/5 rounded-3xl animate-pulse" />}
       >
-        <section id="disease-types">
-          <ScrollReveal className="text-center mb-12">
-            <h2 className="text-xl font-light text-white tracking-[0.4em] uppercase opacity-70">
-              Pathology.
-            </h2>
+        <section id="features">
+          <ScrollReveal className="text-center mb-16 px-4">
+             <div className="flex items-center gap-4">
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-[#3d3a39] to-[#3d3a39]" />
+                <h2 className="text-sm font-mono tracking-[0.6em] uppercase text-[#00d992] font-bold">
+                  Pathology_Library
+                </h2>
+                <div className="h-px flex-1 bg-gradient-to-l from-transparent via-[#3d3a39] to-[#3d3a39]" />
+             </div>
           </ScrollReveal>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
             {diseaseTypes.map((disease, index) => (
               <ScrollReveal key={disease.name} delay={index * 0.1}>
-                <div className="group relative flex flex-col px-2 py-6 transition-all duration-300">
-                  <div className="absolute top-0 left-0 w-12 h-[1px]" style={{ background: `linear-gradient(90deg, ${disease.color}88, transparent)` }} />
-                  <div className="absolute left-0 top-3 text-[8px] font-mono tracking-widest uppercase opacity-40">
-                    SCAN / {disease.name}
-                  </div>
-                  <div className="relative h-44 w-full mt-6 mb-6">
-                      {disease.pattern === "linear" ? (
-                        <>
-                          <div className="absolute left-[14%] top-[34%] h-[2px] w-[58%] rotate-[13deg] rounded-full" style={{ backgroundColor: disease.color, boxShadow: `0 0 18px ${disease.color}55` }} />
-                          <div className="absolute left-[28%] top-[52%] h-[2px] w-[30%] rotate-[7deg] rounded-full" style={{ backgroundColor: `${disease.color}cc` }} />
-                          <div className="absolute left-[10%] top-[24%] h-16 w-36 rounded-[42%_58%_56%_44%/54%_38%_62%_46%] border" style={{ borderColor: `${disease.color}66`, backgroundColor: `${disease.color}14` }} />
-                        </>
-                      ) : null}
-                      {disease.pattern === "fragment" ? (
-                        <>
-                          <div className="absolute left-[14%] top-[22%] h-16 w-20 rounded-[58%_42%_60%_40%/46%_58%_42%_54%] border" style={{ borderColor: `${disease.color}66`, backgroundColor: `${disease.color}16` }} />
-                          <div className="absolute left-[48%] top-[34%] h-12 w-16 rounded-[44%_56%_38%_62%/56%_44%_58%_42%] border" style={{ borderColor: `${disease.color}55`, backgroundColor: `${disease.color}10` }} />
-                          <div className="absolute left-[22%] top-[64%] h-px w-16" style={{ backgroundColor: `${disease.color}aa` }} />
-                        </>
-                      ) : null}
-                      {disease.pattern === "particle" ? (
-                        <>
-                          {[
-                            ["16%", "28%", 10],
-                            ["34%", "52%", 14],
-                            ["54%", "36%", 8],
-                            ["66%", "62%", 12],
-                            ["42%", "72%", 6]
-                          ].map(([left, top, size], particleIndex) => (
-                            <div
-                              key={particleIndex}
-                              className="absolute rounded-full"
-                              style={{
-                                left,
-                                top,
-                                width: `${size}px`,
-                                height: `${size}px`,
-                                backgroundColor: `${disease.color}55`,
-                                boxShadow: `0 0 16px ${disease.color}35`
-                              }}
-                            />
-                          ))}
-                          <div className="absolute inset-[18%] rounded-[22px] border border-dashed" style={{ borderColor: `${disease.color}35` }} />
-                        </>
-                      ) : null}
-                      {disease.pattern === "flow" ? (
-                        <>
-                          <div className="absolute left-[28%] top-[18%] h-20 w-8 rounded-full blur-[1px]" style={{ background: `linear-gradient(180deg, ${disease.color}66, transparent)` }} />
-                          <div className="absolute left-[46%] top-[22%] h-24 w-6 rounded-full blur-[1px]" style={{ background: `linear-gradient(180deg, ${disease.color}55, transparent)` }} />
-                          <div className="absolute left-[58%] top-[28%] h-20 w-5 rounded-full blur-[1px]" style={{ background: `linear-gradient(180deg, ${disease.color}40, transparent)` }} />
-                          <div className="absolute inset-x-[18%] top-[18%] h-px" style={{ backgroundColor: `${disease.color}55` }} />
-                        </>
-                      ) : null}
+                  <div 
+                    className="group relative flex flex-col items-center cursor-pointer"
+                    onClick={() => setSelectedDisease(disease)}
+                  >
+                    {/* Expansion Background Glow */}
+                    <div className="absolute inset-0 bg-[#00d992]/5 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-all duration-1000 scale-50 group-hover:scale-150 pointer-events-none" />
+
+                    {/* ID Indicator */}
+                    <div className="absolute -top-10 left-0 font-mono text-[9px] text-[#8b949e] opacity-40 uppercase tracking-widest">
+                      MEM_BLOCK: 0xFD_{index + 101}
                     </div>
-                  <h3 className="text-2xl font-light text-white tracking-[0.25em] uppercase opacity-90 drop-shadow-lg">
-                    {disease.name}
-                  </h3>
-                </div>
+
+                    {/* Technical HUD Graphic: REAL IMAGERY */}
+                    <motion.div 
+                      className="relative w-full h-56 mb-8 flex items-center justify-center overflow-hidden rounded-xl border border-[#3d3a39]/30 bg-[#050507] group-hover:border-[#00d992]/60 transition-all duration-500 shadow-2xl"
+                      whileHover={{ scale: 1.15, rotateY: 5, rotateX: -5 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    >
+                      {/* Real HD Image Bloom */}
+                      <img 
+                        src={disease.image} 
+                        alt={disease.name} 
+                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-700"
+                      />
+                      
+                      {/* Animated Scanner Layer */}
+                      <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-[#00d992]/50 to-transparent animate-[shimmer_3s_infinite] opacity-0 group-hover:opacity-100" />
+                      
+                      {/* HUD Overlays (Labels) */}
+                      <div className="absolute bottom-4 left-4 font-mono text-[8px] text-[#00d992] bg-black/80 px-2 py-0.5 border border-[#00d992]/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                         LIVE_FEED: ACTIVE
+                      </div>
+
+                      {/* Scanning Reticle (Hover Reveal) */}
+                      <div className="absolute inset-4 border-[0.5px] border-[#00d992]/0 group-hover:border-[#00d992]/40 transition-all duration-500">
+                         <div className="absolute top-0 left-0 w-6 h-6 border-t-[1.5px] border-l-[1.5px] border-[#00d992]" />
+                         <div className="absolute bottom-0 right-0 w-6 h-6 border-b-[1.5px] border-r-[1.5px] border-[#00d992]" />
+                      </div>
+                    </motion.div>
+                    
+                    <h3 className="text-2xl font-black text-[#f2f2f2] tracking-[-0.05em] uppercase mb-4 transition-colors group-hover:text-[#00d992]">
+                      {disease.name}
+                    </h3>
+                    
+                    <div className="flex flex-col gap-1 w-full border-t border-[#3d3a39] pt-4 items-center">
+                      <div className="flex justify-between w-full px-2">
+                        <span className="font-mono text-[9px] text-[#8b949e] uppercase">Target</span>
+                        <span className="font-mono text-[9px] text-[#00d992] uppercase font-bold">{disease.specs.confidence || disease.specs.risk}</span>
+                      </div>
+                      <div className="flex justify-between w-full px-2">
+                        <span className="font-mono text-[9px] text-[#8b949e] uppercase">Scan</span>
+                        <span className="font-mono text-[9px] text-[#b8b3b0] uppercase">Analysis_Ready</span>
+                      </div>
+                    </div>
+                  </div>
               </ScrollReveal>
             ))}
           </div>
         </section>
       </LazyLoad>
 
-      {/* Workflow Section - 懒加载 */}
-      <LazyLoad
-        className="relative z-10 max-w-7xl mx-auto px-6 sm:px-12 lg:px-24 py-24"
-        placeholder={<div className="h-96 bg-white/5 rounded-3xl animate-pulse" />}
-      >
-        <section id="workflow">
-          <ScrollReveal className="text-center mb-12">
-            <h2 className="text-xl font-light text-white tracking-[0.4em] uppercase opacity-70">
-              Flow.
+      {/* Workflow Section - Industrial Status Enrichment */}
+      <LazyLoad>
+        <section id="workflow" className="relative z-10 py-40 px-6 max-w-7xl mx-auto border-t border-[#3d3a39]/20">
+          <ScrollReveal className="flex flex-col items-center mb-24">
+            <h2 className="text-sm font-mono text-[#00d992] tracking-[0.5em] uppercase font-bold mb-4">
+              [ 02 ] SYSTEM_FLOW
             </h2>
+            <p className="text-[#8b949e] font-mono text-[10px] tracking-[0.2em] uppercase opacity-40">
+              Autonomous diagnostic pipeline trace
+            </p>
           </ScrollReveal>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 lg:gap-20">
             {workflowSteps.map((item, index) => (
               <ScrollReveal key={item.step} delay={index * 0.15}>
-                <div className="relative text-center group pt-4">
-                  <div className="absolute top-0 left-[40%] w-[20%] h-[1px] bg-gradient-to-r from-transparent via-[#00d992]/40 to-transparent" />
-                  <div className="w-20 h-20 flex items-center justify-center mx-auto mb-4 transition-all duration-300 text-white/30 group-hover:text-[#00d992] drop-shadow-md group-hover:drop-shadow-[0_0_15px_rgba(0,217,146,0.5)]">
-                    <item.Icon className="w-12 h-12" />
+                <div className="relative text-center group cursor-pointer">
+                  {/* Step Chip */}
+                  <div className="mb-8 inline-flex items-center gap-2 border border-[#3d3a39] bg-[#101010] px-3 py-1 rounded transition-colors group-hover:border-[#00d992]/40">
+                    <span className="font-mono text-[9px] text-[#00d992] font-bold">S_{item.step}</span>
+                    <div className="w-[1px] h-2 bg-[#3d3a39]" />
+                    <span className="font-mono text-[9px] text-[#8b949e] uppercase">L_EXEC</span>
                   </div>
-                  <span className="text-xs font-mono text-[#00d992]/60 mb-2 block font-bold">
-                    STEP / {item.step}
-                  </span>
-                  <h3 className="text-xl font-light uppercase tracking-[0.4em] text-[#f2f2f2] opacity-80 pt-2">
+
+                  <div className="w-24 h-24 flex items-center justify-center mx-auto mb-6 transition-all duration-500 text-[#b8b3b0] group-hover:text-[#00d992] relative">
+                    {/* Connection Node Ring - Expansion on Hover */}
+                    <div className="absolute inset-0 rounded-full border border-dashed border-[#3d3a39] group-hover:border-[#00d992]/60 group-hover:scale-125 group-hover:rotate-90 transition-all duration-1000" />
+                    <item.Icon className="w-12 h-12 relative z-10" />
+                  </div>
+
+                  <h3 className="text-xl font-black uppercase tracking-[-0.02em] text-[#f2f2f2] mb-3 transition-colors group-hover:text-[#00d992]">
                     {item.title}
                   </h3>
+                  
+                  <div className="font-mono text-[9px] text-[#00d992]/50 tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                    {">"} SYNCED_OK
+                  </div>
 
-                  {/* 连接线 */}
+                  {/* High Tech Connecting Line */}
                   {index < 3 && (
-                    <div className="hidden md:block absolute top-14 left-[60%] w-[80%] h-px bg-gradient-to-r from-[#3d3a39] to-transparent dashed opacity-50" />
+                    <div className="hidden md:block absolute top-[5.5rem] left-[65%] w-[85%] h-px bg-gradient-to-r from-[#00d992]/20 via-[#3d3a39] to-transparent dashed opacity-30" />
                   )}
                 </div>
               </ScrollReveal>
             ))}
           </div>
-
-
         </section>
       </LazyLoad>
 
-      {/* CTA Section */}
-      <section id="launch" className="relative z-10 py-32 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-accent/5 to-transparent" />
+      {/* CTA Section - Minimalist Terminal Style */}
+      <section id="launch" className="relative z-10 py-48 overflow-hidden">
         <div className="max-w-4xl mx-auto px-6 text-center relative">
           <ScrollReveal>
-            <h2 className="text-2xl font-light text-white mb-10 tracking-widest opacity-80 uppercase">
-              Ready to deploy.
+            <div className="mb-12 inline-flex items-center gap-3">
+               <div className="h-1 w-1 rounded-full bg-[#00d992] animate-pulse" />
+               <span className="font-mono text-[10px] text-[#00d992] tracking-[0.4em] uppercase font-bold">Ready_For_Deployment</span>
+            </div>
+            <h2 className="text-5xl md:text-7xl font-black text-[#f2f2f2] mb-12 tracking-[-0.05em] uppercase">
+              从见到知 <br/> 是为进化
             </h2>
-            <a
+            <Link 
               href="/dashboard"
-              className="inline-flex h-12 items-center justify-center gap-3 rounded-full border border-white/10 bg-white/5 px-12 text-[13px] font-medium uppercase tracking-[0.2em] text-white transition-all duration-300 hover:bg-white/10 hover:border-white/20"
+              className="inline-flex items-center gap-8 py-5 px-12 bg-[#101010] border border-[#3d3a39] group hover:border-[#00d992] transition-all duration-300"
             >
-              Launch Console
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              <span className="font-mono text-sm tracking-[0.3em] text-[#00d992] font-bold uppercase">
+                Launch Console
+              </span>
+              <svg className="w-5 h-5 text-[#00d992] transition-transform group-hover:translate-x-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
               </svg>
-            </a>
+            </Link>
           </ScrollReveal>
         </div>
       </section>
 
       <SiteFooter />
+
+      {/* Full-screen Command HUD Overlay */}
+      <PathologyDetail 
+        disease={selectedDisease} 
+        onClose={() => setSelectedDisease(null)} 
+      />
     </main>
   );
 }

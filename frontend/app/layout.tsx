@@ -89,6 +89,10 @@ export default function RootLayout({
         <link rel="prefetch" href="/dashboard" />
       </head>
       <body className="antialiased bg-[#050507] text-[#f2f2f2] font-sans selection:bg-[#00d992] selection:text-black">
+        {/* Hardware terminal atmosphere */}
+        <div className="bg-noise fixed inset-0 z-[9998] pointer-events-none opacity-[0.03]" />
+        <div className="scanline-overlay fixed inset-0 z-[9999] pointer-events-none opacity-[0.1]" />
+        
         {children}
       </body>
     </html>

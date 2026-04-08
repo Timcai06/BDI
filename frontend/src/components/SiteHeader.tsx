@@ -12,17 +12,13 @@ export function SiteHeader() {
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
+      setIsScrolled(currentScrollY > 20);
 
-      // 检测是否滚动超过阈值
-      setIsScrolled(currentScrollY > 50);
-
-      // 向下滚动超过 100px 时隐藏 header，向上滚动时显示
       if (currentScrollY > lastScrollY && currentScrollY > 100) {
         setIsVisible(false);
       } else {
         setIsVisible(true);
       }
-
       setLastScrollY(currentScrollY);
     };
 
@@ -31,107 +27,70 @@ export function SiteHeader() {
   }, [lastScrollY]);
 
   const navItems = [
-    { href: "#technology", label: "Tech" },
-    { href: "#features", label: "Features" },
-    { href: "#workflow", label: "Flow" },
-    { href: "#launch", label: "Start" },
+    { href: "#technology", label: "TECH_STACK" },
+    { href: "#features", label: "ALGO_CORE" },
+    { href: "#workflow", label: "SYSTEM_FLOW" },
+    { href: "#launch", label: "DEPLOY" },
   ];
 
   return (
     <motion.header
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4"
+      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-5 transition-all duration-300"
       initial={{ y: 0, opacity: 1 }}
       animate={{
         y: isVisible ? 0 : -100,
         opacity: isVisible ? 1 : 0
       }}
-      transition={{
-        duration: 0.35,
-        ease: [0.25, 0.1, 0.25, 1]
-      }}
-      style={{ willChange: "transform, opacity" }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
     >
-      {/* 动态背景 */}
+      {/* Background with VoltAgent Carbon Surface & Border */}
       <motion.div
         className="absolute inset-0 -z-10"
-        style={{
-          backgroundColor: `rgba(0, 0, 0, ${isScrolled ? 0.8 : 0})`,
-          backdropFilter: `blur(${isScrolled ? 12 : 0}px)`,
-          WebkitBackdropFilter: `blur(${isScrolled ? 12 : 0}px)`,
-          borderBottom: `1px solid ${isScrolled ? 'rgba(255,255,255,0.05)' : 'transparent'}`
-        }}
         initial={false}
         animate={{
-          backgroundColor: isScrolled ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0)"
+          backgroundColor: isScrolled ? "rgba(10, 10, 10, 0.8)" : "transparent",
+          backdropFilter: isScrolled ? "blur(12px)" : "blur(0px)",
+          borderBottom: isScrolled ? "1px solid #3d3a39" : "1px solid transparent",
         }}
         transition={{ duration: 0.3 }}
       />
 
-      {/* Logo */}
-      <motion.div
-        className="flex items-center gap-6 pointer-events-auto"
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
+      {/* Logo: Minimalist Bolt with Signal Green Glow */}
+      <motion.div className="flex items-center gap-6">
         <Link href="/" className="flex items-center gap-3 transition-opacity hover:opacity-80 group">
-          <motion.div
-            className="h-8 w-8 rounded-lg bg-black border border-white/20 flex items-center justify-center"
-            whileHover={{ scale: 1.05, borderColor: "rgba(255,255,255,0.4)" }}
-            transition={{ duration: 0.2 }}
-          >
-            <span className="text-white font-bold font-mono text-xs">BDI</span>
-          </motion.div>
-          <span className="font-semibold tracking-[0.2em] uppercase text-white/90 text-sm">
-            INFRA-SCAN
+          <div className="relative">
+            <div className="h-2 w-2 rounded-full bg-[#00d992] shadow-[0_0_10px_#00d992] animate-pulse" />
+            <div className="absolute inset-0 h-2 w-2 rounded-full bg-[#00d992] blur-sm opacity-50" />
+          </div>
+          <span className="font-mono text-[10px] tracking-[0.4em] uppercase text-[#f2f2f2] font-bold">
+            BDI_NEXUS <span className="text-[#00d992]/40 ml-1">v.0.9</span>
           </span>
         </Link>
       </motion.div>
 
-      {/* Navigation */}
-      <motion.nav
-        className="hidden md:flex items-center gap-8 pointer-events-auto"
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-      >
-        {navItems.map((item, index) => (
-          <motion.div
+      {/* Navigation: Compressed Terminal Style Items */}
+      <nav className="hidden md:flex items-center gap-10">
+        {navItems.map((item) => (
+          <Link
             key={item.href}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.3 + index * 0.1 }}
+            href={item.href}
+            className="group relative flex items-center gap-2"
           >
-            <Link
-              href={item.href}
-              className="relative text-xs font-semibold tracking-widest uppercase text-white/60 transition-colors hover:text-white group py-2"
-            >
+            <span className="font-mono text-[10px] tracking-[0.25em] uppercase text-[#b8b3b0] transition-colors duration-300 group-hover:text-[#00d992]">
               {item.label}
-              {/* 悬停下划线动画 */}
-              <motion.span
-                className="absolute bottom-0 left-0 w-full h-px bg-white/60 origin-left"
-                initial={{ scaleX: 0 }}
-                whileHover={{ scaleX: 1 }}
-                transition={{ duration: 0.3 }}
-              />
-            </Link>
-          </motion.div>
+            </span>
+            <div className="absolute -bottom-1 left-0 h-[1px] w-0 bg-[#00d992] transition-all duration-300 group-hover:w-full opacity-50" />
+          </Link>
         ))}
-      </motion.nav>
+      </nav>
 
-      <motion.div
-        className="pointer-events-auto"
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5, delay: 0.4 }}
-      >
-        <Link
-          href="/dashboard"
-          className="inline-flex h-9 items-center justify-center rounded-full border border-white/30 bg-white/10 px-5 text-[10px] font-bold tracking-widest uppercase text-white backdrop-blur-md transition-all duration-300 hover:bg-white hover:text-black hover:border-white"
-        >
-          Login
+      {/* Terminal Action */}
+      <div className="flex items-center gap-6 font-mono text-[10px] tracking-widest">
+        <span className="hidden lg:inline text-[#8b949e] opacity-40">UTC: {new Date().getHours()}:00</span>
+        <Link href="/dashboard" className="px-4 py-1.5 border border-[#3d3a39] rounded text-[#00d992] hover:bg-[#00d992]/5 transition-colors">
+          OPEN_CONSOLE
         </Link>
-      </motion.div>
+      </div>
     </motion.header>
   );
 }

@@ -237,6 +237,47 @@ export function LandingHero() {
               className="relative w-full h-auto object-cover opacity-90"
             />
           </div>
+
+          {/* Model Algorithm Payload Layer (PyTorch) */}
+          <div className="absolute left-[38%] top-[340px] w-[350px] rounded-xl border border-[#3d3a39] bg-[#050507]/95 backdrop-blur-xl p-5 shadow-[0_30px_60px_rgba(0,0,0,0.9)] transition-all duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-y-6 group-hover:-translate-x-2 z-30 opacity-0 md:opacity-100 hidden md:block">
+            <div className="flex items-center justify-between mb-4 border-b border-[#3d3a39] pb-2">
+              <span className="text-[10px] uppercase tracking-[0.2em] font-mono text-[#00d992]/80">yolo_v9_core.py</span>
+              <span className="text-[9px] font-mono text-[#b8b3b0]/50">[PyTorch 2.0]</span>
+            </div>
+            <pre className="font-mono text-[11px] leading-relaxed overflow-hidden text-[#8b949e]">
+              <code className="block">
+                <span className="text-[#818cf8]">import</span> torch.nn <span className="text-[#818cf8]">as</span> nn<br/><br/>
+                <span className="text-[#818cf8]">class</span> <span className="text-[#f2f2f2]">FractureAttentionNet</span>(nn.Module):<br/>
+                {"    "}<span className="text-[#818cf8]">def</span> <span className="text-[#00d992]">__init__</span>(self):<br/>
+                {"        "}super().__init__()<br/>
+                {"        "}self.conv = nn.Conv2d(<span className="text-[#f2f2f2]">3</span>, <span className="text-[#f2f2f2]">128</span>, <span className="text-[#f2f2f2]">7</span>, stride=<span className="text-[#f2f2f2]">2</span>)<br/>
+                {"        "}self.attn = SpatialAttention()<br/>
+                {"        "}<br/>
+                {"    "}<span className="text-[#818cf8]">def</span> <span className="text-[#00d992]">forward</span>(self, x):<br/>
+                {"        "}<span className="text-[#62666d]"># Inject structural priors for concrete</span><br/>
+                {"        "}features = self.conv(x)<br/>
+                {"        "}<span className="text-[#818cf8]">return</span> self.attn(features)
+              </code>
+            </pre>
+          </div>
+
+          {/* Matrix Trace Background Layer */}
+          <div className="absolute right-[20%] top-[-10px] w-[280px] rounded-lg border border-[#3d3a39]/50 bg-[#050507]/40 p-4 shadow-xl transition-all duration-[1000ms] group-hover:-translate-y-6 group-hover:translate-x-6 z-0 opacity-0 md:opacity-40 hidden md:block">
+            <pre className="font-mono text-[9px] leading-tight text-[#00d992] overflow-hidden mix-blend-screen drop-shadow-[0_0_2px_rgba(0,217,146,0.3)]">
+              <code className="block opacity-70">
+                0x00A1: INIT TENSOR C_GPU_0<br/>
+                0x00A2: ALLOC 4096MB VRAM<br/>
+                0x00A3: LOAD weights/bdi_v9.pt<br/>
+                ================================<br/>
+                LAYER [0] Conv2d: [1, 3, 224, 224]<br/>
+                LAYER [1] BatchNorm2d: OK<br/>
+                LAYER [2] SiLU: OK<br/>
+                LAYER [3] MaxPool2d: [1, 64, 112, 112]<br/>
+                ...<br/>
+                [SYS] INFERENCE ENGINE READY.
+              </code>
+            </pre>
+          </div>
         </motion.div>
       </motion.div>
 
