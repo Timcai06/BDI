@@ -21,7 +21,7 @@ export function ScrollCue() {
       <div className="relative flex h-[42px] w-[26px] justify-center rounded-full border border-white/10 bg-black/20 shadow-[0_0_20px_rgba(0,0,0,0.5),inset_0_0_15px_rgba(255,255,255,0.02)] backdrop-blur-xl">
         <div className="absolute top-[4px] h-[34px] w-[1px] bg-gradient-to-b from-white/20 to-transparent" />
         <motion.div
-          className="absolute top-[6px] h-[6px] w-[2px] rounded-full bg-[#63e6ff] shadow-[0_0_8px_rgba(99,230,255,0.8)]"
+          className="absolute top-[6px] h-[6px] w-[2px] rounded-full bg-[#00d992] shadow-[0_0_8px_rgba(0,217,146,0.8)] animate-pulse"
           animate={{
             y: [0, 20, 0],
             opacity: [1, 0, 1]

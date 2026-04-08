@@ -31,10 +31,10 @@ export function SiteHeader() {
   }, [lastScrollY]);
 
   const navItems = [
-    { href: "#technology", label: "Technology" },
+    { href: "#technology", label: "Tech" },
     { href: "#features", label: "Features" },
-    { href: "#workflow", label: "Workflow" },
-    { href: "#launch", label: "Get Started" },
+    { href: "#workflow", label: "Flow" },
+    { href: "#launch", label: "Start" },
   ];
 
   return (

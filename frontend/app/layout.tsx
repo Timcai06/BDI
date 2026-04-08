@@ -5,10 +5,9 @@ import "./globals.css";
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 5,
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0B1120" },
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" }
+    { media: "(prefers-color-scheme: dark)", color: "#050507" },
+    { media: "(prefers-color-scheme: light)", color: "#050507" }
   ],
 };
 
@@ -89,7 +88,7 @@ export default function RootLayout({
         {/* 预取下一页 */}
         <link rel="prefetch" href="/dashboard" />
       </head>
-      <body className="antialiased">
+      <body className="antialiased bg-[#050507] text-[#f2f2f2] font-sans selection:bg-[#00d992] selection:text-black">
         {children}
       </body>
     </html>

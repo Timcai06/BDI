@@ -54,7 +54,7 @@ export const GenerativeText: React.FC<GenerativeTextProps> = ({
           <motion.span
             animate={{ opacity: [1, 0] }}
             transition={{ repeat: Infinity, duration: 0.8 }}
-            className="inline-block w-1.5 h-[0.85em] bg-[#63e6ff] ml-1 translate-y-[2px]"
+            className="inline-block w-1.5 h-[0.85em] bg-[#00d992] ml-1 translate-y-[2px]"
           />
         )}
       </span>

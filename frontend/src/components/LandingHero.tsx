@@ -112,8 +112,8 @@ export function LandingHero() {
         animate="visible"
       >
         <motion.div variants={itemVariants} className="mb-5">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#63e6ff]/20 bg-[#08111b]/80 px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.28em] text-[#d7f7ff]/70 sm:text-xs">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#63e6ff] shadow-[0_0_12px_rgba(99,230,255,0.8)]" />
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#3d3a39] bg-[#101010]/80 px-3 py-1.5 text-[10px] font-mono font-medium uppercase tracking-[0.28em] text-[#b8b3b0] sm:text-xs">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#00d992] shadow-[0_0_8px_rgba(0,217,146,0.8)] animate-pulse" />
             Live Inference System
           </span>
         </motion.div>
@@ -124,7 +124,7 @@ export function LandingHero() {
               className="select-none text-[5.5rem] font-semibold leading-none tracking-[-0.08em] text-white/[0.05] sm:text-[7.5rem] md:text-[9rem] lg:text-[11rem]"
               style={{
                 backgroundImage:
-                  "linear-gradient(120deg, rgba(255,255,255,0.08), rgba(77,141,255,0.28), rgba(99,230,255,0.12))",
+                  "linear-gradient(120deg, rgba(255,255,255,0.05), rgba(0,217,146,0.15), rgba(0,217,146,0.05))",
                 color: "transparent",
                 WebkitBackgroundClip: "text",
                 backgroundClip: "text",
@@ -134,81 +134,111 @@ export function LandingHero() {
             </h1>
           </div>
 
-          <div className="relative mx-auto max-w-4xl rounded-[32px] border border-white/5 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] px-6 py-7 shadow-[0_40px_120px_rgba(0,0,0,0.8)] backdrop-blur-3xl sm:px-10">
-            <div className="mb-5 flex flex-wrap items-center justify-center gap-3 text-[11px] uppercase tracking-[0.24em] text-white/45">
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Vision AI</span>
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Bridge Diagnostics</span>
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1">Structured Export</span>
+          <div className="relative mx-auto max-w-4xl px-6 py-7 sm:px-10">
+            <div className="mb-5 flex flex-wrap items-center justify-center gap-4 text-[10px] uppercase tracking-[0.3em] text-white/30">
+              <span>Vision AI</span>
+              <span className="w-1 h-1 rounded-full bg-white/20" />
+              <span>Diagnostics</span>
+              <span className="w-1 h-1 rounded-full bg-white/20" />
+              <span>Export</span>
             </div>
 
-            <h2 className="mx-auto max-w-4xl text-4xl font-medium leading-tight text-white sm:text-5xl md:text-[3.2rem] flex flex-col items-center">
-              智能判读，从图像到结论
-              <div className="h-[1.2em] relative overflow-hidden flex items-center justify-center mt-2">
+            <h2 className="mx-auto max-w-5xl text-7xl md:text-8xl lg:text-[7.5rem] font-black leading-[1.0] text-[#f2f2f2] mb-2 flex flex-col items-center tracking-[-0.65px] drop-shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
+              从 见 到 知
+              <div className="h-[3rem] md:h-[5rem] relative overflow-hidden flex items-center justify-center mt-6">
                 <GenerativeText 
-                    text="瞬息生成的基建巡检报告" 
+                    text="EVOLVED." 
                     delay={1.5} 
-                    gradient={true}
-                    className="block font-medium"
+                    gradient={false}
+                    className="block font-black text-5xl md:text-7xl tracking-[0.4em] text-[#00d992] uppercase opacity-100 filter drop-shadow-[0_0_8px_rgba(0,217,146,0.8)]"
                 />
               </div>
             </h2>
           </div>
         </motion.div>
 
-        <motion.p className="mb-6 mt-2 text-xs uppercase tracking-[0.4em] text-white/28 sm:text-sm" variants={itemVariants}>
-          Infrastructure Scan Intelligence
-        </motion.p>
-
-        <motion.div className="mb-10 text-center" variants={itemVariants}>
-          <p className="mx-auto max-w-lg text-[13px] leading-relaxed text-white/40 sm:text-sm">
-            搭载自研视觉大模型引擎，彻底抛弃传统的繁杂操作，<br className="hidden sm:block" />只需上传，即刻输出结构化识别结果。
-          </p>
-        </motion.div>
-
-        <motion.div className="flex flex-col items-center gap-4 sm:flex-row" variants={itemVariants}>
+        <motion.div className="flex flex-col items-center gap-6 sm:flex-row mt-14" variants={itemVariants}>
           <Link
             href="/dashboard"
-            className="group relative inline-flex h-12 items-center justify-center gap-2 rounded-full border border-[#7bb8ff]/30 bg-[linear-gradient(135deg,rgba(77,141,255,0.28),rgba(99,230,255,0.16))] px-8 text-sm font-semibold tracking-[0.14em] text-white transition-all duration-300 hover:border-[#9dd6ff]/50 hover:shadow-[0_0_40px_rgba(77,141,255,0.25)]"
+            className="group relative inline-flex h-16 items-center justify-center gap-4 rounded-full border border-[#3d3a39] bg-[#101010] px-14 text-[15px] font-bold tracking-[0.2em] uppercase text-[#2fd6a1] transition-all duration-300 hover:border-[#00d992] hover:shadow-[0_0_30px_rgba(0,217,146,0.3)] hover:-translate-y-1"
           >
-            进入智能工作台
+            Launch Console
             <svg
-              className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-0.5"
+              className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-3"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
             </svg>
-          </Link>
-
-          <Link
-            href="#features"
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-8 text-sm font-semibold tracking-[0.14em] text-white/78 transition-all duration-300 hover:border-white/30 hover:bg-white/[0.06] hover:text-white"
-          >
-            查看系统能力
           </Link>
         </motion.div>
 
-        <motion.div className="mt-12 grid w-full max-w-3xl grid-cols-1 gap-4 text-center sm:grid-cols-3" variants={itemVariants}>
+        <motion.div className="mt-24 flex flex-wrap justify-center w-full max-w-5xl gap-x-20 gap-y-10 text-left" variants={itemVariants}>
           {[
             { label: "Inference", value: "Sub-second" },
             { label: "Review", value: "Human In Loop" },
             { label: "Output", value: "JSON Ready" },
           ].map((item, index) => (
-            <div
-              key={item.label}
-              className="group relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.015] px-4 py-5 backdrop-blur-3xl transition-all hover:bg-white/[0.03]"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-[#63e6ff]/0 via-[#63e6ff]/0 to-[#63e6ff]/[0.05] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-              <p className="mb-2 text-[10px] uppercase tracking-[0.3em] text-white/30">{item.label}</p>
-              <p className="text-lg font-light text-white">
+            <div key={item.label} className="relative flex flex-col pt-5 w-48">
+              <div className="absolute top-0 left-0 w-12 h-[2px] bg-gradient-to-r from-[#00d992]/80 to-transparent" />
+              <p className="mb-4 text-[10px] uppercase tracking-[0.5em] text-[#8b949e] font-mono font-bold">{item.label}</p>
+              <p className="text-3xl font-light text-[#f2f2f2] tracking-widest whitespace-nowrap drop-shadow-lg">
                 <GenerativeText text={item.value} delay={index * 0.2 + 2} />
               </p>
             </div>
           ))}
         </motion.div>
-      </motion.div>
 
+        {/* Terminal & HUD Montage Presentation */}
+        <motion.div 
+          className="mt-32 w-full max-w-5xl relative z-20 hidden md:block group mx-auto h-[600px]"
+          initial={{ opacity: 0, y: 100 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1.5, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
+        >
+          {/* Deep Ambient Glow */}
+          <div className="absolute inset-20 bg-gradient-to-t from-[#00d992]/5 to-transparent blur-[120px] rounded-[100%] transition-opacity duration-1000 group-hover:from-[#00d992]/15 pointer-events-none" />
+          
+          {/* Live Code Terminal Base Layer */}
+          <div className="absolute left-[8%] top-[20px] w-[540px] h-[480px] rounded-xl border border-[#3d3a39] bg-[#050507] p-8 shadow-[0_20px_80px_rgba(0,0,0,0.9)] transition-all duration-[800ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:-translate-y-4 group-hover:-translate-x-4 z-10">
+            <div className="flex items-center gap-2 mb-8">
+              <div className="w-3 h-3 rounded-full bg-[#3d3a39]" />
+              <div className="w-3 h-3 rounded-full bg-[#3d3a39]" />
+              <div className="w-3 h-3 rounded-full bg-[#3d3a39]" />
+              <span className="ml-4 text-[10px] uppercase tracking-[0.2em] font-mono text-[#8b949e]">inference_engine.js</span>
+            </div>
+            <pre className="font-mono text-[13px] leading-loose overflow-hidden text-[#8b949e]">
+              <code className="block">
+                <span className="text-[#818cf8]">await</span> {"System.initialize({"}<br/>
+                {"  "}model: <span className="text-[#00d992]">'bdi-yolo-v9-pro'</span>,<br/>
+                {"  "}precision: <span className="text-[#00d992]">'fp16_tensor'</span>,<br/>
+                {"  "}focus: <span className="text-[#00d992]">'crack_detection'</span><br/>
+                {"});"}<br/><br/>
+                <span className="text-[#818cf8]">const</span> result = <span className="text-[#818cf8]">await</span> {"Vision.analyze(feed);"}<br/><br/>
+                {"console.log("}<br/>
+                {"  "}<span className="text-[#00d992]">`[INF] Anomaly Score: </span>{"${result.score}"}<span className="text-[#00d992]">`</span><br/>
+                {");"}<br/>
+                <span className="text-[#00d992] block mt-6 opacity-90 drop-shadow-[0_0_8px_rgba(0,217,146,0.6)]">
+                  {">"} Scanning structures...<br/>
+                  {">"} Anomaly [C-12] matches risk profile [99.8%]<br/>
+                  {">"} Alert dispatched to queue.<span className="animate-pulse inline-block w-2.5 h-[1.1em] bg-[#00d992] ml-1.5 align-middle translate-y-[2px]" />
+                </span>
+              </code>
+            </pre>
+          </div>
+
+          {/* Authentic Core UI HUD Layer */}
+          <div className="absolute right-[8%] top-[120px] w-[500px] rounded-xl border border-[#3d3a39] bg-[#101010] shadow-[0_40px_100px_rgba(0,0,0,0.95)] transition-all duration-[800ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-y-4 group-hover:translate-x-4 group-hover:shadow-[0_40px_120px_rgba(0,217,146,0.15)] group-hover:border-[#00d992]/40 z-20 overflow-hidden">
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-tr from-[#00d992]/10 via-transparent to-transparent pointer-events-none mix-blend-overlay" />
+            <img 
+              src="/assets/bdi-defect-hud.png" 
+              alt="Authentic AI HUD" 
+              className="relative w-full h-auto object-cover opacity-90"
+            />
+          </div>
+        </motion.div>
+      </motion.div>
 
     </section>
   );
