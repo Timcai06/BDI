@@ -12,6 +12,7 @@ from app.core.errors import AppError
 from app.db.models import (
     AlertEvent,
     BatchItem,
+    Bridge,
     Detection,
     InferenceResult,
     InferenceTask,
@@ -26,7 +27,11 @@ from app.models.schemas import (
     BatchItemListResponse,
     BatchItemResponse,
     BatchItemResultResponse,
+    BatchListResponse,
+    BatchResponse,
     BatchStatsResponse,
+    BridgeListResponse,
+    BridgeResponse,
     DetectionListResponse,
     DetectionRecordResponse,
     MediaAssetResponse,
@@ -36,6 +41,82 @@ from app.models.schemas import (
     ReviewListResponse,
     ReviewRecordResponse,
 )
+
+
+def list_bridges(service: Any, *, limit: int, offset: int) -> BridgeListResponse:
+    with service.session_factory() as session:
+        total = session.scalar(select(func.count()).select_from(Bridge)) or 0
+        rows = session.scalars(select(Bridge).order_by(Bridge.created_at.desc()).offset(offset).limit(limit)).all()
+
+        items = [service._build_bridge_response(session=session, bridge=row) for row in rows]
+        return BridgeListResponse(items=items, total=total, limit=limit, offset=offset)
+
+
+def get_bridge(service: Any, bridge_id: str) -> BridgeResponse:
+    with service.session_factory() as session:
+        bridge = session.get(Bridge, bridge_id)
+        if bridge is None:
+            raise AppError(
+                code="BRIDGE_NOT_FOUND",
+                message="Bridge does not exist.",
+                status_code=status.HTTP_404_NOT_FOUND,
+                details={"bridge_id": bridge_id},
+            )
+        return service._build_bridge_response(session=session, bridge=bridge)
+
+
+def list_batches(
+    service: Any,
+    *,
+    limit: int,
+    offset: int,
+    bridge_id: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    has_failures: Optional[bool] = None,
+) -> BatchListResponse:
+    with service.session_factory() as session:
+        query = select(InspectionBatch, Bridge).join(Bridge, Bridge.id == InspectionBatch.bridge_id)
+        count_query = select(func.count()).select_from(InspectionBatch)
+        if bridge_id is not None:
+            query = query.where(InspectionBatch.bridge_id == bridge_id)
+            count_query = count_query.where(InspectionBatch.bridge_id == bridge_id)
+        if status_filter is not None:
+            query = query.where(InspectionBatch.status == status_filter)
+            count_query = count_query.where(InspectionBatch.status == status_filter)
+        if has_failures is True:
+            query = query.where(InspectionBatch.failed_item_count > 0)
+            count_query = count_query.where(InspectionBatch.failed_item_count > 0)
+        elif has_failures is False:
+            query = query.where(InspectionBatch.failed_item_count == 0)
+            count_query = count_query.where(InspectionBatch.failed_item_count == 0)
+        total = session.scalar(count_query) or 0
+        rows = session.execute(query.order_by(InspectionBatch.created_at.desc()).offset(offset).limit(limit)).all()
+        dirty = False
+        items: list[BatchResponse] = []
+        for batch, bridge in rows:
+            dirty = service._reconcile_batch_aggregates(session=session, batch=batch) or dirty
+            items.append(
+                BatchResponse.model_validate(service._build_batch_payload(session=session, batch=batch, bridge=bridge))
+            )
+        if dirty:
+            session.commit()
+        return BatchListResponse(items=items, total=total, limit=limit, offset=offset)
+
+
+def get_batch(service: Any, batch_id: str) -> BatchResponse:
+    with service.session_factory() as session:
+        batch = session.get(InspectionBatch, batch_id)
+        if batch is None:
+            raise AppError(
+                code="BATCH_NOT_FOUND",
+                message="Batch does not exist.",
+                status_code=status.HTTP_404_NOT_FOUND,
+                details={"batch_id": batch_id},
+            )
+        if service._reconcile_batch_aggregates(session=session, batch=batch):
+            session.commit()
+        bridge = session.get(Bridge, batch.bridge_id)
+        return BatchResponse.model_validate(service._build_batch_payload(session=session, batch=batch, bridge=bridge))
 
 
 def list_batch_items(

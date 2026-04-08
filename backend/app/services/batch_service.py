@@ -75,6 +75,9 @@ from app.services.batch_alert_review_service import (
 )
 from app.services.batch_ingest_service import ingest_batch_items as ingest_batch_items_via_service
 from app.services.batch_read_service import (
+    get_batch as get_batch_via_service,
+)
+from app.services.batch_read_service import (
     get_batch_item_detail as get_batch_item_detail_via_service,
 )
 from app.services.batch_read_service import (
@@ -84,6 +87,9 @@ from app.services.batch_read_service import (
     get_batch_stats as get_batch_stats_via_service,
 )
 from app.services.batch_read_service import (
+    get_bridge as get_bridge_via_service,
+)
+from app.services.batch_read_service import (
     get_ops_metrics as get_ops_metrics_via_service,
 )
 from app.services.batch_read_service import (
@@ -91,6 +97,12 @@ from app.services.batch_read_service import (
 )
 from app.services.batch_read_service import (
     list_batch_items as list_batch_items_via_service,
+)
+from app.services.batch_read_service import (
+    list_batches as list_batches_via_service,
+)
+from app.services.batch_read_service import (
+    list_bridges as list_bridges_via_service,
 )
 from app.services.batch_read_service import (
     list_detections as list_detections_via_service,
@@ -277,24 +289,10 @@ class BatchService:
         return create_bridge_via_service(self, payload)
 
     def list_bridges(self, *, limit: int, offset: int) -> BridgeListResponse:
-        with self.session_factory() as session:
-            total = session.scalar(select(func.count()).select_from(Bridge)) or 0
-            rows = session.scalars(select(Bridge).order_by(Bridge.created_at.desc()).offset(offset).limit(limit)).all()
-
-            items = [self._build_bridge_response(session=session, bridge=row) for row in rows]
-            return BridgeListResponse(items=items, total=total, limit=limit, offset=offset)
+        return list_bridges_via_service(self, limit=limit, offset=offset)
 
     def get_bridge(self, bridge_id: str) -> BridgeResponse:
-        with self.session_factory() as session:
-            bridge = session.get(Bridge, bridge_id)
-            if bridge is None:
-                raise AppError(
-                    code="BRIDGE_NOT_FOUND",
-                    message="Bridge does not exist.",
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    details={"bridge_id": bridge_id},
-                )
-            return self._build_bridge_response(session=session, bridge=bridge)
+        return get_bridge_via_service(self, bridge_id)
 
     def delete_bridge(self, bridge_id: str):
         return delete_bridge_via_service(self, bridge_id)
@@ -311,48 +309,17 @@ class BatchService:
         status_filter: Optional[str] = None,
         has_failures: Optional[bool] = None,
     ) -> BatchListResponse:
-        with self.session_factory() as session:
-            query = select(InspectionBatch, Bridge).join(Bridge, Bridge.id == InspectionBatch.bridge_id)
-            count_query = select(func.count()).select_from(InspectionBatch)
-            if bridge_id is not None:
-                query = query.where(InspectionBatch.bridge_id == bridge_id)
-                count_query = count_query.where(InspectionBatch.bridge_id == bridge_id)
-            if status_filter is not None:
-                query = query.where(InspectionBatch.status == status_filter)
-                count_query = count_query.where(InspectionBatch.status == status_filter)
-            if has_failures is True:
-                query = query.where(InspectionBatch.failed_item_count > 0)
-                count_query = count_query.where(InspectionBatch.failed_item_count > 0)
-            elif has_failures is False:
-                query = query.where(InspectionBatch.failed_item_count == 0)
-                count_query = count_query.where(InspectionBatch.failed_item_count == 0)
-            total = session.scalar(count_query) or 0
-            rows = session.execute(query.order_by(InspectionBatch.created_at.desc()).offset(offset).limit(limit)).all()
-            dirty = False
-            items: list[BatchResponse] = []
-            for batch, bridge in rows:
-                dirty = self._reconcile_batch_aggregates(session=session, batch=batch) or dirty
-                items.append(
-                    BatchResponse.model_validate(self._build_batch_payload(session=session, batch=batch, bridge=bridge))
-                )
-            if dirty:
-                session.commit()
-            return BatchListResponse(items=items, total=total, limit=limit, offset=offset)
+        return list_batches_via_service(
+            self,
+            limit=limit,
+            offset=offset,
+            bridge_id=bridge_id,
+            status_filter=status_filter,
+            has_failures=has_failures,
+        )
 
     def get_batch(self, batch_id: str) -> BatchResponse:
-        with self.session_factory() as session:
-            batch = session.get(InspectionBatch, batch_id)
-            if batch is None:
-                raise AppError(
-                    code="BATCH_NOT_FOUND",
-                    message="Batch does not exist.",
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    details={"batch_id": batch_id},
-                )
-            if self._reconcile_batch_aggregates(session=session, batch=batch):
-                session.commit()
-            bridge = session.get(Bridge, batch.bridge_id)
-            return BatchResponse.model_validate(self._build_batch_payload(session=session, batch=batch, bridge=bridge))
+        return get_batch_via_service(self, batch_id)
 
     def delete_batch(self, batch_id: str) -> BatchDeleteResponse:
         return delete_batch_via_service(self, batch_id)
