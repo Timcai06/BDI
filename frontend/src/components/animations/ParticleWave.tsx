@@ -49,10 +49,10 @@ export const ParticleWave: React.FC = () => {
           y,
           baseX: x,
           baseY: y,
-          vx: (Math.random() - 0.5) * 0.3,
-          vy: (Math.random() - 0.5) * 0.3,
-          size: Math.random() * 1.2 + 0.4,
-          alpha: Math.random() * 0.4 + 0.05,
+          vx: (Math.random() - 0.5) * 0.4,
+          vy: (Math.random() - 0.5) * 0.4,
+          size: Math.random() * 1.5 + 0.6,
+          alpha: Math.random() * 0.6 + 0.2,
           color: colors[Math.floor(Math.random() * colors.length)],
         });
       }
@@ -110,10 +110,10 @@ export const ParticleWave: React.FC = () => {
 
           if (dist < connectDist) {
             ctx.beginPath();
-            const opacity = (1 - dist / connectDist) * 0.12;
-            const mouseBoost = mouse.active ? 0.05 : 0;
+            const opacity = (1 - dist / connectDist) * 0.25;
+            const mouseBoost = mouse.active ? 0.1 : 0;
             ctx.strokeStyle = `rgba(0, 217, 146, ${opacity + mouseBoost})`;
-            ctx.lineWidth = 0.4;
+            ctx.lineWidth = 0.6;
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p2.x, p2.y);
             ctx.stroke();
@@ -153,7 +153,7 @@ export const ParticleWave: React.FC = () => {
     >
       <canvas
         ref={canvasRef}
-        className="w-full h-full block opacity-40"
+        className="w-full h-full block opacity-70"
       />
       {/* Dynamic Grid Vignette Overlay */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(5,5,7,0.8)_100%)] pointer-events-none" />

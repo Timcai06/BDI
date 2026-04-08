@@ -292,6 +292,7 @@ export function SpotlightEffect() {
 interface CountUpProps {
   end: number;
   duration?: number;
+  decimals?: number;
   suffix?: string;
   prefix?: string;
   className?: string;
@@ -300,6 +301,7 @@ interface CountUpProps {
 export function CountUp({
   end,
   duration = 2,
+  decimals = 0,
   suffix = "",
   prefix = "",
   className = ""
@@ -320,7 +322,8 @@ export function CountUp({
 
       // easeOutExpo 缓动函数
       const easeOutExpo = 1 - Math.pow(2, -10 * progress);
-      setCount(Math.floor(easeOutExpo * end));
+      const currentCount = easeOutExpo * end;
+      setCount(currentCount as any);
 
       if (progress < 1) {
         animationFrame = requestAnimationFrame(animate);
@@ -338,7 +341,89 @@ export function CountUp({
 
   return (
     <span ref={ref} className={className}>
-      {prefix}{count}{suffix}
+      {prefix}
+      {typeof count === 'number' ? count.toFixed(decimals) : count}
+      {suffix}
     </span>
+  );
+}
+
+// ============================================
+// 镜头聚焦动效 (Blur/Focus Reveal)
+// ============================================
+
+interface BlurRevealProps {
+  children: ReactNode;
+  className?: string;
+  delay?: number;
+  duration?: number;
+  blur?: number;
+}
+
+export function BlurReveal({
+  children,
+  className = "",
+  delay = 0,
+  duration = 0.8,
+  blur = 10
+}: BlurRevealProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, amount: 0.2 });
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ 
+        opacity: 0, 
+        filter: `blur(${blur}px)`,
+        scale: 1.1,
+        y: 20
+      }}
+      animate={isInView ? { 
+        opacity: 1, 
+        filter: "blur(0px)",
+        scale: 1,
+        y: 0 
+      } : {}}
+      transition={{
+        duration,
+        delay,
+        ease: [0.34, 1.56, 0.64, 1] // Custom elastic ease
+      }}
+      className={className}
+      style={{ willChange: "filter, opacity, transform" }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+interface StaggeredBlurRevealProps {
+  text: string;
+  className?: string;
+  delay?: number;
+}
+
+export function StaggeredBlurReveal({
+  text,
+  className = "",
+  delay = 0
+}: StaggeredBlurRevealProps) {
+  const words = text.split(""); // Split by character for Chinese compatibility
+  
+  return (
+    <div className={`flex flex-wrap items-center justify-center ${className}`}>
+      {words.map((char, i) => (
+        <BlurReveal
+          key={i}
+          delay={delay + i * 0.05}
+          blur={8}
+          duration={0.6}
+          className={char === " " ? "mr-4" : ""}
+        >
+          {char}
+        </BlurReveal>
+      ))}
+    </div>
   );
 }

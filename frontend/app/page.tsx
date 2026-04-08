@@ -9,7 +9,7 @@ import { ScrollCue } from "@/components/ScrollCue";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SpotlightEffect } from "@/lib/animations";
-import { ScrollReveal, CountUp } from "@/lib/animations";
+import { ScrollReveal, CountUp, BlurReveal } from "@/lib/animations";
 import { LazyLoad } from "@/components/ui/LazyLoad";
 import { GlowingCard } from "@/components/ui/GlowingCard";
 import { ParticleWave } from "@/components/animations/ParticleWave";
@@ -90,26 +90,58 @@ export default function LandingPage() {
         <LandingHero />
       </div>
 
-      {/* Stats Section */}
-      <section className="relative z-10 py-20 border-y border-white/5">
+      {/* Stats Section - High-Energy Terminal Diagnostics (Atmospheric Variant) */}
+      <section className="relative z-10 py-24 border-y border-[#00d992]/10 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-6 sm:px-12 lg:px-24">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-10">
             {stats.map((stat, index) => (
               <ScrollReveal
                 key={stat.label}
-                delay={index * 0.1}
-                className="text-center"
+                delay={index * 0.15}
+                className="relative group"
               >
-                <div className="text-4xl md:text-5xl font-bold text-white mb-2">
-                  <CountUp
-                    end={stat.value}
-                    suffix={stat.suffix}
-                    duration={2}
-                  />
+                {/* Technical Bracket Background */}
+                <div className="absolute -inset-4 border border-[#3d3a39]/20 bg-[#101010]/20 opacity-0 group-hover:opacity-100 transition-all duration-700 rounded-lg pointer-events-none" />
+                
+                <div className="relative flex flex-col items-center">
+                  {/* Status Indicator */}
+                  <div className="flex items-center gap-2 mb-4 opacity-50 group-hover:opacity-100 transition-opacity">
+                     <div className="h-1 w-1 rounded-full bg-[#00d992] animate-pulse" />
+                     <span className="font-mono text-[8px] text-[#00d992] tracking-[0.2em] font-bold">STATE: ACTIVE</span>
+                  </div>
+
+                  {/* Main Value */}
+                  <div className="text-5xl md:text-6xl font-black text-[#f2f2f2] mb-3 tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.1)] group-hover:text-[#00d992] transition-colors duration-500">
+                    <CountUp
+                      end={stat.value}
+                      suffix={stat.suffix}
+                      duration={3}
+                      decimals={stat.value % 1 !== 0 ? 1 : 0}
+                    />
+                  </div>
+
+                  <div className="w-24 h-[1px] bg-[#3d3a39] mb-6 relative overflow-hidden">
+                     <motion.div 
+                        initial={{ x: "-100%" }}
+                        whileInView={{ x: "100%" }}
+                        transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                        className="absolute inset-0 bg-gradient-to-r from-transparent via-[#00d992]/60 to-transparent"
+                     />
+                  </div>
+
+                  <div className="text-[9px] font-mono font-bold text-[#8b949e] uppercase tracking-[0.6em] mb-2">
+                    {stat.label}
+                  </div>
+                  
+                  {/* Subtle Sub-label */}
+                  <div className="text-[7px] font-mono text-[#00d992]/30 uppercase tracking-[0.3em] opacity-0 group-hover:opacity-100 transition-opacity">
+                    {">"} Diagnostic_Stream_Verified
+                  </div>
                 </div>
-                <div className="text-sm text-white/40 uppercase tracking-wider">
-                  {stat.label}
-                </div>
+
+                {/* Corner Accents */}
+                <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-[#3d3a39] group-hover:border-[#00d992]/50 transition-colors" />
+                <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-[#3d3a39] group-hover:border-[#00d992]/50 transition-colors" />
               </ScrollReveal>
             ))}
           </div>
@@ -196,15 +228,19 @@ export default function LandingPage() {
         </section>
       </LazyLoad>
 
-      {/* Workflow Section - Industrial Status Enrichment */}
+      {/* Workflow Section - High-End Minimalist Redesign */}
       <LazyLoad>
-        <section id="workflow" className="relative z-10 py-40 px-6 max-w-7xl mx-auto border-t border-[#3d3a39]/20">
-          <ScrollReveal className="flex flex-col items-center mb-24">
-            <h2 className="text-sm font-mono text-[#00d992] tracking-[0.5em] uppercase font-bold mb-4">
-              [ 02 ] SYSTEM_FLOW
-            </h2>
-            <p className="text-[#8b949e] font-mono text-[10px] tracking-[0.2em] uppercase opacity-40">
-              Autonomous diagnostic pipeline trace
+        <section id="workflow" className="relative z-10 py-64 px-6 max-w-7xl mx-auto">
+          <ScrollReveal className="flex flex-col items-center mb-36">
+            <div className="inline-block px-4 py-1 border-l-2 border-[#00d992] mb-12">
+               <span className="font-mono text-[10px] text-[#8b949e] tracking-[0.6em] uppercase">Pipeline_Orchestration</span>
+            </div>
+            <h2 className="text-6xl md:text-7xl font-black text-[#f2f2f2] mb-12 tracking-[0.25em] uppercase leading-relaxed text-center">
+             <BlurReveal delay={0.1}>从 输 入</BlurReveal>
+             <BlurReveal delay={0.4} className="font-thin text-[#8b949e]">到 智 能 输 出</BlurReveal>
+          </h2>
+            <p className="text-[#8b949e] font-mono text-[9px] tracking-[0.4em] uppercase opacity-40">
+               Autonomous diagnostic pipeline trace_02
             </p>
           </ScrollReveal>
 
@@ -220,7 +256,6 @@ export default function LandingPage() {
                   </div>
 
                   <div className="w-24 h-24 flex items-center justify-center mx-auto mb-6 transition-all duration-500 text-[#b8b3b0] group-hover:text-[#00d992] relative">
-                    {/* Connection Node Ring - Expansion on Hover */}
                     <div className="absolute inset-0 rounded-full border border-dashed border-[#3d3a39] group-hover:border-[#00d992]/60 group-hover:scale-125 group-hover:rotate-90 transition-all duration-1000" />
                     <item.Icon className="w-12 h-12 relative z-10" />
                   </div>
@@ -233,7 +268,6 @@ export default function LandingPage() {
                     {">"} SYNCED_OK
                   </div>
 
-                  {/* High Tech Connecting Line */}
                   {index < 3 && (
                     <div className="hidden md:block absolute top-[5.5rem] left-[65%] w-[85%] h-px bg-gradient-to-r from-[#00d992]/20 via-[#3d3a39] to-transparent dashed opacity-30" />
                   )}
@@ -244,28 +278,42 @@ export default function LandingPage() {
         </section>
       </LazyLoad>
 
-      {/* CTA Section - Minimalist Terminal Style */}
-      <section id="launch" className="relative z-10 py-48 overflow-hidden">
+      {/* CTA Section - Minimalist High-Contrast Finale */}
+      <section id="launch" className="relative z-10 py-64 overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] bg-[#00d992]/5 blur-[120px] rounded-full pointer-events-none" />
         <div className="max-w-4xl mx-auto px-6 text-center relative">
           <ScrollReveal>
-            <div className="mb-12 inline-flex items-center gap-3">
-               <div className="h-1 w-1 rounded-full bg-[#00d992] animate-pulse" />
-               <span className="font-mono text-[10px] text-[#00d992] tracking-[0.4em] uppercase font-bold">Ready_For_Deployment</span>
+            <div className="mb-14 flex flex-col items-center">
+               <div className="font-mono text-[9px] text-[#00d992]/60 tracking-[0.5em] uppercase mb-4">
+                  [ PROTOCOL_TRANSITION: ASCENDING ]
+               </div>
+               <div className="h-px w-12 bg-gradient-to-r from-transparent via-[#00d992]/40 to-transparent" />
             </div>
-            <h2 className="text-5xl md:text-7xl font-black text-[#f2f2f2] mb-12 tracking-[-0.05em] uppercase">
-              从见到知 <br/> 是为进化
+
+            <h2 className="mb-20 flex flex-col items-center">
+              <BlurReveal delay={0.2} blur={15} duration={1.2} className="text-6xl md:text-[6.5rem] font-black text-[#f2f2f2] tracking-[0.25em] uppercase leading-[1.6] drop-shadow-[0_0_30px_rgba(255,255,255,0.05)]">
+                从见到知
+              </BlurReveal>
+              <BlurReveal delay={0.5} blur={10} className="font-thin xl:text-[5rem] text-[#00d992] tracking-[0.6em] opacity-80 block mt-4">
+                是为进化
+              </BlurReveal>
             </h2>
             <Link 
               href="/dashboard"
-              className="inline-flex items-center gap-8 py-5 px-12 bg-[#101010] border border-[#3d3a39] group hover:border-[#00d992] transition-all duration-300"
+              className="group relative inline-flex items-center gap-10 py-6 px-16 border border-[#00d992] hover:bg-[#00d992] transition-all duration-500 overflow-hidden"
             >
-              <span className="font-mono text-sm tracking-[0.3em] text-[#00d992] font-bold uppercase">
-                Launch Console
+              <div className="absolute inset-0 bg-[#00d992] opacity-0 group-hover:opacity-10 transition-opacity" />
+              <span className="relative z-10 font-mono text-[13px] tracking-[0.4em] text-[#00d992] group-hover:text-black font-bold uppercase">
+                Launch_Console
               </span>
-              <svg className="w-5 h-5 text-[#00d992] transition-transform group-hover:translate-x-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              <svg className="relative z-10 w-5 h-5 text-[#00d992] group-hover:text-black transition-all duration-500 group-hover:translate-x-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
               </svg>
             </Link>
+
+            <div className="mt-16 font-mono text-[8px] text-[#8b949e] uppercase tracking-[0.2em] opacity-40">
+              Session_End: 0x00_Terminal_Ready
+            </div>
           </ScrollReveal>
         </div>
       </section>
