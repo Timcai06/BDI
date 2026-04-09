@@ -6,9 +6,9 @@ import { DetectionListPanel } from "@/components/result-dashboard-parts/detectio
 import { DiagnosisPanel } from "@/components/result-dashboard-parts/diagnosis-panel";
 import { ExportModal } from "@/components/result-dashboard-parts/export-modal";
 import { FocusedDetectionHud } from "@/components/result-dashboard-parts/focused-detection-hud";
+import { ResultDashboardInsights } from "@/components/result-dashboard-parts/result-dashboard-insights";
 import { ResultImageStage } from "@/components/result-dashboard-parts/result-image-stage";
 import { ResultDashboardToolbar } from "@/components/result-dashboard-parts/result-dashboard-toolbar";
-import { getDefectLabel } from "@/lib/defect-visuals";
 import { formatModelLabel } from "@/lib/model-labels";
 import { filterDetections } from "@/lib/result-utils";
 import { getEnhancedImageUrl, getEnhancedOverlayUrl } from "@/lib/predict-client";
@@ -69,26 +69,6 @@ function getDetectionPriorityScore(detection: Detection): number {
     ? detection.metrics.length_mm / 10
     : 0;
   return detection.confidence * 1000 + areaScore + lengthScore;
-}
-
-function formatBreakdownLabel(key: string): string {
-  const labels: Record<string, string> = {
-    pre: "前处理 (I/O & Pre)",
-    model: "核心推理 (YOLO Engine)",
-    post: "后处理 (Metrics & Result Image)",
-    primary_model: "通用模型推理",
-    specialist_model: "专项模型推理",
-    fusion_post: "融合后处理",
-  };
-
-  return labels[key] ?? key.replace(/_/g, " ");
-}
-
-function getBreakdownTone(key: string): "accent" | "muted" {
-  if (key === "model" || key === "primary_model" || key === "specialist_model") {
-    return "accent";
-  }
-  return "muted";
 }
 
 export function ResultDashboard({
@@ -355,154 +335,18 @@ export function ResultDashboard({
         />
         </div>
 
-        {/* 结论区与辅工具栏 */}
-        <aside className="relative z-10 flex w-full shrink-0 flex-col gap-5 xl:w-[400px] sticky top-0 self-start">
-          <div className="relative shrink-0 overflow-hidden rounded-[2rem] border border-[#00D2FF]/20 bg-[linear-gradient(145deg,rgba(5,8,10,0.95),rgba(5,8,10,0.8))] p-5 shadow-[0_0_40px_rgba(0,210,255,0.1)] backdrop-blur-xl group">
-            <div className="absolute -inset-[1px] bg-gradient-to-br from-[#00D2FF]/20 to-[#7FFFD4]/0 opacity-50 z-[-1]" />
-            
-            <div className="mb-6">
-              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#00D2FF]/60 mb-4">核心数据指标</p>
-              <div className="grid grid-cols-2 gap-3">
-                {/* 主病害 */}
-                <div className="relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.03] p-3 transition-all hover:bg-white/[0.06]">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-[#00D2FF]/50 mb-1">主病害</p>
-                  <p className="text-sm font-medium text-white truncate">
-                    {current ? getDefectLabel(current.category) : "暂无"}
-                  </p>
-                </div>
-                {/* 掩膜能力 */}
-                <div className="relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.03] p-3 transition-all hover:bg-white/[0.06]">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-[#7FFFD4]/50 mb-1">掩膜能力</p>
-                  <p className="text-sm font-medium text-white">
-                    {result.has_masks ? "INSTANCE" : "BBOX ONLY"}
-                  </p>
-                </div>
-                {/* 推理耗时 */}
-                <div className="relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.03] p-3 transition-all hover:bg-white/[0.06]">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-amber-400/50 mb-1">推理速度</p>
-                  <p className="text-sm font-mono font-medium text-white">
-                    {result.inference_ms}ms
-                  </p>
-                </div>
-                {/* 当前视图 */}
-                <div className="relative overflow-hidden rounded-xl border border-white/5 bg-white/[0.03] p-3 transition-all hover:bg-white/[0.06]">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-[#00D2FF]/50 mb-1">当前展示</p>
-                  <p className="text-sm font-medium text-white">
-                    {viewMode === "result" ? "结果图" : viewMode === "mask" ? "掩膜图" : "原图"}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="mb-6">
-              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#00D2FF]/60 mb-3">系统运行状态</p>
-              <StatusCard 
-                phase={status.phase} 
-                message={status.message} 
-                progress={uploadProgress}
-                variant="compact"
-              />
-            </div>
-
-            {/* 性能展现：细粒度耗时拆解 */}
-            {result.inference_breakdown && (
-              <div className="mb-6 rounded-2xl border border-white/5 bg-white/[0.02] p-3.5 transition-all group hover:bg-white/[0.04]">
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#00D2FF]/60">性能分析仪表盘</p>
-                  <span className="font-mono text-[10px] text-[#7FFFD4] border border-[#7FFFD4]/30 px-1.5 py-0.5 rounded leading-none">
-                    API 总用时: {result.inference_ms}ms
-                  </span>
-                </div>
-                
-                <div className="space-y-3">
-                  {Object.entries(result.inference_breakdown).map(([key, value]) => {
-                    const tone = getBreakdownTone(key);
-                    const width = result.inference_ms > 0 ? (value / result.inference_ms) * 100 : 0;
-
-                    return (
-                      <div key={key} className="space-y-1.5">
-                        <div
-                          className={`flex items-center justify-between text-[10px] ${
-                            tone === "accent" ? "text-[#00D2FF]" : "text-slate-400"
-                          }`}
-                        >
-                          <span className={tone === "accent" ? "font-semibold" : ""}>
-                            {formatBreakdownLabel(key)}
-                          </span>
-                          <span className="font-mono">{value}ms</span>
-                        </div>
-                        <div
-                          className={`w-full rounded-full overflow-hidden relative ${
-                            tone === "accent"
-                              ? "h-1.5 bg-[#00D2FF]/10 shadow-[0_0_10px_rgba(0,210,255,0.2)]"
-                              : "h-1 bg-white/5"
-                          }`}
-                        >
-                          <div
-                            className={`h-full transition-all duration-1000 relative overflow-hidden ${
-                              tone === "accent"
-                                ? "bg-gradient-to-r from-[#00D2FF] to-[#7FFFD4]"
-                                : "bg-slate-500"
-                            }`}
-                            style={{ width: `${width}%` }}
-                          >
-                            <div
-                              className={`absolute inset-0 bg-gradient-to-r ${
-                                tone === "accent"
-                                  ? "from-transparent via-white/20 to-transparent animate-[shimmer_2s_infinite]"
-                                  : "from-transparent via-white/5 to-transparent animate-[shimmer_4s_infinite]"
-                              } -translate-x-full`}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-white/5">
-                  <p className="text-[9px] text-slate-500 leading-relaxed italic text-right">
-                    实时监测：符合赛题 &lt; 200ms 的吞吐要求
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-6">
-              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#00D2FF]/60 mb-4">展示筛选</p>
-              <div className="space-y-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-white/50">病害类别</span>
-                  <select
-                    className="bg-[#05080A] border border-white/10 rounded-md text-xs text-white/80 px-2 py-1 outline-none focus:border-[#00D2FF]/50 transition-colors"
-                    value={categoryFilter}
-                    onChange={(e) => onCategoryFilterChange(e.target.value)}
-                  >
-                    {categories.map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-white/50">最低置信度</span>
-                    <span className="text-xs font-mono text-[#00D2FF]">{(minConfidence * 100).toFixed(0)}%</span>
-                  </div>
-                  <input
-                    className="w-full h-1 bg-white/10 rounded-full appearance-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-[#00D2FF] [&::-webkit-slider-thumb]:rounded-full cursor-pointer accent-[#00D2FF]"
-                    max="0.95"
-                    min="0"
-                    step="0.05"
-                    type="range"
-                    value={minConfidence}
-                    onChange={(e) => onMinConfidenceChange(Number(e.target.value))}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </aside>
+        <ResultDashboardInsights
+          categories={categories}
+          categoryFilter={categoryFilter}
+          currentDetection={current}
+          minConfidence={minConfidence}
+          onCategoryFilterChange={onCategoryFilterChange}
+          onMinConfidenceChange={onMinConfidenceChange}
+          result={result}
+          status={status}
+          uploadProgress={uploadProgress}
+          viewMode={viewMode}
+        />
       </div>
 
       <DiagnosisPanel

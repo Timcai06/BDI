@@ -60,6 +60,6 @@
 
 ## 文档同步
 
-- [ ] `plan/README.md` 已登记 `Phase 6`
-- [ ] `AGENTS/03-execution/008-implementation-plan.md` 同步 Phase 6 优化主轴
-- [ ] `AGENTS/04-memory/009-progress.md` 同步当前重点与进度
+- [ ] `docs/plan/README.md` 已登记 `Phase 6`
+- [ ] `docs/internal/agent/03-execution/008-implementation-plan.md` 同步 Phase 6 优化主轴
+- [ ] `docs/internal/agent/04-memory/009-progress.md` 同步当前重点与进度

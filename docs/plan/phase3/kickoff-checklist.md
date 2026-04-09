@@ -45,8 +45,8 @@
 ## 文档同步
 
 - [x] `README.md` 已更新当前阶段
-- [x] `plan/README.md` 已更新当前实施阶段
-- [x] `plan/phase2/README.md` 已标记完成
-- [x] `plan/phase2/kickoff-checklist.md` 已回写验收结果
-- [x] `AGENTS/04-memory/009-progress.md` 已同步最新进展
-- [x] `AGENTS/04-memory/010-lessons.md` 已同步阶段经验
+- [x] `docs/plan/README.md` 已更新当前实施阶段
+- [x] `docs/plan/phase2/README.md` 已标记完成
+- [x] `docs/plan/phase2/kickoff-checklist.md` 已回写验收结果
+- [x] `docs/internal/agent/04-memory/009-progress.md` 已同步最新进展
+- [x] `docs/internal/agent/04-memory/010-lessons.md` 已同步阶段经验

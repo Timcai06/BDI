@@ -109,12 +109,11 @@ graph LR
 
 ```
 .
-├── AGENTS/          # 项目知识库、产品目标、架构约束
 ├── backend/         # FastAPI 后端实现 & 测试
+├── docs/            # 运行说明、架构文档、内部计划/知识库
 ├── frontend/        # Next.js 前端实现 & UI 组件
-├── for_crt/         # 项目方针、分析文档
-├── plan/            # 阶段性开发计划
 ├── scripts/         # 开发/部署脚本
+├── artifacts/       # 本地产物（忽略跟踪）
 └── README.md        # 本文件
 ```
 

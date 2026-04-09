@@ -52,7 +52,7 @@
 
 ## 文档同步
 
-- [x] `AGENTS/03-execution/008-implementation-plan.md` 同步新阶段目标
-- [x] `AGENTS/04-memory/009-progress.md` 同步当前重点转为业务流程系统化
-- [x] `AGENTS/00-entry/AGENTS.md` 同步当前判断与阶段重点
-- [x] `plan/README.md` 已改为新的 Phase 5 定位
+- [x] `docs/internal/agent/03-execution/008-implementation-plan.md` 同步新阶段目标
+- [x] `docs/internal/agent/04-memory/009-progress.md` 同步当前重点转为业务流程系统化
+- [x] `docs/internal/agent/00-entry/AGENTS.md` 同步当前判断与阶段重点
+- [x] `docs/plan/README.md` 已改为新的 Phase 5 定位
