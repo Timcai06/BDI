@@ -1,0 +1,161 @@
+@page {
+  size: A4;
+  margin: 16mm 14mm 16mm 14mm;
+}
+
+html {
+  font-size: 12px;
+}
+
+body {
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  color: #1f2937;
+  line-height: 1.65;
+  max-width: none;
+  margin: 0 auto;
+  padding: 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: #111827;
+  line-height: 1.35;
+  break-after: avoid-page;
+  page-break-after: avoid;
+  margin-top: 1.1em;
+  margin-bottom: 0.5em;
+}
+
+h1 {
+  font-size: 20px;
+  border-bottom: 1px solid #d1d5db;
+  padding-bottom: 0.25em;
+}
+
+h2 {
+  font-size: 16px;
+}
+
+h3 {
+  font-size: 13px;
+}
+
+p,
+li,
+td,
+th {
+  font-size: 11px;
+}
+
+p,
+ul,
+ol,
+table,
+pre,
+blockquote {
+  margin-top: 0.5em;
+  margin-bottom: 0.8em;
+}
+
+ul,
+ol {
+  padding-left: 1.5em;
+}
+
+li {
+  margin-bottom: 0.2em;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  break-inside: avoid-page;
+  page-break-inside: avoid;
+}
+
+thead {
+  display: table-header-group;
+}
+
+tr,
+td,
+th {
+  break-inside: avoid-page;
+  page-break-inside: avoid;
+  vertical-align: top;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+th,
+td {
+  border: 1px solid #cbd5e1;
+  padding: 6px 8px;
+}
+
+th {
+  background: #f3f4f6;
+  font-weight: 600;
+}
+
+blockquote {
+  border-left: 3px solid #cbd5e1;
+  padding-left: 10px;
+  color: #4b5563;
+}
+
+pre,
+code {
+  font-family: "SFMono-Regular", "Menlo", "Monaco", monospace;
+}
+
+pre {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 10px 12px;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 9.5px;
+  line-height: 1.5;
+  break-inside: avoid-page;
+  page-break-inside: avoid;
+}
+
+img {
+  display: block;
+  margin: 8px auto 10px;
+  max-width: 82%;
+  height: auto;
+  break-inside: avoid-page;
+  page-break-inside: avoid;
+}
+
+img[src$=".svg"] {
+  max-width: 72%;
+  max-height: 135mm;
+}
+
+img[src$=".png"],
+img[src$=".jpg"],
+img[src$=".jpeg"] {
+  max-width: 84%;
+  max-height: 170mm;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #d1d5db;
+  margin: 1em 0;
+}
+
+div[style*="page-break-after"] {
+  break-after: page;
+  page-break-after: always;
+}
