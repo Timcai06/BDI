@@ -4,17 +4,18 @@ import io
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 from fastapi import status
 from PIL import Image as PILImage
 
+from app.core.constants import ENHANCEMENT_WEBP_QUALITY, SCHEMA_VERSION
 from app.core.errors import AppError
+from app.services.protocols import TaskServiceLike
 from app.db.models import BatchItem, InferenceResult, MediaAsset
 from app.models.schemas import PredictOptions, PredictResponse, ResultEnhanceRequest
 
 
-def enhance_result(service: Any, image_id: str, payload: ResultEnhanceRequest) -> PredictResponse:
+def enhance_result(service: TaskServiceLike, image_id: str, payload: ResultEnhanceRequest) -> PredictResponse:
     if service.enhance_runner is None:
         raise AppError(
             code="ENHANCEMENT_UNAVAILABLE",
@@ -73,7 +74,7 @@ def enhance_result(service: Any, image_id: str, payload: ResultEnhanceRequest) -
         enhance_meta = service.enhance_runner.describe()
 
         buf = io.BytesIO()
-        enhanced_img.save(buf, format="WEBP", quality=95)
+        enhanced_img.save(buf, format="WEBP", quality=ENHANCEMENT_WEBP_QUALITY)
         enhanced_content = buf.getvalue()
         enhanced_uri = service.store.save_enhanced(image_id=batch_item.id, content=enhanced_content)
 
@@ -106,7 +107,7 @@ def enhance_result(service: Any, image_id: str, payload: ResultEnhanceRequest) -
         raw_payload["artifacts"]["enhanced_path"] = enhanced_uri
         raw_payload["artifacts"]["enhanced_overlay_path"] = enhanced_overlay_uri
         raw_payload["secondary_result"] = {
-            "schema_version": raw_payload.get("schema_version", "2.0.0"),
+            "schema_version": raw_payload.get("schema_version", SCHEMA_VERSION),
             "image_id": secondary_id,
             "result_variant": "enhanced",
             "inference_ms": secondary_raw.inference_ms,

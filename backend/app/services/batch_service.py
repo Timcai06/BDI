@@ -4,8 +4,6 @@ import io
 import math
 from datetime import datetime, timezone
 from typing import Any, Optional
-from uuid import uuid4
-
 from fastapi import UploadFile, status
 from PIL import Image as PILImage
 from PIL import ImageStat
@@ -60,9 +58,6 @@ from app.services.batch_alert_review_service import (
 )
 from app.services.batch_alert_review_service import (
     create_review as create_review_via_service,
-)
-from app.services.batch_alert_review_service import (
-    next_alert_level as next_alert_level_via_service,
 )
 from app.services.batch_alert_review_service import (
     parse_iso_datetime as parse_iso_datetime_via_service,
@@ -121,22 +116,16 @@ from app.services.batch_write_service import create_batch as create_batch_via_se
 from app.services.batch_write_service import create_bridge as create_bridge_via_service
 from app.services.batch_write_service import delete_batch as delete_batch_via_service
 from app.services.batch_write_service import delete_bridge as delete_bridge_via_service
+from app.core.constants import (
+    ALERT_LEVEL_ORDER,
+    ALERT_SLA_HOURS_BY_LEVEL,
+    ALLOWED_CONTENT_TYPES,
+    ALLOWED_SUFFIXES,
+    MAX_BATCH_UPLOAD_FILES,
+    next_alert_level as next_alert_level_via_service,
+)
+from app.core.utils import new_id
 from app.storage.local import LocalArtifactStore
-
-ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
-ALLOWED_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
-MAX_BATCH_UPLOAD_FILES = 200
-ALERT_LEVEL_ORDER = ["low", "medium", "high", "critical"]
-ALERT_SLA_HOURS_BY_LEVEL = {
-    "low": 72,
-    "medium": 48,
-    "high": 24,
-    "critical": 12,
-}
-
-
-def _new_id(prefix: str) -> str:
-    return f"{prefix}_{uuid4().hex[:16]}"
 
 
 class BatchService:
@@ -144,7 +133,7 @@ class BatchService:
 
     @staticmethod
     def _new_id(prefix: str) -> str:
-        return _new_id(prefix)
+        return new_id(prefix)
 
     def __init__(
         self,
@@ -544,13 +533,13 @@ class BatchService:
                 next_finished_at = None
             elif next_failed > 0 and next_succeeded > 0:
                 next_status = "partial_failed"
-                next_finished_at = batch.updated_at
+                next_finished_at = datetime.now(timezone.utc)
             elif next_failed > 0:
                 next_status = "failed"
-                next_finished_at = batch.updated_at
+                next_finished_at = datetime.now(timezone.utc)
             elif next_succeeded > 0:
                 next_status = "completed"
-                next_finished_at = batch.updated_at
+                next_finished_at = datetime.now(timezone.utc)
 
         changed = any(
             [

@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import BatchItem, InspectionBatch
+from app.services.protocols import BatchServiceLike
 
 
-def refresh_batch_aggregates(service: Any, *, session: Session, batch_id: str) -> None:
+def refresh_batch_aggregates(service: BatchServiceLike, *, session: Session, batch_id: str) -> None:
     batch = session.get(InspectionBatch, batch_id)
     if batch is None:
         return

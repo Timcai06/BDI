@@ -8,6 +8,7 @@ from fastapi import status
 from sqlalchemy import func, select
 
 from app.core.errors import AppError
+from app.services.protocols import BatchServiceLike
 from app.db.models import BatchItem, Detection, InferenceResult, InferenceTask, InspectionBatch, MediaAsset
 from app.models.schemas import (
     BatchItemDetailResponse,
@@ -41,7 +42,7 @@ def _build_batch_item_payload(
 
 
 def list_batch_items(
-    service: Any,
+    service: BatchServiceLike,
     *,
     batch_id: str,
     limit: int,
@@ -93,7 +94,7 @@ def list_batch_items(
         return BatchItemListResponse(items=items, total=total, limit=limit, offset=offset)
 
 
-def get_batch_item_detail(service: Any, *, batch_item_id: str) -> BatchItemDetailResponse:
+def get_batch_item_detail(service: BatchServiceLike, *, batch_item_id: str) -> BatchItemDetailResponse:
     with service.session_factory() as session:
         row = session.execute(
             select(BatchItem, MediaAsset)
@@ -119,7 +120,7 @@ def get_batch_item_detail(service: Any, *, batch_item_id: str) -> BatchItemDetai
         return BatchItemDetailResponse.model_validate(item_payload)
 
 
-def get_batch_item_result(service: Any, *, batch_item_id: str) -> BatchItemResultResponse:
+def get_batch_item_result(service: BatchServiceLike, *, batch_item_id: str) -> BatchItemResultResponse:
     with service.session_factory() as session:
         result = session.scalar(
             select(InferenceResult)

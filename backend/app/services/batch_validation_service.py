@@ -6,6 +6,7 @@ from typing import Optional
 from fastapi import UploadFile, status
 
 from app.core.errors import AppError
+from app.services.protocols import BatchServiceLike
 
 ALLOWED_ENHANCEMENT_MODES = {"off", "auto", "always"}
 DEFAULT_MODEL_POLICIES = {
@@ -17,7 +18,7 @@ DEFAULT_MODEL_POLICIES = {
 }
 
 
-def resolve_requested_model_version(service, model_policy: str) -> Optional[str]:
+def resolve_requested_model_version(service: BatchServiceLike, model_policy: str) -> Optional[str]:
     if service.runner_manager is None:
         return None
 
@@ -46,7 +47,7 @@ def resolve_requested_model_version(service, model_policy: str) -> Optional[str]
     return registry.active_version
 
 
-def validate_model_policy(service, model_policy: str) -> str:
+def validate_model_policy(service: BatchServiceLike, model_policy: str) -> str:
     policy = (model_policy or "").strip().lower()
     if not policy:
         raise AppError(

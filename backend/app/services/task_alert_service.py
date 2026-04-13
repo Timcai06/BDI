@@ -6,6 +6,8 @@ from typing import Any, Optional
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.constants import ALERT_LEVEL_ORDER, ALERT_SLA_HOURS_BY_LEVEL, next_alert_level
+from app.services.protocols import TaskServiceLike
 from app.db.models import AlertEvent, BatchItem, InspectionBatch, OpsAuditLog, OpsConfig
 from app.models.schemas import (
     AlertRulesConfigResponse,
@@ -15,16 +17,10 @@ from app.models.schemas import (
     RawPrediction,
 )
 
-ALERT_LEVEL_ORDER = ["low", "medium", "high", "critical"]
-ALERT_SLA_HOURS_BY_LEVEL = {
-    "low": 72,
-    "medium": 48,
-    "high": 24,
-    "critical": 12,
-}
+__all__ = ["ALERT_LEVEL_ORDER", "ALERT_SLA_HOURS_BY_LEVEL"]
 
 
-def get_alert_rule_config(service: Any) -> AlertRulesConfigResponse:
+def get_alert_rule_config(service: TaskServiceLike) -> AlertRulesConfigResponse:
     with service.session_factory() as session:
         service._sync_alert_rules_from_db(session=session)
     return AlertRulesConfigResponse(
@@ -41,7 +37,7 @@ def get_alert_rule_config(service: Any) -> AlertRulesConfigResponse:
     )
 
 
-def update_alert_rule_config(service: Any, payload: AlertRulesUpdateRequest) -> AlertRulesConfigResponse:
+def update_alert_rule_config(service: TaskServiceLike, payload: AlertRulesUpdateRequest) -> AlertRulesConfigResponse:
     with service.session_factory() as session:
         service._sync_alert_rules_from_db(session=session)
         before_payload = service._build_alert_rules_payload()
@@ -94,7 +90,7 @@ def update_alert_rule_config(service: Any, payload: AlertRulesUpdateRequest) -> 
 
 
 def list_alert_rule_audit_logs(
-    service: Any,
+    service: TaskServiceLike,
     *,
     limit: int,
     offset: int,
@@ -125,7 +121,7 @@ def list_alert_rule_audit_logs(
 
 
 def emit_auto_alerts(
-    service: Any,
+    service: TaskServiceLike,
     *,
     session: Session,
     batch_item: BatchItem,
@@ -185,7 +181,7 @@ def emit_auto_alerts(
         batch_item.alert_status = "open"
 
 
-def build_auto_alert_candidates(service: Any, raw: RawPrediction) -> list[Any]:
+def build_auto_alert_candidates(service: TaskServiceLike, raw: RawPrediction) -> list[Any]:
     candidates: list[Any] = []
     detection_count = len(raw.detections)
 
@@ -227,7 +223,7 @@ def build_auto_alert_candidates(service: Any, raw: RawPrediction) -> list[Any]:
     return candidates
 
 
-def apply_repeat_trigger_escalation(service: Any, alert: AlertEvent) -> None:
+def apply_repeat_trigger_escalation(service: TaskServiceLike, alert: AlertEvent) -> None:
     now = datetime.now(timezone.utc)
     payload = dict(alert.trigger_payload or {})
     repeat_hits = int(payload.get("repeat_hits", 1)) + 1
@@ -243,7 +239,7 @@ def apply_repeat_trigger_escalation(service: Any, alert: AlertEvent) -> None:
     alert.updated_at = now
 
 
-def build_alert_trigger_payload(service: Any, base_payload: dict[str, Any], alert_level: str) -> dict[str, Any]:
+def build_alert_trigger_payload(service: TaskServiceLike, base_payload: dict[str, Any], alert_level: str) -> dict[str, Any]:
     now = datetime.now(timezone.utc)
     payload = dict(base_payload)
     payload.setdefault("repeat_hits", 1)
@@ -253,23 +249,13 @@ def build_alert_trigger_payload(service: Any, base_payload: dict[str, Any], aler
     return payload
 
 
-def next_alert_level(level: str) -> str:
-    try:
-        idx = ALERT_LEVEL_ORDER.index(level)
-    except ValueError:
-        return "critical"
-    if idx >= len(ALERT_LEVEL_ORDER) - 1:
-        return ALERT_LEVEL_ORDER[-1]
-    return ALERT_LEVEL_ORDER[idx + 1]
-
-
-def build_sla_due_at_iso(service: Any, level: str, start_at: datetime) -> str:
+def build_sla_due_at_iso(service: TaskServiceLike, level: str, start_at: datetime) -> str:
     hours = service.alert_sla_hours_by_level.get(level, service.alert_sla_hours_by_level.get("critical", 12))
     due_at = start_at + timedelta(hours=hours)
     return due_at.isoformat()
 
 
-def sync_alert_rules_from_db(service: Any, *, session: Session) -> None:
+def sync_alert_rules_from_db(service: TaskServiceLike, *, session: Session) -> None:
     try:
         config = session.get(OpsConfig, service.ALERT_RULES_CONFIG_KEY)
     except Exception:
@@ -308,7 +294,7 @@ def sync_alert_rules_from_db(service: Any, *, session: Session) -> None:
     service.alert_updated_at = config.updated_at
 
 
-def build_alert_rules_payload(service: Any) -> dict[str, Any]:
+def build_alert_rules_payload(service: TaskServiceLike) -> dict[str, Any]:
     return {
         "profile_name": service.alert_profile_name,
         "alert_auto_enabled": service.alert_auto_enabled,

@@ -135,7 +135,7 @@ def _render_overlay(image_bytes: bytes, detections: List[RawDetection]) -> bytes
 
 
 @dataclass
-class FusionRunner:
+class FusionRunner(ModelRunner):
     spec: ModelSpec
     registry: ModelRegistry
     pixels_per_mm: float = 10.0

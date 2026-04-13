@@ -4,23 +4,21 @@ import io
 import logging
 from datetime import datetime, timezone
 from typing import Any
-from uuid import uuid4
 
 from PIL import Image as PILImage
 from sqlalchemy.orm import Session
 
+from app.core.constants import ENHANCEMENT_WEBP_QUALITY, SCHEMA_VERSION
 from app.core.errors import AppError
+from app.services.protocols import TaskServiceLike
+from app.core.utils import new_id
 from app.db.models import BatchItem, Detection, InferenceResult, InferenceTask, MediaAsset
 from app.models.schemas import PredictOptions
 
 logger = logging.getLogger(__name__)
 
 
-def _new_id(prefix: str) -> str:
-    return f"{prefix}_{uuid4().hex[:12]}"
-
-
-def execute_task(service: Any, session: Session, task: InferenceTask) -> str:
+def execute_task(service: TaskServiceLike, session: Session, task: InferenceTask) -> str:
     batch_item = session.get(BatchItem, task.batch_item_id)
     if batch_item is None:
         raise AppError(
@@ -90,7 +88,7 @@ def execute_task(service: Any, session: Session, task: InferenceTask) -> str:
             enhance_meta = service.enhance_runner.describe()
 
             buf = io.BytesIO()
-            enhanced_img.save(buf, format="WEBP", quality=95)
+            enhanced_img.save(buf, format="WEBP", quality=ENHANCEMENT_WEBP_QUALITY)
             enhanced_content = buf.getvalue()
             enhanced_uri = service.store.save_enhanced(image_id=batch_item.id, content=enhanced_content)
 
@@ -107,7 +105,7 @@ def execute_task(service: Any, session: Session, task: InferenceTask) -> str:
         except Exception:
             logger.warning("Enhanced inference failed but baseline result remains valid", exc_info=True)
 
-    result_id = _new_id("res")
+    result_id = new_id("res")
     result_created_at = datetime.now(timezone.utc)
     overlay_uri = None
     if raw.overlay_png:
@@ -131,7 +129,7 @@ def execute_task(service: Any, session: Session, task: InferenceTask) -> str:
         id=result_id,
         task_id=task.id,
         batch_item_id=batch_item.id,
-        schema_version="2.0.0",
+        schema_version=SCHEMA_VERSION,
         model_name=raw.model_name,
         model_version=raw.model_version,
         backend=raw.backend,
@@ -154,7 +152,7 @@ def execute_task(service: Any, session: Session, task: InferenceTask) -> str:
     for item in raw.detections:
         session.add(
             Detection(
-                id=_new_id("det"),
+                id=new_id("det"),
                 result_id=result_id,
                 batch_item_id=batch_item.id,
                 category=item.category,

@@ -7,6 +7,8 @@ from fastapi import status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.constants import ALERT_LEVEL_ORDER, next_alert_level
+from app.services.protocols import BatchServiceLike
 from app.core.errors import AppError
 from app.db.models import AlertEvent, BatchItem, Bridge, Detection, InspectionBatch, ReviewRecord
 from app.models.schemas import (
@@ -17,10 +19,7 @@ from app.models.schemas import (
     ReviewRecordResponse,
 )
 
-ALERT_LEVEL_ORDER = ["low", "medium", "high", "critical"]
-
-
-def create_review(service: Any, payload: ReviewCreateRequest) -> ReviewRecordResponse:
+def create_review(service: BatchServiceLike, payload: ReviewCreateRequest) -> ReviewRecordResponse:
     with service.session_factory() as session:
         detection = session.get(Detection, payload.detection_id)
         if detection is None:
@@ -102,7 +101,7 @@ def create_review(service: Any, payload: ReviewCreateRequest) -> ReviewRecordRes
         return ReviewRecordResponse.model_validate(review)
 
 
-def create_alert(service: Any, payload: AlertCreateRequest) -> AlertResponse:
+def create_alert(service: BatchServiceLike, payload: AlertCreateRequest) -> AlertResponse:
     with service.session_factory() as session:
         bridge = session.get(Bridge, payload.bridge_id)
         if bridge is None:
@@ -147,7 +146,7 @@ def create_alert(service: Any, payload: AlertCreateRequest) -> AlertResponse:
         return AlertResponse.model_validate(alert)
 
 
-def update_alert_status(service: Any, alert_id: str, payload: AlertStatusUpdateRequest) -> AlertResponse:
+def update_alert_status(service: BatchServiceLike, alert_id: str, payload: AlertStatusUpdateRequest) -> AlertResponse:
     with service.session_factory() as session:
         alert = session.get(AlertEvent, alert_id)
         if alert is None:
@@ -179,7 +178,7 @@ def update_alert_status(service: Any, alert_id: str, payload: AlertStatusUpdateR
         return AlertResponse.model_validate(alert)
 
 
-def refresh_batch_item_alert_status(service: Any, *, session: Session, batch_item_id: str) -> None:
+def refresh_batch_item_alert_status(service: BatchServiceLike, *, session: Session, batch_item_id: str) -> None:
     batch_item = session.get(BatchItem, batch_item_id)
     if batch_item is None:
         return
@@ -201,7 +200,7 @@ def refresh_batch_item_alert_status(service: Any, *, session: Session, batch_ite
         batch_item.alert_status = "none"
 
 
-def build_alert_trigger_payload(service: Any, base_payload: dict[str, Any], alert_level: str) -> dict[str, Any]:
+def build_alert_trigger_payload(service: BatchServiceLike, base_payload: dict[str, Any], alert_level: str) -> dict[str, Any]:
     now = datetime.now(timezone.utc)
     payload = dict(base_payload)
     payload.setdefault("repeat_hits", 1)
@@ -211,7 +210,7 @@ def build_alert_trigger_payload(service: Any, base_payload: dict[str, Any], aler
     return payload
 
 
-def apply_overdue_alert_escalation(service: Any, *, session: Session) -> None:
+def apply_overdue_alert_escalation(service: BatchServiceLike, *, session: Session) -> None:
     now = datetime.now(timezone.utc)
     alerts = session.scalars(select(AlertEvent).where(AlertEvent.status.in_(["open", "acknowledged"]))).all()
     changed = False
@@ -247,17 +246,7 @@ def parse_iso_datetime(value: Any) -> Optional[datetime]:
     return parsed
 
 
-def next_alert_level(level: str) -> str:
-    try:
-        idx = ALERT_LEVEL_ORDER.index(level)
-    except ValueError:
-        return "critical"
-    if idx >= len(ALERT_LEVEL_ORDER) - 1:
-        return ALERT_LEVEL_ORDER[-1]
-    return ALERT_LEVEL_ORDER[idx + 1]
-
-
-def build_sla_due_at_iso(service: Any, level: str, start_at: datetime) -> str:
+def build_sla_due_at_iso(service: BatchServiceLike, level: str, start_at: datetime) -> str:
     hours = service.alert_sla_hours_by_level.get(level, service.alert_sla_hours_by_level.get("critical", 12))
     due_at = start_at + timedelta(hours=hours)
     return due_at.isoformat()

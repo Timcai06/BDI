@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
-from uuid import uuid4
 
 from fastapi import status
 from sqlalchemy import select
@@ -14,6 +13,9 @@ from app.adapters.enhancement_runner import DualBranchEnhanceRunner
 from app.adapters.manager import RunnerManager
 from app.core.category_mapper import normalize_defect_category
 from app.core.errors import AppError
+from app.core.constants import ALERT_SLA_HOURS_BY_LEVEL, SCHEMA_VERSION, next_alert_level as next_alert_level_via_service
+from app.core.utils import new_id, resolve_path
+from app.services.batch_validation_service import resolve_requested_model_version
 from app.db.models import AlertEvent, BatchItem, InferenceTask
 from app.models.schemas import (
     PredictResponse,
@@ -25,9 +27,6 @@ from app.models.schemas import (
     TaskRetryResponse,
 )
 from app.services.batch_aggregate_service import refresh_batch_aggregates
-from app.services.task_alert_service import (
-    ALERT_SLA_HOURS_BY_LEVEL,
-)
 from app.services.task_alert_service import (
     apply_repeat_trigger_escalation as apply_repeat_trigger_escalation_via_service,
 )
@@ -54,9 +53,6 @@ from app.services.task_alert_service import (
 )
 from app.services.task_alert_service import (
     list_alert_rule_audit_logs as list_alert_rule_audit_logs_via_service,
-)
-from app.services.task_alert_service import (
-    next_alert_level as next_alert_level_via_service,
 )
 from app.services.task_alert_service import (
     sync_alert_rules_from_db as sync_alert_rules_from_db_via_service,
@@ -92,9 +88,6 @@ from app.services.task_retry_service import (
 )
 from app.storage.local import LocalArtifactStore
 
-BACKEND_ROOT = Path(__file__).resolve().parents[2]
-WORKSPACE_ROOT = BACKEND_ROOT.parent
-
 
 @dataclass
 class FailureDecision:
@@ -109,10 +102,6 @@ class AutoAlertCandidate:
     alert_level: str
     title: str
     trigger_payload: dict[str, Any]
-
-
-def _new_id(prefix: str) -> str:
-    return f"{prefix}_{uuid4().hex[:16]}"
 
 
 class TaskService:
@@ -155,7 +144,7 @@ class TaskService:
 
     @staticmethod
     def _new_id(prefix: str) -> str:
-        return _new_id(prefix)
+        return new_id(prefix)
 
     def get_task(self, task_id: str) -> TaskResponse:
         with self.session_factory() as session:
@@ -215,34 +204,7 @@ class TaskService:
         task.lease_expires_at = self._lease_deadline(now)
 
     def _resolve_requested_model_version(self, model_policy: str) -> Optional[str]:
-        policy = (model_policy or "").strip().lower()
-        registry = self.runner_manager.registry
-
-        if not policy or policy in {"active-default", "active"}:
-            return registry.active_version
-
-        if policy in {"fusion-default", "seepage-priority"}:
-            active_spec = registry.get_active()
-            if active_spec.runner_kind == "fusion":
-                return active_spec.model_version
-            for spec in registry.list_specs():
-                if spec.runner_kind == "fusion":
-                    return spec.model_version
-            return registry.active_version
-
-        if policy == "general-only":
-            active_spec = registry.get_active()
-            if active_spec.runner_kind == "fusion" and active_spec.primary_model_version:
-                return active_spec.primary_model_version
-            for spec in registry.list_specs():
-                if spec.runner_kind in {"ultralytics", "external_ultralytics"}:
-                    return spec.model_version
-            return registry.active_version
-
-        if policy in registry.specs:
-            return policy
-
-        return registry.active_version
+        return resolve_requested_model_version(self, model_policy)
 
     def _claim_next_queued_task(self, *, session: Session, worker_name: str) -> Optional[InferenceTask]:
         task = session.scalar(
@@ -274,19 +236,9 @@ class TaskService:
         return execute_task_via_service(self, session, task)
 
     def _resolve_storage_path(self, storage_uri: str) -> Path:
-        candidate = Path(storage_uri)
-        if candidate.is_absolute():
-            return candidate
-        # Backward-compatibility for previously persisted relative paths.
-        options = [
-            Path.cwd() / candidate,
-            BACKEND_ROOT / candidate,
-            WORKSPACE_ROOT / candidate,
-        ]
-        for path in options:
-            if path.exists():
-                return path
-        return options[0]
+        result = resolve_path(storage_uri, fallback=True)
+        assert result is not None
+        return result
 
     def _emit_auto_alerts(
         self,
@@ -403,7 +355,7 @@ class TaskService:
             return res
 
         payload = {
-            "schema_version": "2.0.0",
+            "schema_version": SCHEMA_VERSION,
             "image_id": result_id,
             "batch_item_id": batch_item_id,
             "result_variant": "original",

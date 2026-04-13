@@ -6,6 +6,7 @@ from fastapi import status
 from sqlalchemy import case, func, select
 
 from app.core.errors import AppError
+from app.services.protocols import BatchServiceLike
 from app.db.models import BatchItem, Bridge, InferenceTask, InspectionBatch
 from app.models.schemas import BatchListResponse, BatchResponse, BridgeListResponse, BridgeResponse
 
@@ -133,7 +134,7 @@ def _load_batch_enhancement_modes(session: Any, *, batch_ids: list[str]) -> dict
     }
 
 
-def list_bridges(service: Any, *, limit: int, offset: int) -> BridgeListResponse:
+def list_bridges(service: BatchServiceLike, *, limit: int, offset: int) -> BridgeListResponse:
     with service.session_factory() as session:
         total = session.scalar(select(func.count()).select_from(Bridge)) or 0
         rows = session.scalars(select(Bridge).order_by(Bridge.created_at.desc()).offset(offset).limit(limit)).all()
@@ -146,7 +147,7 @@ def list_bridges(service: Any, *, limit: int, offset: int) -> BridgeListResponse
         return BridgeListResponse(items=items, total=total, limit=limit, offset=offset)
 
 
-def get_bridge(service: Any, bridge_id: str) -> BridgeResponse:
+def get_bridge(service: BatchServiceLike, bridge_id: str) -> BridgeResponse:
     with service.session_factory() as session:
         bridge = session.get(Bridge, bridge_id)
         if bridge is None:
@@ -161,7 +162,7 @@ def get_bridge(service: Any, bridge_id: str) -> BridgeResponse:
 
 
 def list_batches(
-    service: Any,
+    service: BatchServiceLike,
     *,
     limit: int,
     offset: int,
@@ -205,7 +206,7 @@ def list_batches(
         return BatchListResponse(items=items, total=total, limit=limit, offset=offset)
 
 
-def get_batch(service: Any, batch_id: str) -> BatchResponse:
+def get_batch(service: BatchServiceLike, batch_id: str) -> BatchResponse:
     with service.session_factory() as session:
         batch = session.get(InspectionBatch, batch_id)
         if batch is None:

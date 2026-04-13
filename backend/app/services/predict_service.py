@@ -14,6 +14,7 @@ from app.adapters.base import ModelRunner
 from app.adapters.enhancement_runner import DualBranchEnhanceRunner
 from app.adapters.manager import RunnerManager
 from app.adapters.registry import ModelSpec
+from app.core.constants import ALLOWED_CONTENT_TYPES, ALLOWED_SUFFIXES
 from app.core.errors import AppError
 from app.models.schemas import (
     ArtifactLinks,
@@ -26,9 +27,6 @@ from app.models.schemas import (
 from app.storage.local import LocalArtifactStore
 
 logger = logging.getLogger(__name__)
-
-ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
-ALLOWED_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 
 
 def _format_metric(value: float | None, unit: str) -> str:

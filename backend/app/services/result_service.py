@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.errors import AppError
+from app.core.utils import resolve_path
 from app.db.models import BatchItem, MediaAsset
 from app.models.schemas import (
     BatchDeleteResultItem,
@@ -23,9 +24,6 @@ from app.models.schemas import (
     ResultSummary,
 )
 from app.storage.local import LocalArtifactStore
-
-BACKEND_ROOT = Path(__file__).resolve().parents[2]
-WORKSPACE_ROOT = BACKEND_ROOT.parent
 
 
 class ResultService:
@@ -225,7 +223,7 @@ class ResultService:
                 },
             )
 
-        timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
         filename = f"history-{asset_type}-export-{timestamp}.zip"
         return archive.getvalue(), filename, exported_count, skipped_count
 
@@ -329,18 +327,7 @@ class ResultService:
         return None
 
     def _resolve_artifact_path(self, raw_path: str) -> Path | None:
-        candidate = Path(raw_path)
-        if candidate.is_absolute():
-            return candidate if candidate.exists() else None
-        options = [
-            Path.cwd() / candidate,
-            BACKEND_ROOT / candidate,
-            WORKSPACE_ROOT / candidate,
-        ]
-        for path in options:
-            if path.exists():
-                return path
-        return None
+        return resolve_path(raw_path, fallback=False)
 
     def _normalize_payload(self, payload: dict[str, Any]) -> dict[str, Any] | None:
         def _normalize_node(node: dict[str, Any]) -> dict[str, Any] | None:

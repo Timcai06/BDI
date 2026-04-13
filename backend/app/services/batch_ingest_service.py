@@ -3,22 +3,20 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime, timezone
 from typing import Any, Optional
-from uuid import uuid4
 
 from fastapi import UploadFile, status
 from sqlalchemy import func, select
 
+from app.core.constants import ALLOWED_CONTENT_TYPES, ALLOWED_SUFFIXES, MAX_BATCH_UPLOAD_FILES
 from app.core.errors import AppError
+from app.services.protocols import BatchServiceLike
+from app.core.utils import new_id
 from app.db.models import BatchItem, InferenceTask, InspectionBatch, MediaAsset
 from app.models.schemas import BatchIngestItemError, BatchIngestItemSuccess, BatchIngestResponse
 
 
-def _new_id(prefix: str) -> str:
-    return f"{prefix}_{uuid4().hex[:12]}"
-
-
 async def ingest_batch_items(
-    service: Any,
+    service: BatchServiceLike,
     *,
     batch_id: str,
     files: list[UploadFile],
@@ -35,12 +33,12 @@ async def ingest_batch_items(
                 message="At least one image file is required.",
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
-        if len(files) > service.MAX_BATCH_UPLOAD_FILES if hasattr(service, "MAX_BATCH_UPLOAD_FILES") else len(files) > 200:
+        if len(files) > MAX_BATCH_UPLOAD_FILES:
             raise AppError(
                 code="TOO_MANY_FILES",
-                message="Uploaded file count exceeds the maximum allowed batch size.",
+                message="Uploaded file count exceeds the maximum batch size.",
                 status_code=status.HTTP_400_BAD_REQUEST,
-                details={"max_files": getattr(service, "MAX_BATCH_UPLOAD_FILES", 200), "provided": len(files)},
+                details={"max_files": MAX_BATCH_UPLOAD_FILES, "provided": len(files)},
             )
 
         service._validate_relative_paths(files=files, relative_paths=relative_paths)
@@ -80,9 +78,9 @@ async def ingest_batch_items(
                 if error is not None:
                     errors.append(error)
                 continue
-            media_asset_id = _new_id("med")
-            batch_item_id = _new_id("bit")
-            task_id = _new_id("tsk")
+            media_asset_id = new_id("med")
+            batch_item_id = new_id("bit")
+            task_id = new_id("tsk")
             storage_saved = False
 
             try:

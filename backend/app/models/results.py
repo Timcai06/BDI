@@ -9,7 +9,7 @@ from app.models.common import ArtifactLinks, Detection, EnhancementInfo
 
 
 class PredictResponse(BaseModel):
-    schema_version: str = "1.0.0"
+    schema_version: str = "2.0.0"
     image_id: str
     result_variant: Literal["original", "enhanced"] = "original"
     inference_ms: int = Field(ge=0)

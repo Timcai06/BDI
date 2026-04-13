@@ -10,12 +10,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from app.adapters.base import ModelRunner
 from app.adapters.registry import ModelSpec
 from app.models.schemas import PredictOptions, RawPrediction
 
 
 @dataclass
-class ExternalUltralyticsRunner:
+class ExternalUltralyticsRunner(ModelRunner):
     model_name: str
     model_version: str
     backend: str

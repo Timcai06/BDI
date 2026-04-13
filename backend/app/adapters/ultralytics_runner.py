@@ -8,6 +8,7 @@ from typing import Optional
 
 from PIL import Image
 
+from app.adapters.base import ModelRunner
 from app.adapters.output_adapter import UltralyticsOutputAdapter
 from app.adapters.registry import ModelSpec
 from app.models.schemas import PredictOptions, RawPrediction
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class UltralyticsRunner:
+class UltralyticsRunner(ModelRunner):
     model_name: str
     model_version: str
     backend: str

@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
+from app.services.protocols import TaskServiceLike
 from app.db.models import BatchItem, InferenceTask
 from app.models.schemas import TaskProcessResponse, TaskRetryRequest, TaskRetryResponse
 
@@ -23,7 +24,7 @@ RETRYABLE_FAILURE_CODES = {
 logger = logging.getLogger(__name__)
 
 
-def recover_stale_tasks(service: Any) -> int:
+def recover_stale_tasks(service: TaskServiceLike) -> int:
     stale_task_ids: list[str] = []
     now = datetime.now(timezone.utc)
     with service.session_factory() as session:
@@ -57,7 +58,7 @@ def recover_stale_tasks(service: Any) -> int:
     return recovered
 
 
-def process_next_queued_task(service: Any) -> TaskProcessResponse:
+def process_next_queued_task(service: TaskServiceLike) -> TaskProcessResponse:
     recovered_stale_tasks = service.recover_stale_tasks()
     with service.session_factory() as session:
         service._sync_alert_rules_from_db(session=session)
@@ -82,7 +83,7 @@ def process_next_queued_task(service: Any) -> TaskProcessResponse:
             return TaskProcessResponse(processed=False, task_id=task.id, message=message)
 
 
-def retry_task(service: Any, task_id: str, payload: TaskRetryRequest) -> TaskRetryResponse:
+def retry_task(service: TaskServiceLike, task_id: str, payload: TaskRetryRequest) -> TaskRetryResponse:
     with service.session_factory() as session:
         task = session.get(InferenceTask, task_id)
         if task is None:
@@ -135,7 +136,7 @@ def retry_task(service: Any, task_id: str, payload: TaskRetryRequest) -> TaskRet
 
 
 def mark_task_failed(
-    service: Any,
+    service: TaskServiceLike,
     task_id: str,
     *,
     decision: Any,
@@ -193,7 +194,7 @@ def next_attempt_no(*, session: Session, batch_item_id: str) -> int:
 
 
 def create_retry_task(
-    service: Any,
+    service: TaskServiceLike,
     *,
     session: Session,
     source_task: InferenceTask,
@@ -226,7 +227,7 @@ def create_retry_task(
     return new_task
 
 
-def classify_failure(service: Any, exc: Exception) -> Any:
+def classify_failure(service: TaskServiceLike, exc: Exception) -> Any:
     if isinstance(exc, AppError):
         code = exc.code
         return service.failure_decision_class(

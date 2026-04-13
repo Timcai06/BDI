@@ -4,6 +4,7 @@ import io
 
 from PIL import Image, ImageDraw
 
+from app.adapters.base import ModelRunner
 from app.models.schemas import (
     BoundingBox,
     DetectionMetrics,
@@ -14,7 +15,7 @@ from app.models.schemas import (
 )
 
 
-class MockRunner:
+class MockRunner(ModelRunner):
     name = "mock-runner"
     ready = True
 

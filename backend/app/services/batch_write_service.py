@@ -7,6 +7,7 @@ from fastapi import status
 from sqlalchemy import delete, func, select, update
 
 from app.core.errors import AppError
+from app.services.protocols import BatchServiceLike
 from app.db.models import (
     AlertEvent,
     BatchItem,
@@ -21,7 +22,7 @@ from app.db.models import (
 from app.models.schemas import BatchCreateRequest, BatchCreateResponse, BatchDeleteResponse, BridgeCreateRequest
 
 
-def create_bridge(service: Any, payload: BridgeCreateRequest):
+def create_bridge(service: BatchServiceLike, payload: BridgeCreateRequest):
     with service.session_factory() as session:
         existing = session.scalar(select(Bridge).where(Bridge.bridge_code == payload.bridge_code))
         if existing is not None:
@@ -49,7 +50,7 @@ def create_bridge(service: Any, payload: BridgeCreateRequest):
         return service._build_bridge_response(session=session, bridge=bridge)
 
 
-def delete_bridge(service: Any, bridge_id: str):
+def delete_bridge(service: BatchServiceLike, bridge_id: str):
     with service.session_factory() as session:
         bridge = session.get(Bridge, bridge_id)
         if bridge is None:
@@ -73,7 +74,7 @@ def delete_bridge(service: Any, bridge_id: str):
     return {"bridge_id": bridge_id, "deleted": True}
 
 
-def create_batch(service: Any, payload: BatchCreateRequest) -> BatchCreateResponse:
+def create_batch(service: BatchServiceLike, payload: BatchCreateRequest) -> BatchCreateResponse:
     with service.session_factory() as session:
         bridge = session.get(Bridge, payload.bridge_id)
         if bridge is None:
@@ -118,7 +119,7 @@ def create_batch(service: Any, payload: BatchCreateRequest) -> BatchCreateRespon
         )
 
 
-def delete_batch(service: Any, batch_id: str) -> BatchDeleteResponse:
+def delete_batch(service: BatchServiceLike, batch_id: str) -> BatchDeleteResponse:
     with service.session_factory() as session:
         batch = session.get(InspectionBatch, batch_id)
         if batch is None:

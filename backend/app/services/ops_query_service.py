@@ -7,6 +7,7 @@ from fastapi import status
 from sqlalchemy import func, select
 
 from app.core.errors import AppError
+from app.services.protocols import BatchServiceLike
 from app.db.models import AlertEvent, BatchItem, Detection, InferenceTask, InspectionBatch, ReviewRecord
 from app.models.schemas import (
     AlertListResponse,
@@ -20,7 +21,7 @@ from app.models.schemas import (
 )
 
 
-def get_batch_stats(service: Any, *, batch_id: str) -> BatchStatsResponse:
+def get_batch_stats(service: BatchServiceLike, *, batch_id: str) -> BatchStatsResponse:
     with service.session_factory() as session:
         batch = session.get(InspectionBatch, batch_id)
         if batch is None:
@@ -70,7 +71,7 @@ def get_batch_stats(service: Any, *, batch_id: str) -> BatchStatsResponse:
         )
 
 
-def get_ops_metrics(service: Any, *, window_hours: int) -> OpsMetricsResponse:
+def get_ops_metrics(service: BatchServiceLike, *, window_hours: int) -> OpsMetricsResponse:
     hours = max(1, window_hours)
     now = datetime.now(timezone.utc)
     window_start = now.timestamp() - float(hours * 3600)
@@ -130,7 +131,7 @@ def get_ops_metrics(service: Any, *, window_hours: int) -> OpsMetricsResponse:
 
 
 def list_detections(
-    service: Any,
+    service: BatchServiceLike,
     *,
     batch_id: Optional[str],
     batch_item_id: Optional[str],
@@ -187,7 +188,7 @@ def list_detections(
 
 
 def list_reviews(
-    service: Any,
+    service: BatchServiceLike,
     *,
     batch_id: Optional[str],
     batch_item_id: Optional[str],
@@ -231,7 +232,7 @@ def list_reviews(
 
 
 def list_alerts(
-    service: Any,
+    service: BatchServiceLike,
     *,
     batch_id: Optional[str],
     status_filter: Optional[str],
