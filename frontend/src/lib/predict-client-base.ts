@@ -10,6 +10,7 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/,
 export const PREDICT_TIMEOUT_MS = 120_000;
 export const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_TTL_MS = 30_000;
+export const MAX_CACHE_SIZE = 200;
 
 interface CacheEntry<T> {
   data: T;
@@ -57,6 +58,11 @@ export async function cachedFetch<T>(
 
   if (cached && now - cached.timestamp < ttlMs) {
     return cached.data as T;
+  }
+
+  if (MEMORY_CACHE.size >= MAX_CACHE_SIZE) {
+    const oldestKey = MEMORY_CACHE.keys().next().value;
+    if (oldestKey !== undefined) MEMORY_CACHE.delete(oldestKey);
   }
 
   const data = await fetcher();
@@ -149,6 +155,62 @@ export function withCacheKey(url: string, cacheKey?: string | number | null): st
 
   const separator = url.includes("?") ? "&" : "?";
   return `${url}${separator}v=${encodeURIComponent(String(cacheKey))}`;
+}
+
+export async function apiGet<T>(path: string, fallback: T, errorMsg: string, options?: { timeoutMs?: number }): Promise<T> {
+  if (!API_BASE_URL) {
+    return fallback;
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, { timeoutMs: options?.timeoutMs });
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response, errorMsg));
+  }
+  return (await response.json()) as T;
+}
+
+export async function apiPost<T>(path: string, body: unknown, errorMsg: string, demoError?: string, options?: { timeoutMs?: number }): Promise<T> {
+  if (!API_BASE_URL) {
+    throw new Error(demoError ?? "演示模式下无法执行此操作。");
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    timeoutMs: options?.timeoutMs,
+  });
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response, errorMsg));
+  }
+  return (await response.json()) as T;
+}
+
+export async function apiPut<T>(path: string, body: unknown, errorMsg: string, demoError?: string, options?: { timeoutMs?: number }): Promise<T> {
+  if (!API_BASE_URL) {
+    throw new Error(demoError ?? "演示模式下无法执行此操作。");
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    timeoutMs: options?.timeoutMs,
+  });
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response, errorMsg));
+  }
+  return (await response.json()) as T;
+}
+
+export async function apiDelete<T>(path: string, errorMsg: string, demoError?: string): Promise<T> {
+  if (!API_BASE_URL) {
+    throw new Error(demoError ?? "演示模式下无法执行此操作。");
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response, errorMsg));
+  }
+  return (await response.json()) as T;
 }
 
 export { demoModelCatalog, demoResult };

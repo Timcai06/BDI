@@ -10,8 +10,11 @@ import {
   API_BASE_URL,
   DIAGNOSIS_INFLIGHT,
   DIAGNOSIS_TEXT_CACHE,
+  MAX_CACHE_SIZE,
   MEMORY_CACHE,
   PREDICT_TIMEOUT_MS,
+  apiDelete,
+  apiPost,
   cachedFetch,
   cloneDemoResult,
   demoModelCatalog,
@@ -177,19 +180,12 @@ export async function deleteResult(imageId: string): Promise<void> {
   if (!API_BASE_URL) {
     return;
   }
-
   const encodedImageId = encodeImageId(imageId);
+  const cacheKey = `${API_BASE_URL}/results/${encodedImageId}`;
 
   try {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/results/${encodedImageId}`, {
-      method: "DELETE"
-    });
-
-    if (!response.ok) {
-      throw new Error(await readErrorMessage(response, "删除记录失败。"));
-    }
-
-    MEMORY_CACHE.delete(`${API_BASE_URL}/results/${encodedImageId}`);
+    await apiDelete(`/results/${encodedImageId}`, "删除记录失败。");
+    MEMORY_CACHE.delete(cacheKey);
     invalidateResultListCaches();
   } catch (error) {
     if (error instanceof Error) {
@@ -223,22 +219,18 @@ export async function batchDeleteResults(imageIds: string[]): Promise<BatchDelet
   }
 
   try {
-    const response = await fetchWithTimeout(`${API_BASE_URL}/results/batch-delete`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image_ids: imageIds })
-    });
-
-    if (!response.ok) {
-      throw new Error(await readErrorMessage(response, "批量删除记录失败。"));
-    }
+    const result = await apiPost<BatchDeleteResultsResponse>(
+      "/results/batch-delete",
+      { image_ids: imageIds },
+      "批量删除记录失败。",
+    );
 
     for (const imageId of imageIds) {
       MEMORY_CACHE.delete(`${API_BASE_URL}/results/${encodeImageId(imageId)}`);
     }
     invalidateResultListCaches();
 
-    return (await response.json()) as BatchDeleteResultsResponse;
+    return result;
   } catch (error) {
     if (error instanceof Error) {
       throw error;
@@ -374,6 +366,10 @@ export async function getDiagnosisText(imageId: string): Promise<string> {
         content += decoder.decode(value, { stream: true });
       }
       content += decoder.decode();
+      if (DIAGNOSIS_TEXT_CACHE.size >= MAX_CACHE_SIZE) {
+        const oldestKey = DIAGNOSIS_TEXT_CACHE.keys().next().value;
+        if (oldestKey !== undefined) DIAGNOSIS_TEXT_CACHE.delete(oldestKey);
+      }
       DIAGNOSIS_TEXT_CACHE.set(imageId, content);
       return content;
     } finally {
@@ -440,20 +436,14 @@ export async function enhanceResultImage(payload: {
   requestedBy: string;
   reason?: string;
 }): Promise<PredictionResult> {
-  if (!API_BASE_URL) {
-    throw new Error("演示模式下无法生成增强结果。");
-  }
-  const response = await fetchWithTimeout(`${API_BASE_URL}/results/${encodeURIComponent(payload.imageId)}/enhance`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  return apiPost(
+    `/results/${encodeURIComponent(payload.imageId)}/enhance`,
+    {
       requested_by: payload.requestedBy,
-      reason: payload.reason ?? null
-    }),
-    timeoutMs: PREDICT_TIMEOUT_MS
-  });
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response, "增强结果生成失败。"));
-  }
-  return (await response.json()) as PredictionResult;
+      reason: payload.reason ?? null,
+    },
+    "增强结果生成失败。",
+    "演示模式下无法生成增强结果。",
+    { timeoutMs: PREDICT_TIMEOUT_MS },
+  );
 }

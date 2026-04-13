@@ -12,6 +12,9 @@ import type {
 import {
   API_BASE_URL,
   PREDICT_TIMEOUT_MS,
+  apiDelete,
+  apiGet,
+  apiPost,
   buildQuery,
   fetchWithTimeout,
   readErrorMessage,
@@ -26,9 +29,6 @@ export async function listV1Batches(params?: {
 }): Promise<BatchListV1Response> {
   const limit = params?.limit ?? 50;
   const offset = params?.offset ?? 0;
-  if (!API_BASE_URL) {
-    return { items: [], total: 0, limit, offset };
-  }
   const query = buildQuery({
     limit,
     offset,
@@ -36,11 +36,7 @@ export async function listV1Batches(params?: {
     status_filter: params?.statusFilter,
     has_failures: params?.hasFailures,
   });
-  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/batches${query}`);
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response, "批次列表加载失败。"));
-  }
-  return (await response.json()) as BatchListV1Response;
+  return apiGet(`/api/v1/batches${query}`, { items: [], total: 0, limit, offset }, "批次列表加载失败。");
 }
 
 export async function createV1Batch(payload: {
@@ -52,13 +48,9 @@ export async function createV1Batch(payload: {
   enhancementMode?: "off" | "auto" | "always";
   batchCode?: string;
 }): Promise<BatchListV1Response["items"][number]> {
-  if (!API_BASE_URL) {
-    throw new Error("演示模式下无法创建批次。");
-  }
-  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/batches`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  return apiPost(
+    "/api/v1/batches",
+    {
       bridge_id: payload.bridgeId,
       batch_code: payload.batchCode ?? null,
       source_type: payload.sourceType,
@@ -66,25 +58,14 @@ export async function createV1Batch(payload: {
       created_by: payload.createdBy ?? null,
       inspection_label: payload.inspectionLabel ?? null,
       enhancement_mode: payload.enhancementMode ?? "always",
-    }),
-  });
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response, "批次创建失败。"));
-  }
-  return (await response.json()) as BatchListV1Response["items"][number];
+    },
+    "批次创建失败。",
+    "演示模式下无法创建批次。",
+  );
 }
 
 export async function deleteV1Batch(batchId: string): Promise<BatchDeleteV1Response> {
-  if (!API_BASE_URL) {
-    throw new Error("演示模式下无法删除批次。");
-  }
-  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/batches/${encodeURIComponent(batchId)}`, {
-    method: "DELETE",
-  });
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response, "批次删除失败。"));
-  }
-  return (await response.json()) as BatchDeleteV1Response;
+  return apiDelete(`/api/v1/batches/${encodeURIComponent(batchId)}`, "批次删除失败。", "演示模式下无法删除批次。");
 }
 
 export async function ingestV1BatchItems(payload: {
@@ -118,20 +99,11 @@ export async function ingestV1BatchItems(payload: {
 }
 
 export async function getV1BatchStats(batchId: string): Promise<BatchStatsV1Response> {
-  if (!API_BASE_URL) {
-    return {
-      batch_id: batchId,
-      status_breakdown: {},
-      review_breakdown: {},
-      category_breakdown: {},
-      alert_breakdown: {},
-    };
-  }
-  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/batches/${encodeURIComponent(batchId)}/stats`);
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response, "批次统计加载失败。"));
-  }
-  return (await response.json()) as BatchStatsV1Response;
+  return apiGet(
+    `/api/v1/batches/${encodeURIComponent(batchId)}/stats`,
+    { batch_id: batchId, status_breakdown: {}, review_breakdown: {}, category_breakdown: {}, alert_breakdown: {} },
+    "批次统计加载失败。",
+  );
 }
 
 export async function listV1BatchItems(
@@ -140,54 +112,40 @@ export async function listV1BatchItems(
   offset: number = 0,
   relativePathPrefix?: string,
 ): Promise<BatchItemListV1Response> {
-  if (!API_BASE_URL) {
-    return { items: [], total: 0, limit, offset };
-  }
   const query = buildQuery({
     limit,
     offset,
     relative_path_prefix: relativePathPrefix || undefined,
   });
-  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/batches/${encodeURIComponent(batchId)}/items${query}`);
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response, "批次图片列表加载失败。"));
-  }
-  return (await response.json()) as BatchItemListV1Response;
+  return apiGet(
+    `/api/v1/batches/${encodeURIComponent(batchId)}/items${query}`,
+    { items: [], total: 0, limit, offset },
+    "批次图片列表加载失败。",
+  );
 }
 
 export async function getV1BatchItemDetail(batchItemId: string): Promise<BatchItemDetailV1Response> {
-  if (!API_BASE_URL) {
-    throw new Error("演示模式下没有批次图片详情。");
-  }
-  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/batch-items/${encodeURIComponent(batchItemId)}`);
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response, "图片详情加载失败。"));
-  }
-  return (await response.json()) as BatchItemDetailV1Response;
+  return apiGet(
+    `/api/v1/batch-items/${encodeURIComponent(batchItemId)}`,
+    null as never,
+    "图片详情加载失败。",
+  );
 }
 
 export async function getV1BatchItemResult(batchItemId: string): Promise<BatchItemResultV1Response> {
-  if (!API_BASE_URL) {
-    throw new Error("演示模式下没有批次识别结果。");
-  }
-  const response = await fetchWithTimeout(
-    `${API_BASE_URL}/api/v1/batch-items/${encodeURIComponent(batchItemId)}/result`,
+  return apiGet(
+    `/api/v1/batch-items/${encodeURIComponent(batchItemId)}/result`,
+    null as never,
+    "图片识别结果加载失败。",
   );
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response, "图片识别结果加载失败。"));
-  }
-  return (await response.json()) as BatchItemResultV1Response;
 }
 
 export async function getV1Task(taskId: string): Promise<TaskV1> {
-  if (!API_BASE_URL) {
-    throw new Error("演示模式下没有任务详情。");
-  }
-  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/tasks/${encodeURIComponent(taskId)}`);
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response, "任务详情加载失败。"));
-  }
-  return (await response.json()) as TaskV1;
+  return apiGet(
+    `/api/v1/tasks/${encodeURIComponent(taskId)}`,
+    null as never,
+    "任务详情加载失败。",
+  );
 }
 
 export async function retryV1Task(payload: {
@@ -195,19 +153,13 @@ export async function retryV1Task(payload: {
   requestedBy: string;
   reason?: string;
 }): Promise<TaskRetryV1Response> {
-  if (!API_BASE_URL) {
-    throw new Error("演示模式下无法重试任务。");
-  }
-  const response = await fetchWithTimeout(`${API_BASE_URL}/api/v1/tasks/${encodeURIComponent(payload.taskId)}/retry`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  return apiPost(
+    `/api/v1/tasks/${encodeURIComponent(payload.taskId)}/retry`,
+    {
       requested_by: payload.requestedBy,
       reason: payload.reason ?? null,
-    }),
-  });
-  if (!response.ok) {
-    throw new Error(await readErrorMessage(response, "任务重试失败。"));
-  }
-  return (await response.json()) as TaskRetryV1Response;
+    },
+    "任务重试失败。",
+    "演示模式下无法重试任务。",
+  );
 }
